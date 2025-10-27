@@ -1149,12 +1149,12 @@ window.calculateModalChiPhi = function(input) {
         const title = 'Tra cứu thực hiện công việc';
         document.getElementById('modalTitle').innerHTML = `<h2>${title}</h2>`;
 
-        // Giữ nguyên headers, chỉ thay đổi cách render nội dung cột "Nội dung công việc"
-        const headers = [ 
-            {text: 'Ngày thực hiện', width: '10%'}, 
-            {text: 'Nội dung công việc', width: '50%'}, // Giữ nguyên header
-            {text: 'ĐV thực hiện', width: '10%'}, 
-            {text: 'Thành tiền', width: '15%'}, 
+        // Giữ nguyên headers
+        const headers = [
+            {text: 'Ngày thực hiện', width: '10%'},
+            {text: 'Nội dung công việc', width: '50%'},
+            {text: 'ĐV thực hiện', width: '10%'},
+            {text: 'Thành tiền', width: '15%'},
             {text: 'Hành động', width: '15%'}
         ];
         let table = createModalTable(headers);
@@ -1162,25 +1162,28 @@ window.calculateModalChiPhi = function(input) {
         document.getElementById('modalBody').innerHTML = table;
         document.getElementById('modalSaveButton').style.display = 'none';
         document.getElementById('modalDeleteButton').style.display = 'none';
+        // Thêm nút Xuất Excel vào footer trái
         document.getElementById('modal-footer-left').innerHTML = '<button class="btn-success" onclick="exportExecutionSearchExcel()">Xuất Excel</button>';
         modal.style.display = 'block';
 
         try {
             statusDiv.className = 'success';
             statusDiv.innerText = 'Đang tải dữ liệu thực hiện...';
-            executionGroups.clear();
+            executionGroups.clear(); // Xóa dữ liệu cũ
 
             const parentQuery = ref(db, getParentCollectionName());
             const parentSnapshot = await get(parentQuery);
-            if (!parentSnapshot.exists()) { 
-                document.getElementById('modalBody').innerHTML = '<p>Không có dữ liệu thực hiện.</p>'; 
-                statusDiv.innerText = ''; 
-                return; 
+            if (!parentSnapshot.exists()) {
+                document.getElementById('modalBody').innerHTML = '<p>Không có dữ liệu thực hiện.</p>';
+                statusDiv.innerText = '';
+                // Quan trọng: Xóa nút xuất excel nếu không có dữ liệu
+                document.getElementById('modal-footer-left').innerHTML = '';
+                return;
             }
 
             const parentsData = parentSnapshot.val();
             const allExecutions = [];
-            
+
             // Hàm processNodeForExecutions giữ nguyên
             const processNodeForExecutions = (node, path) => {
                 if (node.executions) {
@@ -1193,6 +1196,7 @@ window.calculateModalChiPhi = function(input) {
                             parentChildPath: path.split('/').slice(0, 4).join('/'),
                             noiDung: node.noiDung || 'Không có tên',
                             dvThucHien: node.dvThucHien || ''
+                            // hoSoLink đã có sẵn trong exec nếu tồn tại
                         };
                         allExecutions.push(executionWithPath);
                     }
@@ -1218,16 +1222,22 @@ window.calculateModalChiPhi = function(input) {
                     }
                 }
             };
-            
+
             for (const parentId in parentsData) {
                 processNodeForExecutions(parentsData[parentId], `${getParentCollectionName()}/${parentId}`);
             }
-            
-            allExecutions.sort((a, b) => new Date(b.ngayThucHien) - new Date(a.ngayThucHien));
-            
+
+            allExecutions.sort((a, b) => {
+                const dateA = new Date(a.ngayThucHien || 0);
+                const dateB = new Date(b.ngayThucHien || 0);
+                 // Sắp xếp theo ngày giảm dần, sau đó theo timestamp giảm dần nếu ngày giống nhau
+                 if (dateB - dateA !== 0) return dateB - dateA;
+                 return (b.timestamp || 0) - (a.timestamp || 0);
+             });
+
             // Gom nhóm executionGroups giữ nguyên
             allExecutions.forEach(exec => {
-                const timestampKey = String(exec.timestamp || exec.ngayThucHien); 
+                const timestampKey = String(exec.timestamp || exec.ngayThucHien);
                 if (!executionGroups.has(timestampKey)) {
                     executionGroups.set(timestampKey, {});
                 }
@@ -1240,51 +1250,65 @@ window.calculateModalChiPhi = function(input) {
             });
 
             let tbody = '';
-            executionGroups.forEach((group, timestampKey) => {
-                const allExecsInGroup = Object.values(group).flat(); // Lấy tất cả exec trong nhóm timestamp này
-                if (allExecsInGroup.length === 0) return; // Bỏ qua nếu nhóm rỗng
+            // Sử dụng sortedTimestamps để đảm bảo thứ tự hiển thị đúng
+             const sortedTimestamps = Array.from(executionGroups.keys()).sort((a, b) => {
+                 const firstExecA = Object.values(executionGroups.get(a) || {})?.[0]?.[0];
+                 const firstExecB = Object.values(executionGroups.get(b) || {})?.[0]?.[0];
+                 const dateA = new Date(firstExecA?.ngayThucHien || 0);
+                 const dateB = new Date(firstExecB?.ngayThucHien || 0);
+                 if (dateB - dateA !== 0) return dateB - dateA;
+                 return (firstExecB?.timestamp || 0) - (firstExecA?.timestamp || 0);
+             });
+
+            for (const timestampKey of sortedTimestamps) { // Duyệt theo timestamp đã sắp xếp
+                 const group = executionGroups.get(timestampKey);
+                 const allExecsInGroup = Object.values(group).flat();
+                 if (allExecsInGroup.length === 0) continue;
 
                 const firstExec = allExecsInGroup[0];
                 const totalThanhTien = allExecsInGroup.reduce((sum, exec) => sum + (exec.thanhTien || 0), 0);
 
-                // === LẤY TÊN KHU VỰC ===
                 let khuVuc = 'Không xác định';
                 const pathParts = firstExec.parentLeafNodePath.split('/');
                 if (pathParts.length > 1) {
-                    const parentId = pathParts[1]; // ID của công việc cấp 1
-                    khuVuc = parentNoiDungMap.get(parentId) || parentId; // Lấy tên từ map
+                    const parentId = pathParts[1];
+                    khuVuc = parentNoiDungMap.get(parentId) || parentId;
                 }
-                // ========================
 
-                // === TẠO NỘI DUNG CHO CỘT "Nội dung công việc" ===
-                let noiDungCellHtml = `<strong style="color: #0056b3;">${khuVuc}</strong><br>`; // Dòng 1: Tên Khu vực
+                let noiDungCellHtml = `<strong style="color: #0056b3;">${khuVuc}</strong><br>`;
                 allExecsInGroup.forEach((exec, index) => {
                     noiDungCellHtml += `- ${exec.noiDung || 'N/A'}`;
                     if (index < allExecsInGroup.length - 1) {
-                        noiDungCellHtml += '<br>'; // Thêm xuống dòng giữa các công việc
+                        noiDungCellHtml += '<br>';
                     }
                 });
-                // ===============================================
 
-                // === TẠO HTML HÀNG ===
+                // --- KIỂM TRA hoSoLink VÀ TẠO NÚT ---
+                const hasHoSoLink = allExecsInGroup.some(exec => exec.hoSoLink && exec.hoSoLink.trim() !== '');
+                const hoSoButtonClass = hasHoSoLink ? 'btn-danger' : 'btn-info'; // Đỏ nếu có link, xanh nếu chưa
+                const hoSoButtonText = hasHoSoLink ? 'Thay HS' : 'Hồ sơ';
+                // ===================================
+
                 tbody += `<tr>
                     <td>${firstExec.ngayThucHien}</td>
-                    <td>${noiDungCellHtml}</td> 
+                    <td>${noiDungCellHtml}</td>
                     <td>${firstExec.dvThucHien}</td>
                     <td class="text-right">${formatNumber(totalThanhTien)}</td>
                     <td>
-                        <button class="btn-info btn-action btn-profile-exec" onclick="openExecutionProfile('${timestampKey}')">Hồ sơ</button>
+                        <button class="${hoSoButtonClass} btn-action btn-profile-exec" onclick="openExecutionProfile('${timestampKey}')">${hoSoButtonText}</button>
                         <button class="btn-warning btn-action btn-edit-exec" onclick="openExecutionEdit('${timestampKey}')">Sửa</button>
                     </td>
                 </tr>`;
-                // ======================
-            });
+            } // Kết thúc forEach timestampKey
+
             document.querySelector('#dataModal .modal-table tbody').innerHTML = tbody;
             statusDiv.innerText = '';
         } catch (error) {
             console.error("Lỗi khi tải dữ liệu thực hiện:", error);
             statusDiv.className = 'error';
             statusDiv.innerText = `Lỗi: ${error.message}`;
+             // Quan trọng: Xóa nút xuất excel nếu có lỗi
+             document.getElementById('modal-footer-left').innerHTML = '';
         }
     };
 
