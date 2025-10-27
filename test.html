@@ -628,15 +628,19 @@ let gisInited = false;
     const loginError = document.getElementById('login-error');
 
 // Hàm gọi lại sau khi nhận token
+    // Hàm gọi lại sau khi nhận token
     function tokenResponseCallback(resp) {
         if (resp.error !== undefined) {
             statusDiv.className = 'error';
             statusDiv.innerText = `Lỗi xác thực Google: ${resp.error}`;
             throw (resp);
         }
-        console.log('Xác thực Google thành công.');
-        // Sau khi xác thực thành công, có thể tự động tiếp tục hành động (ví dụ: mở modal upload)
-        // Tuy nhiên, logic này sẽ nằm trong hàm gọi xác thực ban đầu.
+        console.log('Xác thực Google thành công (Callback).');
+        // === THÊM DÒNG NÀY ===
+        gapi.client.setToken(resp); // Lưu token vào thư viện GAPI client
+        // ======================
+        // Cập nhật giao diện (nếu chưa được cập nhật bởi luồng promise)
+        // updateSigninStatus(true); // Có thể không cần nếu requestGoogleAuth xử lý
     }
 
     // Hàm xử lý việc yêu cầu xác thực
@@ -647,7 +651,7 @@ let gisInited = false;
                  statusDiv.innerText = 'Thư viện Google chưa sẵn sàng. Vui lòng thử lại sau giây lát.';
                  return reject(new Error('Google libraries not ready'));
              }
-             
+
              // Kiểm tra xem đã có token chưa
              const currentToken = gapi.client.getToken();
              if (currentToken && currentToken.access_token) {
@@ -657,21 +661,24 @@ let gisInited = false;
 
              // Nếu chưa có token, yêu cầu người dùng cấp quyền
              console.log('Yêu cầu cấp quyền Google Drive...');
+
+             // *** Đảm bảo callback được gán TRƯỚC khi gọi requestAccessToken ***
              tokenClient.callback = (resp) => { // Gán callback tạm thời
                  if (resp.error) {
                      statusDiv.className = 'error';
-                     statusDiv.innerText = `Lỗi cấp quyền: ${resp.error}`;
-                     console.error('Lỗi cấp quyền Google:', resp.error);
-                     tokenClient.callback = () => {}; // Xóa callback
+                     statusDiv.innerText = `Lỗi cấp quyền: ${resp.error_description || resp.error}`; // Hiển thị mô tả lỗi nếu có
+                     console.error('Lỗi cấp quyền Google:', resp);
+                     tokenClient.callback = tokenResponseCallback; // *** Khôi phục callback mặc định ***
                      return reject(resp.error);
                  }
-                 // Xác thực thành công
+                 // Xác thực thành công -> tokenResponseCallback mặc định đã chạy và setToken
                  statusDiv.className = 'success';
                  statusDiv.innerText = 'Đã cấp quyền thành công. Bạn có thể tải tệp lên.';
-                 console.log('Cấp quyền thành công.');
-                 tokenClient.callback = () => {}; // Xóa callback
+                 console.log('Cấp quyền thành công (Promise resolved).');
+                 tokenClient.callback = tokenResponseCallback; // *** Khôi phục callback mặc định ***
                  resolve(true);
              };
+             // *** Gọi requestAccessToken SAU KHI gán callback ***
              tokenClient.requestAccessToken({ prompt: 'consent' }); // Hiển thị popup yêu cầu quyền
         });
     }
