@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AT-CL-MT Dashboard</title>
+    
+    <!-- Script cho nội dung trung tâm (Tailwind) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Script cho nội dung 2 bên (Chart.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Script cho nội dung 2 bên (Firebase) -->
+    <!-- Chúng ta sẽ import các hàm trong script type="module" ở cuối body -->
+
+    <style>
+        /* CSS cho nội dung trung tâm (từ index.HTML) */
+        .circle-text {
+            text-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+        }
+        .orbit-container {
+            min-width: 300px;
+            min-height: 300px;
+            width: 80vh;
+            height: 80vh;
+            max-width: 800px;
+            max-height: 800px;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2), 
+                            inset 0px -5px 10px rgba(0,0,0,0.4), 
+                            0 0 10px #87CEEB;
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 15px 25px rgba(0, 0, 0, 0.3), 
+                            inset 0px -5px 15px rgba(0,0,0,0.5), 
+                            0 0 25px #87CEEB, 0 0 10px #ffffff;
+            }
+        }
+
+        .orbit-circle {
+            background: radial-gradient(circle at 35% 35%, #87CEEB, #0077b6);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2), inset 0px -5px 10px rgba(0,0,0,0.4);
+            transition: left 2s cubic-bezier(0.25, 1, 0.5, 1), 
+                        top 2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .orbit-circle:hover {
+            transform: scale(1.1) translateY(-5px); 
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.3), inset 0px -5px 15px rgba(0,0,0,0.5);
+        }
+
+        .pulsating {
+            animation: pulse-glow 4s ease-in-out infinite;
+        }
+        
+        /* === CSS CHUNG CHO 2 BÊN (TỪ trai.html/phai.html) === */
+        /* Lưu ý: Tất cả các selector đã được thêm tiền tố 
+           #left-sidebar, #right-sidebar 
+           để "scope" (giới hạn) CSS, tránh xung đột.
+        */
+        
+        /* Điều chỉnh font chữ và padding chung cho 2 bên để vừa vặn 15% */
+        #left-sidebar,
+        #right-sidebar {
+            font-size: 10px; /* Giảm font chữ cơ bản */
+            line-height: 1.4;
+            box-sizing: border-box; /* Đảm bảo padding không làm vỡ layout */
+            border-left: 1px solid #ddd;
+            border-right: 1px solid #ddd;
+        }
+        
+        /* Ghi đè padding/margin của body gốc từ 2 file kia */
+        #left-sidebar-content,
+        #right-sidebar-content {
+            padding: 8px; /* Giảm padding */
+            margin: 0;
+            background-color: #f4f4f9;
+        }
+
+        #left-sidebar h1,
+        #right-sidebar h1 {
+            color: #333;
+            text-align: center;
+            font-size: 1.2em; /* Sử dụng 'em' để co dãn theo font-size cơ bản */
+        }
+
+        #left-sidebar .header-controls,
+        #right-sidebar .header-controls {
+            display: flex;
+            flex-direction: column; /* Chuyển sang cột cho vừa */
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px; /* Giảm margin */
+            padding: 5px; /* Giảm padding */
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        #left-sidebar .header-controls div,
+        #right-sidebar .header-controls div {
+             margin-top: 5px; /* Thêm khoảng cách khi xếp cột */
+        }
+
+        #left-sidebar .header-controls label,
+        #right-sidebar .header-controls label {
+            font-weight: bold;
+            margin-right: 0; /* Bỏ margin */
+            margin-bottom: 5px; /* Thêm margin dưới */
+            font-size: 1.1em;
+        }
+
+        #left-sidebar .yearSelect, /* Đổi từ ID sang class */
+        #right-sidebar .yearSelect { /* Đổi từ ID sang class */
+            padding: 4px 6px; /* Giảm padding */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1.1em;
+            background-color: white;
+            cursor: pointer;
+            width: 100%; /* Cho vừa container */
+        }
+
+        #left-sidebar .charts-container, /* Đổi từ ID sang class */
+        #right-sidebar .charts-container { /* Đổi từ ID sang class */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px; /* Giảm gap */
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        #left-sidebar .summary-parent-card,
+        #right-sidebar .summary-parent-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px; /* Giảm padding */
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            max-width: 600px; 
+            width: 100%; 
+            box-sizing: border-box;
+        }
+
+        #left-sidebar .summary-parent-card h3,
+        #right-sidebar .summary-parent-card h3 {
+            margin-top: 0;
+            color: #007bff;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+            font-size: 1.15em; /* Giảm font */
+            text-align: center;
+        }
+
+        /* Ẩn cột thông tin chi tiết để tiết kiệm không gian */
+        #left-sidebar .summary-columns-container,
+        #right-sidebar .summary-columns-container {
+            display: none;
+        }
+
+        #left-sidebar .summary-charts-container,
+        #right-sidebar .summary-charts-container {
+            display: flex;
+            flex-direction: row; /* Thay đổi từ column sang row */
+            flex-wrap: wrap; /* Cho phép rớt hàng */
+            justify-content: space-evenly; /* Căn đều 2 bên */
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            flex-grow: 1;
+        }
+
+        #left-sidebar .chart-wrapper,
+        #right-sidebar .chart-wrapper {
+            width: 48%; /* Đặt chiều rộng để 2 chart vừa 1 hàng */
+            max-width: 100px; /* Giảm 50% so với 200px ban đầu */
+            text-align: center;
+            position: relative;
+            margin-bottom: 10px; /* Thêm margin dưới cho các chart */
+        }
+         
+        /* Bỏ quy tắc :first-child vì giờ chúng nằm ngang */
+        /*
+        #left-sidebar .chart-wrapper:first-child,
+        #right-sidebar .chart-wrapper:first-child {
+             margin-bottom: 10px;
+        }
+        */
+
+        #left-sidebar .chart-wrapper p,
+        #right-sidebar .chart-wrapper p {
+            font-size: 1.1em;
+            margin-top: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        #left-sidebar .status, /* Đổi từ ID sang class */
+        #right-sidebar .status { /* Đổi từ ID sang class */
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        #left-sidebar .status.error,
+        #right-sidebar .status.error {
+            color: #dc3545;
+        }
+
+        #left-sidebar .status.success,
+        #right-sidebar .status.success {
+            color: #28a745;
+        }
+        
+        #left-sidebar .connection-status, /* Đổi từ ID sang class */
+        #right-sidebar .connection-status { /* Đổi từ ID sang class */
+            margin-left: 0; 
+            font-style: italic;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen overflow-x-hidden bg-white font-sans">
+
+    <!-- === SIDEBAR TRÁI (NỘI DUNG TỪ trai.html) === -->
+    <aside id="left-sidebar" class="flex-shrink-0 w-[22%] h-screen overflow-y-auto">
+        <!-- 
+          Lưu ý: Các ID gốc đã được đổi thành CLASS 
+          để JavaScript có thể truy vấn trong phạm vi (scope)
+        -->
+        <div id="left-sidebar-content">
+            <div class="header-controls">
+                               <!-- Thêm label riêng và đổi ID -> class -->
+                <select class="yearSelect" id="yearSelectLeft"></select>
+                <div class="connection-status" style="font-style: italic;">Đang kết nối...</div>
+            </div>
+
+            <div class="status"></div> <!-- Đổi từ ID sang class -->
+            <div class="charts-container"></div> <!-- Đổi từ ID sang class -->
+        </div>
+    </aside>
+
+    <!-- === NỘI DUNG CHÍNH (TỪ index.HTML) === -->
+    <div id="main-content" class="flex-grow flex flex-col items-center justify-center min-h-screen p-2 md:p-4">
+        <header class="text-center mb-2 md:mb-3">
+            <h1 style="color: #008037; font-weight: bold; text-transform: uppercase; text-align: center; flex-grow: 1; font-size: 2rem;">
+                    KẾ HOẠCH<br>AN TOÀN - CHẤT LƯỢNG - MÔI TRƯỜNG
+            </h1>
+            <p class="text-lg text-gray-600 mt-2">Chọn một đơn vị để truy cập vào trang web tương ứng.</p>
+        </header>
+    
+        <main id="main-container" class="relative flex items-center justify-center orbit-container">
+            <div class="z-0"> 
+                <img src="PVGLPG.gif" alt="Logo" style="width: 200px; height: auto; margin-bottom: 20px;">
+            </div>
+        </main>
+    
+        <!-- Script cho nội dung chính -->
+        <script>
+            const units = [
+                { name: "CÁC TỔNG KHO TẠI HẢI PHÒNG", link: "https://chinhanhmienbac.github.io/atclmt/tk" },
+                { name: "CHI NHÁNH MIỀN BẮC", link: "https://chinhanhmienbac.github.io/atclmt/cnmb" }
+            ];
+    
+            const container = document.getElementById('main-container');
+    
+            function setupCircles() {
+                container.querySelectorAll('.orbit-circle').forEach(el => el.remove());
+    
+                const unitCount = units.length;
+                const containerSize = container.offsetWidth;
+                const radius = containerSize * 0.37;
+                const circleSize = containerSize * 0.22;
+    
+                units.forEach((unit, index) => {
+                    const circle = document.createElement('a');
+                    circle.href = unit.link;
+                    circle.target = "_blank";
+                    circle.rel = "noopener noreferrer";
+                    
+                    circle.className = 'orbit-circle absolute flex items-center justify-center p-2 rounded-full text-white text-center font-bold';
+                    
+                    circle.innerHTML = `<span class="circle-text">${unit.name}</span>`;
+                    circle.style.width = `${circleSize}px`;
+                    circle.style.height = `${circleSize}px`;
+                    circle.style.fontSize = `${circleSize * 0.1}px`;
+    
+                    const initialX = (containerSize / 2) - (circleSize / 2);
+                    const initialY = (containerSize / 2) - (circleSize / 2);
+                    circle.style.left = `${initialX}px`;
+                    circle.style.top = `${initialY}px`;
+                    
+                    container.appendChild(circle);
+    
+                    const angle = index * Math.PI; 
+                    
+                    const finalX = (containerSize / 2) + radius * Math.cos(angle) - (circleSize / 2);
+                    const finalY = (containerSize / 2) + radius * Math.sin(angle) - (circleSize / 2);
+    
+                    setTimeout(() => {
+                        circle.style.left = `${finalX}px`;
+                        circle.style.top = `${finalY}px`;
+                    }, 50);
+    
+                    setTimeout(() => {
+                        circle.classList.add('pulsating');
+                        circle.style.animationDelay = `${index * 0.3}s`;
+                    }, 2000); 
+                });
+            }
+            
+            window.onload = setupCircles;
+            window.onresize = setupCircles;
+        </script>
+    </div>
+
+    <!-- === SIDEBAR PHẢI (NỘI DUNG TỪ phai.html) === -->
+    <aside id="right-sidebar" class="flex-shrink-0 w-[22%] h-screen overflow-y-auto">
+        <!-- 
+          Lưu ý: Các ID gốc đã được đổi thành CLASS 
+          để JavaScript có thể truy vấn trong phạm vi (scope)
+        -->
+        <div id="right-sidebar-content">
+            <div class="header-controls">
+                                <!-- Thêm label riêng và đổi ID -> class -->
+                <select class="yearSelect" id="yearSelectRight"></select>
+                <div class="connection-status" style="font-style: italic;">Đang kết nối...</div>
+            </div>
+
+            <div class="status"></div> <!-- Đổi từ ID sang class -->
+            <div class="charts-container"></div> <!-- Đổi từ ID sang class -->
+        </div>
+    </aside>
+
+
+    <!-- === SCRIPT CHUNG CHO 2 BÊN (ĐÃ TÁI CẤU TRÚC) === -->
+    <script type="module">
+        // Import các hàm cần thiết (chỉ 1 lần)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+        // Plugin Chart.js (chỉ 1 lần)
+        const centerTextPlugin = {
+            id: 'centerText',
+            afterDraw: function(chart) {
+                if (chart.data.datasets.length === 0) return;
+                const data = chart.data.datasets[0].data;
+                if (data.length === 0) return;
+
+                const executed = data[0] || 0;
+                const remaining = data[1] || 0;
+                const total = executed + remaining;
+                const percentage = total > 0 ? Math.round((executed / total) * 100) : 0;
+                const text = `${percentage}%`; 
+
+                const ctx = chart.ctx;
+                const {width, height} = chart;
+                const x = width / 2;
+                const y = height / 2;
+                
+                ctx.save();
+                const fontSize = (height / 57).toFixed(2); // Gấp đôi kích thước font (114 / 2 = 57)
+                ctx.font = `bold ${fontSize}em sans-serif`;
+                ctx.fillStyle = chart.data.datasets[0].backgroundColor[0] || '#333';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                ctx.fillText(text, x, y);
+                ctx.restore();
+            }
+        };
+        Chart.register(centerTextPlugin);
+
+        // --- Config Firebase cho 2 bên ---
+        const firebaseConfigTrai = {
+            apiKey: "AIzaSyAJdhRXAwRoDbIN471Q4v2DNUhBeNAenYM",
+            authDomain: "atclmt-cnmb.firebaseapp.com",
+            databaseURL: "https://atclmt-cnmb-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "atclmt-cnmb",
+            storageBucket: "atclmt-cnmb.firebasestorage.app",
+            messagingSenderId: "104442232829",
+            appId: "1:104442232829:web:06fca4f401ded5d1176394",
+            measurementId: "G-9YXBXBL7QW"
+        };
+
+        const firebaseConfigPhai = {
+            apiKey: "AIzaSyC2mX-vBKLv9COzjJyGGUYCPCF8O2gd7Mk",
+            authDomain: "atclmt-hp.firebaseapp.com",
+            databaseURL: "https://atclmt-hp-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "atclmt-hp",
+            storageBucket: "atclmt-hp.firebasestorage.app",
+            messagingSenderId: "1073263541013",
+            appId: "1:1073263541013:web:f259c87d81bdbb3f43871c",
+            measurementId: "G-XSZ89WBPTS"
+        };
+
+        // --- Các hàm Helper chung ---
+        const formatNumber = (num) => num?.toLocaleString('vi-VN') || '0';
+        function convertTTForDisplay(tt) {
+            return String(tt).replace(/,/g, '.');
+        }
+
+        // Biến lưu trữ các chart đang hoạt động cho mỗi bên
+        let sidebarCharts = {
+            'left-sidebar-content': [],
+            'right-sidebar-content': []
+        };
+
+        /**
+         * Hàm tải và render biểu đồ (đã tái cấu trúc)
+         * @param {string} year - Năm được chọn
+         * @param {string} containerId - ID của div cha (left-sidebar-content | right-sidebar-content)
+         * @param {object} db - Đối tượng database của Firebase đã khởi tạo
+         */
+        async function loadCharts(year, containerId, db) {
+            const container = document.getElementById(containerId);
+            // Sử dụng querySelector bên trong container
+            const statusDiv = container.querySelector('.status');
+            const chartsContainer = container.querySelector('.charts-container');
+            const connectionStatus = container.querySelector('.connection-status');
+
+            // Xóa các biểu đồ cũ CỦA RIÊNG SIDEBAR NÀY
+            sidebarCharts[containerId].forEach(chart => chart.destroy());
+            sidebarCharts[containerId] = [];
+            
+            chartsContainer.innerHTML = '';
+            statusDiv.className = 'status success'; // Reset class
+            statusDiv.innerText = `Đang tải năm ${year}...`;
+
+            try {
+                // 1. Lấy dữ liệu summary
+                const summaryRef = ref(db, `summary_data/${year}`);
+                const summarySnap = await get(summaryRef);
+                if (!summarySnap.exists()) {
+                    throw new Error(`Không có summary_data cho năm ${year}.`);
+                }
+                const summaryData = summarySnap.val();
+
+                // 2. Lấy dữ liệu công việc mẹ
+                const parentCollectionName = `congViecMe${year}`;
+                const parentQuery = ref(db, parentCollectionName);
+                const parentSnapshot = await get(parentQuery);
+                if (!parentSnapshot.exists()) {
+                    throw new Error(`Không có congViecMe cho năm ${year}.`);
+                }
+                const parentsData = parentSnapshot.val();
+                
+                const parents = Object.keys(parentsData)
+                    .map(id => ({ id, ...parentsData[id] }))
+                    .sort((a, b) => a.id.localeCompare(b.id));
+
+                if (parents.length === 0) {
+                     statusDiv.innerText = `Không có dữ liệu đơn vị cho năm ${year}.`;
+                     return;
+                }
+
+                let htmlContent = '';
+
+                // 3. Tạo HTML cho mỗi đơn vị
+                for (const parent of parents) {
+                    const parentId = parent.id;
+                    const parentSummary = summaryData[parentId] || {};
+
+                    const name = parent.noiDung || 'Chưa có tên';
+                    const totalLeafNodesCap1 = parentSummary.totalLeafNodesCap1 || 0;
+                    const executedLeafNodesCap1 = parentSummary.totalExecutedLeafNodesCap1 || 0;
+                    const plannedCost = parent.chiPhi || 0;
+                    const executedCost = parent.chiPhiThucHien || 0;
+
+                    // Thêm canvas với ID duy nhất (an toàn vì parentId là duy nhất trong 1 sidebar)
+                    htmlContent += `
+                        <div class="summary-parent-card">
+                            <h3>${convertTTForDisplay(parentId)}. ${name}</h3>
+                            <div class="summary-charts-container">
+                                <div class="chart-wrapper">
+                                    <canvas id="${containerId}-cap1Chart-${parentId}"></canvas>
+                                    <p>Đầu việc cấp 1</p>
+                                </div>
+                                <div class="chart-wrapper">
+                                    <canvas id="${containerId}-costChart-${parentId}"></canvas>
+                                    <p>Tỷ lệ Chi phí</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 4. Đưa HTML vào trang
+                chartsContainer.innerHTML = htmlContent;
+                statusDiv.innerText = ''; // Xóa thông báo loading
+
+                // 5. Render biểu đồ
+                for (const parent of parents) {
+                    const parentId = parent.id;
+                    const parentSummary = summaryData[parentId] || {};
+
+                    const totalLeafNodesCap1 = parentSummary.totalLeafNodesCap1 || 0;
+                    const executedLeafNodesCap1 = parentSummary.totalExecutedLeafNodesCap1 || 0;
+                    const plannedCost = parent.chiPhi || 0;
+                    const executedCost = parent.chiPhiThucHien || 0;
+
+                    // Biểu đồ Cấp 1
+                    // Truy vấn canvas bằng ID duy nhất đã tạo
+                    const cap1Ctx = document.getElementById(`${containerId}-cap1Chart-${parentId}`).getContext('2d');
+                    const cap1Chart = new Chart(cap1Ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Đã thực hiện', 'Chưa thực hiện'],
+                            datasets: [{
+                                data: [executedLeafNodesCap1, totalLeafNodesCap1 - executedLeafNodesCap1],
+                                backgroundColor: ['#28a745', '#e9ecef'],
+                                borderColor: ['#28a745', '#e9ecef'],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            cutout: '60%',
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: { /* ... callbacks ... */ }
+                            }
+                        }
+                    });
+                    sidebarCharts[containerId].push(cap1Chart); // Thêm vào mảng của sidebar này
+
+                    // Biểu đồ Chi phí
+                    const costCtx = document.getElementById(`${containerId}-costChart-${parentId}`).getContext('2d');
+                    const costChart = new Chart(costCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Đã thực hiện', 'Còn lại'],
+                            datasets: [{
+                                data: [executedCost, plannedCost > executedCost ? plannedCost - executedCost : 0],
+                                backgroundColor: ['#007bff', '#e9ecef'],
+                                borderColor: ['#007bff', '#e9ecef'],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            cutout: '60%',
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: { /* ... callbacks ... */ }
+                            }
+                        }
+                    });
+                    sidebarCharts[containerId].push(costChart); // Thêm vào mảng của sidebar này
+                }
+
+            } catch (error) {
+                console.error(`Lỗi khi tải biểu đồ cho ${containerId}:`, error);
+                statusDiv.className = 'status error';
+                statusDiv.innerText = `Lỗi: ${error.message}`;
+                chartsContainer.innerHTML = '';
+                connectionStatus.textContent = 'Kết nối thất bại!';
+                connectionStatus.style.color = 'red';
+            }
+        }
+        
+        /**
+         * Hàm khởi tạo dropdown (đã tái cấu trúc)
+         */
+        function initializeYearDropdown(containerId, db) {
+            const container = document.getElementById(containerId);
+            const yearSelect = container.querySelector('.yearSelect'); // Dùng class
+            
+            const currentYearValue = new Date().getFullYear();
+            const nextYear = currentYearValue + 1;
+            yearSelect.innerHTML = '';
+            const years = [currentYearValue, nextYear];
+            for (let i = currentYearValue - 1; i >= currentYearValue - 3; i--) {
+                years.unshift(i);
+            }
+            years.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            });
+            yearSelect.value = currentYearValue;
+
+            yearSelect.onchange = () => {
+                loadCharts(yearSelect.value, containerId, db);
+            };
+        }
+
+        /**
+         * Hàm khởi tạo chính cho mỗi sidebar
+         */
+        function initializeSidebar(containerId, config, appName) {
+            try {
+                // Khởi tạo app Firebase với tên duy nhất
+                const app = initializeApp(config, appName);
+                const db = getDatabase(app);
+                
+                const container = document.getElementById(containerId);
+                const connectionStatus = container.querySelector('.connection-status');
+                const yearSelect = container.querySelector('.yearSelect');
+                
+                connectionStatus.textContent = 'Đã kết nối.';
+                connectionStatus.style.color = 'green';
+                
+                initializeYearDropdown(containerId, db);
+                // Tải biểu đồ cho năm hiện tại
+                loadCharts(yearSelect.value, containerId, db);
+
+            } catch (error) {
+                console.error(`Lỗi khởi tạo ${containerId}:`, error);
+                const container = document.getElementById(containerId);
+                container.querySelector('.status').innerText = "Lỗi khởi tạo. Vui lòng kiểm tra console.";
+                container.querySelector('.connection-status').textContent = 'Lỗi!';
+            }
+        }
+
+        // --- KHỞI CHẠY ---
+        // Đợi DOM load xong mới chạy script
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSidebar("left-sidebar-content", firebaseConfigTrai, "appTrai");
+            initializeSidebar("right-sidebar-content", firebaseConfigPhai, "appPhai");
+        });
+
+    </script>
+</body>
+</html>
+
+
