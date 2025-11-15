@@ -3774,7 +3774,7 @@ window.exportPlainDataExcel = async function() {
 };
 
 /**
- * HÀM MỚI: (Nút 3 - ĐÃ SỬA LỖI BOM UTF-16)
+ * HÀM MỚI: (Nút 3 - ĐÃ SỬA LỖI SUBSTRING)
  * Xuất dữ liệu vào Clipboard.
  */
 window.exportToClipboard = async function() {
@@ -3793,15 +3793,20 @@ window.exportToClipboard = async function() {
             skipHeader: false // Giữ lại header
         });
 
-        // === SỬA LỖI QUAN TRỌNG: Loại bỏ cả BOM UTF-8 và UTF-16 ===
-        // \uFEFF là BOM UTF-8
-        // \u00FF\u00FE là BOM UTF-16 (hiển thị là 'ÿþ')
-        if (tsvData.charCodeAt(0) === 0xFEFF || (tsvData.charCodeAt(0) === 0xFF && tsvData.charCodeAt(1) === 0xFE)) {
-            tsvData = tsvData.substring(1);
+        // === SỬA LỖI LẦN CUỐI: Xử lý BOM 1-byte và 2-byte ===
+        
+        // Check for UTF-8 BOM (\uFEFF)
+        if (tsvData.charCodeAt(0) === 0xFEFF) {
+            tsvData = tsvData.substring(1); // Remove 1 character
         }
+        // Check for UTF-16 LE BOM ('ÿþ')
+        else if (tsvData.charCodeAt(0) === 0xFF && tsvData.charCodeAt(1) === 0xFE) {
+            tsvData = tsvData.substring(2); // <--- SỬA TỪ 1 THÀNH 2
+        }
+        
         // === KẾT THÚC SỬA LỖI ===
 
-        // 3. Sử dụng Clipboard API (giờ sẽ hoạt động vì đang trên https)
+        // 3. Sử dụng Clipboard API (đang chạy trên https)
         if (!navigator.clipboard) {
             throw new Error('Trình duyệt không hỗ trợ Clipboard API. Vui lòng thử trên Chrome, Edge, Firefox.');
         }
