@@ -3774,7 +3774,7 @@ window.exportPlainDataExcel = async function() {
 };
 
 /**
- * HÀM MỚI: (Nút 3 - ĐÃ SỬA LỖI SUBSTRING)
+ * HÀM MỚI: (Nút 3 - Sửa lỗi triệt để UTF-16)
  * Xuất dữ liệu vào Clipboard.
  */
 window.exportToClipboard = async function() {
@@ -3793,25 +3793,30 @@ window.exportToClipboard = async function() {
             skipHeader: false // Giữ lại header
         });
 
-        // === SỬA LỖI LẦN CUỐI: Xử lý BOM 1-byte và 2-byte ===
-        
-        // Check for UTF-8 BOM (\uFEFF)
-        if (tsvData.charCodeAt(0) === 0xFEFF) {
-            tsvData = tsvData.substring(1); // Remove 1 character
+        // === BẮT ĐẦU SỬA LỖI: Xử lý chuỗi UTF-16 LE ===
+
+        // Bước 1: Xóa BOM (Byte Order Mark) 2 byte ở đầu ('ÿþ')
+        // (Chúng ta làm điều này bằng cách kiểm tra mã ký tự)
+        if (tsvData.charCodeAt(0) === 0xFFFE || (tsvData.charCodeAt(0) === 0xFF && tsvData.charCodeAt(1) === 0xFE) ) {
+            tsvData = tsvData.substring(1); // Bỏ qua ký tự BOM đầu tiên
+        } else if (tsvData.charCodeAt(0) === 0xFEFF) {
+             tsvData = tsvData.substring(1); // Bỏ qua BOM UTF-8 (nếu có)
         }
-        // Check for UTF-16 LE BOM ('ÿþ')
-        else if (tsvData.charCodeAt(0) === 0xFF && tsvData.charCodeAt(1) === 0xFE) {
-            tsvData = tsvData.substring(2); // <--- SỬA TỪ 1 THÀNH 2
-        }
         
+        // Bước 2: Xóa TẤT CẢ các ký tự NULL ('\u0000')
+        // Đây là nguyên nhân chính khiến chuỗi bị cắt ngắn.
+        // Mã hóa UTF-16LE đệm các ký tự ASCII (như T, a, b, 1, 2) bằng 1 byte null.
+        const cleanedData = tsvData.replace(/\u0000/g, ''); // <--- ĐÂY LÀ BƯỚC QUAN TRỌNG NHẤT
+
         // === KẾT THÚC SỬA LỖI ===
 
         // 3. Sử dụng Clipboard API (đang chạy trên https)
         if (!navigator.clipboard) {
-            throw new Error('Trình duyệt không hỗ trợ Clipboard API. Vui lòng thử trên Chrome, Edge, Firefox.');
+            throw new Error('Trình duyệt không hỗ trợ Clipboard API.');
         }
 
-        await navigator.clipboard.writeText(tsvData);
+        // 4. Ghi chuỗi đã được làm sạch vào clipboard
+        await navigator.clipboard.writeText(cleanedData); 
         
         statusDiv.className = 'success';
         statusDiv.innerText = 'Đã sao chép dữ liệu vào Clipboard! Bạn có thể dán (Paste) vào Excel.';
