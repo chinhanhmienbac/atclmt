@@ -3774,7 +3774,7 @@ window.exportPlainDataExcel = async function() {
 };
 
 /**
- * HÀM MỚI: (Nút 3 - Sửa lỗi triệt để UTF-16)
+ * HÀM MỚI: (Nút 3 - Sửa lỗi triệt để bằng cách TỰ TẠO TSV)
  * Xuất dữ liệu vào Clipboard.
  */
 window.exportToClipboard = async function() {
@@ -3783,40 +3783,71 @@ window.exportToClipboard = async function() {
         statusDiv.innerText = 'Đang chuẩn bị dữ liệu cho clipboard...';
         closeAllModals();
 
-        // 1. Gọi hàm lõi để lấy dữ liệu
-        const { wb, ws, finalHeaders } = await generateWorksheetWithFormulas();
+        // 1. Gọi hàm lõi để lấy dữ liệu (hàm này vẫn đúng)
+        // ws là đối tượng worksheet chứa cả giá trị 'v:' và công thức 'f:'
+        const { ws } = await generateWorksheetWithFormulas();
 
-        // 2. Chuyển worksheet thành chuỗi TSV (Tab-Separated Values)
         statusDiv.innerText = 'Đang chuyển đổi dữ liệu...';
+
+        // 2. Tự xây dựng chuỗi TSV (thay vì dùng sheet_to_txt)
+        // Đây là cách duy nhất để fix encoding VÀ giữ công thức
+        const tsvData = [];
+        const range = XLSX.utils.decode_range(ws['!ref']);
         
-        let tsvData = XLSX.utils.sheet_to_txt(ws, { 
-            skipHeader: false // Giữ lại header
-        });
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            const row = [];
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                const cell = ws[cellAddress];
 
-        // === BẮT ĐẦU SỬA LỖI: Xử lý chuỗi UTF-16 LE ===
+                if (!cell) {
+                    row.push(""); // Ô trống
+                    continue;
+                }
 
-        // Bước 1: Xóa BOM (Byte Order Mark) 2 byte ở đầu ('ÿþ')
-        // (Chúng ta làm điều này bằng cách kiểm tra mã ký tự)
-        if (tsvData.charCodeAt(0) === 0xFFFE || (tsvData.charCodeAt(0) === 0xFF && tsvData.charCodeAt(1) === 0xFE) ) {
-            tsvData = tsvData.substring(1); // Bỏ qua ký tự BOM đầu tiên
-        } else if (tsvData.charCodeAt(0) === 0xFEFF) {
-             tsvData = tsvData.substring(1); // Bỏ qua BOM UTF-8 (nếu có)
+                // === LOGIC MỚI: Ưu tiên CÔNG THỨC (f) trước ===
+                if (cell.f) {
+                    // Excel hiểu định dạng TSV này: =FORMULA
+                    // Chúng ta không cần dấu "=" ở đầu chuỗi (ví dụ: ="=SUM(A1:A2)")
+                    // Chỉ cần =SUM(A1:A2) là đủ
+                    row.push(`=${cell.f}`);
+                }
+                // Sau đó mới đến GIÁ TRỊ (v)
+                else if (cell.v !== undefined && cell.v !== null) {
+                    let value = cell.v;
+                    
+                    // Nếu là chuỗi, chúng ta cần "escape" nó
+                    if (cell.t === 's' || typeof value === 'string') {
+                        let str = String(value);
+                        // Nếu chuỗi chứa dấu " (quote), tab, hoặc newline,
+                        // chúng ta cần bọc nó trong dấu " và gấp đôi các dấu " bên trong.
+                        if (str.includes('"') || str.includes('\t') || str.includes('\n')) {
+                            str = `"${str.replace(/"/g, '""')}"`;
+                        }
+                        row.push(str);
+                    } else {
+                        // Nếu là số hoặc boolean, cứ đẩy thẳng vào
+                        row.push(String(value));
+                    }
+                } 
+                else {
+                    row.push(""); // Ô có tồn tại nhưng không có giá trị
+                }
+            }
+            tsvData.push(row.join('\t')); // Nối các cột bằng TAB
         }
         
-        // Bước 2: Xóa TẤT CẢ các ký tự NULL ('\u0000')
-        // Đây là nguyên nhân chính khiến chuỗi bị cắt ngắn.
-        // Mã hóa UTF-16LE đệm các ký tự ASCII (như T, a, b, 1, 2) bằng 1 byte null.
-        const cleanedData = tsvData.replace(/\u0000/g, ''); // <--- ĐÂY LÀ BƯỚC QUAN TRỌNG NHẤT
+        const clipboardString = tsvData.join('\n'); // Nối các hàng bằng NEWLINE
+        // === KẾT THÚC LOGIC MỚI ===
 
-        // === KẾT THÚC SỬA LỖI ===
 
         // 3. Sử dụng Clipboard API (đang chạy trên https)
         if (!navigator.clipboard) {
             throw new Error('Trình duyệt không hỗ trợ Clipboard API.');
         }
 
-        // 4. Ghi chuỗi đã được làm sạch vào clipboard
-        await navigator.clipboard.writeText(cleanedData); 
+        // 4. Ghi chuỗi TSV đã được xây dựng chuẩn vào clipboard
+        await navigator.clipboard.writeText(clipboardString); 
         
         statusDiv.className = 'success';
         statusDiv.innerText = 'Đã sao chép dữ liệu vào Clipboard! Bạn có thể dán (Paste) vào Excel.';
