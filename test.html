@@ -3774,7 +3774,7 @@ window.exportPlainDataExcel = async function() {
 };
 
 /**
- * HÀM MỚI: (Nút 3 - ĐÃ SỬA LỖI BOM)
+ * HÀM MỚI: (Nút 3 - ĐÃ SỬA LỖI BOM UTF-16)
  * Xuất dữ liệu vào Clipboard.
  */
 window.exportToClipboard = async function() {
@@ -3789,15 +3789,21 @@ window.exportToClipboard = async function() {
         // 2. Chuyển worksheet thành chuỗi TSV (Tab-Separated Values)
         statusDiv.innerText = 'Đang chuyển đổi dữ liệu...';
         
-        // === SỬA LỖI: Thêm .replace(/^\uFEFF/, '') để loại bỏ BOM ===
-        const tsvData = XLSX.utils.sheet_to_txt(ws, { 
+        let tsvData = XLSX.utils.sheet_to_txt(ws, { 
             skipHeader: false // Giữ lại header
-        }).replace(/^\uFEFF/, ''); // <--- THÊM ĐOẠN NÀY
+        });
+
+        // === SỬA LỖI QUAN TRỌNG: Loại bỏ cả BOM UTF-8 và UTF-16 ===
+        // \uFEFF là BOM UTF-8
+        // \u00FF\u00FE là BOM UTF-16 (hiển thị là 'ÿþ')
+        if (tsvData.charCodeAt(0) === 0xFEFF || (tsvData.charCodeAt(0) === 0xFF && tsvData.charCodeAt(1) === 0xFE)) {
+            tsvData = tsvData.substring(1);
+        }
         // === KẾT THÚC SỬA LỖI ===
 
-        // 3. Sử dụng Clipboard API (yêu cầu https hoặc localhost)
+        // 3. Sử dụng Clipboard API (giờ sẽ hoạt động vì đang trên https)
         if (!navigator.clipboard) {
-            throw new Error('Trình duyệt không hỗ trợ Clipboard API. Vui lòng thử trên Chrome, Edge, Firefox hoặc dùng chức năng Xuất file.');
+            throw new Error('Trình duyệt không hỗ trợ Clipboard API. Vui lòng thử trên Chrome, Edge, Firefox.');
         }
 
         await navigator.clipboard.writeText(tsvData);
