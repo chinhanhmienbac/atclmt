@@ -708,6 +708,52 @@
         return String(tt).replace(/,/g, '.');
     }
 
+// === BẮT ĐẦU MÃ MỚI: HÀM HỖ TRỢ SỐ LA MÃ ===
+    function numberToRoman(num) {
+        const romanMap = [
+            { value: 1000, numeral: 'M' },
+            { value: 900, numeral: 'CM' },
+            { value: 500, numeral: 'D' },
+            { value: 400, numeral: 'CD' },
+            { value: 100, numeral: 'C' },
+            { value: 90, numeral: 'XC' },
+            { value: 50, numeral: 'L' },
+            { value: 40, numeral: 'XL' },
+            { value: 10, numeral: 'X' },
+            { value: 9, numeral: 'IX' },
+            { value: 5, numeral: 'V' },
+            { value: 4, numeral: 'IV' },
+            { value: 1, numeral: 'I' }
+        ];
+        let result = '';
+        if (num <= 0) return '';
+        for (const { value, numeral } of romanMap) {
+            while (num >= value) {
+                result += numeral;
+                num -= value;
+            }
+        }
+        return result;
+    }
+
+    function romanToNumber(roman) {
+        if (!roman) return 0;
+        const romanMap = { 'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000 };
+        let result = 0;
+        const r = roman.toUpperCase(); // Đảm bảo là chữ hoa
+        for (let i = 0; i < r.length; i++) {
+            const current = romanMap[r[i]];
+            const next = romanMap[r[i + 1]];
+            if (next && current < next) {
+                result -= current;
+            } else {
+                result += current;
+            }
+        }
+        return result;
+    }
+    // === KẾT THÚC MÃ MỚI ===
+	
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
     import { getDatabase, ref, set, get, update, remove, child, push, query, orderByChild, equalTo, onValue, off } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
@@ -888,35 +934,46 @@ const parseNumber = (str) => {
  * với các đường dẫn trỏ đến TỪNG TRƯỜNG DỮ LIỆU RIÊNG LẺ.
  * Điều này tránh lỗi "ancestor path" của Firebase update().
  */
+/**
+ * HÀM CẬP NHẬT: buildImportUpdates_Merge
+ * Đã sửa lỗi logic nhận diện TT Cấp 1, Cấp 2, và Giải trình (case-sensitive)
+ * và xử lý các ngoại lệ ("I", "C", "D", "L", "M").
+ */
+/**
+ * HÀM CẬP NHẬT: buildImportUpdates_Merge
+ * Đã sửa lỗi logic nhận diện TT Cấp 1, Cấp 2, và Giải trình (case-sensitive)
+ * và xử lý các ngoại lệ ("I", "C", "D", "L", "M").
+ */
 function buildImportUpdates_Merge(jsonData, headers) {
-    console.log('=== START buildImportUpdates_Merge (v5 - Field-Level Paths) ===');
+    console.log('=== START buildImportUpdates_Merge (v9 - Sửa lỗi "i" thường) ===');
     const updates = {};
     const rootPath = getParentCollectionName();
 
-    // 1. Tạo Set headers (giữ nguyên)
     const headersSet = new Set(headers.map(h => String(h).toLowerCase().trim()));
-
-    // 2. Kiểm tra cột execution (giữ nguyên)
-    const hasExecutionColumns = headers.some(h => String(h).toLowerCase().trim().startsWith('ngày th (1)') ||
-                                           String(h).toLowerCase().trim().startsWith('số lượng (1)') ||
-                                           String(h).toLowerCase().trim().startsWith('thành tiền (1)'));
+    const hasExecutionColumns = headers.some(h => String(h).toLowerCase().trim().startsWith('ngày th (1)'));
     console.log(`File import này có cột "Thực hiện" không? ${hasExecutionColumns}`);
 
-    // Biến trạng thái (giữ nguyên)
     let currentParentPath = '', currentChildPath = '', currentGrandchildPath = '', currentGreatGrandchildPath = '';
     let lastLeafNodePath = null;
     let lastJustificationL1Path = null;
 
-    // Regex patterns (giữ nguyên)
-    const isParent = /^[A-Z]$/;
-    const isChild = /^[A-Z]\.\d+$/;
-    const isJustification = /^[a-z]$/;
+    // === BẮT ĐẦU THAY ĐỔI: Logic Regex mới ===
+    // Cấp 1 (Strict): Chỉ chữ hoa A-Z. (KHÔNG 'i' flag)
+    const isParentStrict = /^[A-Z]$/; 
+    
+    // Cấp 2 (Roman): Chữ La Mã. (CÓ 'i' flag)
+    const isChildRoman = /^[IVXLCDM]+$/i; 
+
+    // Cấp GT 1 (Strict): Chỉ chữ thường a-z. (KHÔNG 'i' flag)
+    const isJustification = /^[a-z]$/; 
+    // === KẾT THÚC THAY ĐỔI: Logic Regex ===
+
+    // Các Regex khác giữ nguyên
     const isSubJustification = /^[a-z]\d+$/;
     const isGrandchild = /^\d+$/;
     const isGreatGrandchild = /^\d+\.\d+$/;
     const isGreatGreatGrandchild = /^\d+\.\d+\.\d+$/;
 
-    // Field Mapping (giữ nguyên)
     const masterDataFieldMapping = {
          noiDung: ['đầu việc/dự án', 'đầu việc/ dự án', 'đầu việc', 'dự án', 'nội dung', 'nội dung công việc'],
          ghiChu: ['ghi chú'],
@@ -928,11 +985,9 @@ function buildImportUpdates_Merge(jsonData, headers) {
          dvThucHien: ['đv th.hiện', 'đơn vị thực hiện', 'đơn vị th'],
          capDo: ['cấp độ', 'cấp độ'],
          khNamTruoc: ['kh năm trước', 'kế hoạch năm trước'],
-         // --- THÊM CÁC TRƯỜNG MỚI ---
          thucHienNamTruoc: ['thực hiện năm trước', 'th nam truoc'],
          tgBatDau: ['tg bắt đầu', 'tg bat dau', 'thời gian bắt đầu'],
          tgHoanThanh: ['tg hoàn thành', 'tg hoan thanh', 'thời gian hoàn thành'],
-         // --- KẾT THÚC THÊM ---
     };
 
     // --- Main Processing Loop ---
@@ -940,91 +995,152 @@ function buildImportUpdates_Merge(jsonData, headers) {
         const ttExcel = String(row.TT || '').trim();
         if (!ttExcel) return;
 
-        const convertedTT = convertTTForStorage(ttExcel);
-        let data = {}; // Dùng data để thu thập giá trị tạm thời
+        let convertedTT; 
+        let data = {}; 
         let currentPath = null;
         let parentPath = null;
         let subCollectionName = '';
         let isTask = false;
         let isLeaf = false;
 
-        // --- 1. Xác định Đường dẫn (Path) - Giữ nguyên logic ---
         try {
-             if (isParent.test(ttExcel)) {
-                 currentPath = `${rootPath}/${convertedTT}`;
-                 currentParentPath = currentPath;
-                 currentChildPath = ''; currentGrandchildPath = ''; currentGreatGrandchildPath = '';
-                 lastLeafNodePath = null; lastJustificationL1Path = null;
-                 isTask = true;
-             } else if (isChild.test(ttExcel)) {
-                 const parentId = convertedTT.split(',')[0];
-                 if (!currentParentPath || !currentParentPath.endsWith(parentId)) throw new Error(`Cha ${parentId} không khớp hoặc không tồn tại cho ${ttExcel}`);
-                 parentPath = currentParentPath;
-                 subCollectionName = 'children';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 currentChildPath = currentPath;
-                 currentGrandchildPath = ''; currentGreatGrandchildPath = '';
-                 lastLeafNodePath = null; lastJustificationL1Path = null;
-                 isTask = true;
-             } else if (isGrandchild.test(ttExcel) && currentChildPath) {
-                 parentPath = currentChildPath;
-                 subCollectionName = 'grandchildren';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 currentGrandchildPath = currentPath;
-                 currentGreatGrandchildPath = '';
-                 lastLeafNodePath = null; lastJustificationL1Path = null;
-                 isTask = true;
-             } else if (isGreatGrandchild.test(ttExcel) && currentGrandchildPath) {
-                 const parentIdExcel = ttExcel.substring(0, ttExcel.indexOf('.'));
-                 const parentIdStorage = convertTTForStorage(parentIdExcel);
-                 if (!currentGrandchildPath.endsWith('/' + parentIdStorage)) throw new Error(`Cha ${parentIdExcel} không khớp cho ${ttExcel}`);
-                 parentPath = currentGrandchildPath;
-                 subCollectionName = 'greatGrandchildren';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 currentGreatGrandchildPath = currentPath;
-                 lastLeafNodePath = currentPath;
-                 lastJustificationL1Path = null;
-                 isTask = true;
-                 isLeaf = true;
-             } else if (isGreatGreatGrandchild.test(ttExcel) && currentGreatGrandchildPath) {
-                 const parentIdExcel = ttExcel.substring(0, ttExcel.lastIndexOf('.'));
-                 const parentIdStorage = convertTTForStorage(parentIdExcel);
-                 if (!currentGreatGrandchildPath.endsWith('/' + parentIdStorage)) throw new Error(`Cha ${parentIdExcel} không khớp cho ${ttExcel}`);
-                 parentPath = currentGreatGrandchildPath;
-                 subCollectionName = 'greatGreatGrandchildren';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 lastLeafNodePath = currentPath;
-                 lastJustificationL1Path = null;
-                 isTask = true;
-                 isLeaf = true;
-                 if (parentPath) {
-                     updates[`${parentPath}/hasChildren`] = true;
-                     updates[`${parentPath}/executions`] = null; // Ghi đè null nếu có con
-                 }
-             } else if (isJustification.test(ttExcel) && lastLeafNodePath) {
-                 parentPath = lastLeafNodePath;
-                 subCollectionName = 'justifications';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 lastJustificationL1Path = currentPath;
-             } else if (isSubJustification.test(ttExcel) && lastJustificationL1Path) {
-                 const parentJustIdExcel = ttExcel.charAt(0);
-                 const parentJustIdStorage = convertTTForStorage(parentJustIdExcel);
-                 if (!lastJustificationL1Path.endsWith('/' + parentJustIdStorage)) throw new Error(`Giải trình cha ${parentJustIdExcel} không khớp cho ${ttExcel}`);
-                 parentPath = lastJustificationL1Path;
-                 subCollectionName = 'subJustifications';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 if (parentPath) {
-                     updates[`${parentPath}/hasSubJustifications`] = true;
-                     updates[`${parentPath}/soLuong`] = null; // Dọn dẹp cha
-                     updates[`${parentPath}/donGia`] = null;
-                     updates[`${parentPath}/chiPhi`] = 0;
-                 }
-             } else {
-                 throw new Error(`Không thể xác định đường dẫn hoặc thiếu cha phù hợp: ${ttExcel}`);
-             }
+            
+            // === BẮT ĐẦU THAY ĐỔI: Logic kiểm tra TT mới ===
+            
+            let ttType = 'unknown';
 
-            // --- 2. Trích xuất Dữ liệu Nguồn vào đối tượng data tạm ---
-            // (Logic này giữ nguyên như v4)
+            // 1. Xử lý các quy tắc ngoại lệ TRƯỚC (phân biệt hoa/thường)
+            if (ttExcel === 'I') {
+                ttType = 'child'; // "I" (hoa) luôn là Cấp 2
+                convertedTT = "I"; 
+            } 
+            else if (ttExcel === 'C' || ttExcel === 'D' || ttExcel === 'L' || ttExcel === 'M') {
+                ttType = 'parent'; // "C", "D", "L", "M" (hoa) luôn là Cấp 1
+                convertedTT = ttExcel; 
+            }
+            // 2. Nếu không phải ngoại lệ, áp dụng Regex (phân biệt hoa/thường)
+            else if (isJustification.test(ttExcel)) {
+                 // Sẽ bắt 'a', 'b', 'c', 'd', 'i', 'l', 'm'... (tất cả chữ thường)
+                ttType = 'justification';
+                convertedTT = ttExcel; // Giữ nguyên chữ thường
+            }
+            else if (isChildRoman.test(ttExcel)) {
+                // Bắt các chữ La Mã còn lại (V, X, II, iv...)
+                ttType = 'child'; 
+                convertedTT = ttExcel.toUpperCase(); // Chuẩn hóa
+            }
+            else if (isParentStrict.test(ttExcel)) {
+                // Bắt các chữ cái Cấp 1 còn lại (A, B, E...)
+                ttType = 'parent'; 
+                convertedTT = ttExcel; // Giữ nguyên chữ hoa
+            }
+            // 3. Các cấp còn lại (dùng hàm cũ)
+            else {
+                convertedTT = convertTTForStorage(ttExcel); // Mã hiệu số: 1.1 -> 1,1
+                
+                if (isGrandchild.test(ttExcel) && currentChildPath) {
+                    ttType = 'grandchild';
+                } else if (isGreatGrandchild.test(ttExcel) && currentGrandchildPath) {
+                    ttType = 'greatGrandchild';
+                } else if (isGreatGreatGrandchild.test(ttExcel) && currentGreatGrandchildPath) {
+                    ttType = 'greatGreatGrandchild';
+                } else if (isSubJustification.test(ttExcel) && lastJustificationL1Path) {
+                    ttType = 'subJustification';
+                }
+            }
+            
+            // 4. Xây dựng đường dẫn dựa trên ttType
+            switch (ttType) {
+                case 'parent':
+                    currentPath = `${rootPath}/${convertedTT}`;
+                    currentParentPath = currentPath;
+                    currentChildPath = ''; currentGrandchildPath = ''; currentGreatGrandchildPath = '';
+                    lastLeafNodePath = null; lastJustificationL1Path = null;
+                    isTask = true;
+                    break;
+                case 'child':
+                    if (!currentParentPath) throw new Error(`Không tìm thấy công việc cấp 1 (Cha) cho mục ${ttExcel}`);
+                    parentPath = currentParentPath; 
+                    subCollectionName = 'children';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`; 
+                    currentChildPath = currentPath;
+                    currentGrandchildPath = ''; currentGreatGrandchildPath = '';
+                    lastLeafNodePath = null; lastJustificationL1Path = null;
+                    isTask = true;
+                    break;
+                case 'grandchild':
+                    if (!currentChildPath) throw new Error(`Không tìm thấy công việc cấp 2 (Cha) cho mục ${ttExcel}`);
+                    parentPath = currentChildPath;
+                    subCollectionName = 'grandchildren';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
+                    currentGrandchildPath = currentPath;
+                    currentGreatGrandchildPath = '';
+                    lastLeafNodePath = null; lastJustificationL1Path = null;
+                    isTask = true;
+                    break;
+                case 'greatGrandchild':
+                    const parentIdExcel_ggc = ttExcel.substring(0, ttExcel.indexOf('.'));
+                    const parentIdStorage_ggc = convertTTForStorage(parentIdExcel_ggc);
+                    if (!currentGrandchildPath.endsWith('/' + parentIdStorage_ggc)) throw new Error(`Cha ${parentIdExcel_ggc} không khớp cho ${ttExcel}`);
+                    parentPath = currentGrandchildPath;
+                    subCollectionName = 'greatGrandchildren';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
+                    currentGreatGrandchildPath = currentPath;
+                    lastLeafNodePath = currentPath;
+                    lastJustificationL1Path = null;
+                    isTask = true;
+                    isLeaf = true;
+                    break;
+                case 'greatGreatGrandchild':
+                    const parentIdExcel_gggc = ttExcel.substring(0, ttExcel.lastIndexOf('.'));
+                    const parentIdStorage_gggc = convertTTForStorage(parentIdExcel_gggc);
+                    if (!currentGreatGrandchildPath.endsWith('/' + parentIdStorage_gggc)) throw new Error(`Cha ${parentIdExcel_gggc} không khớp cho ${ttExcel}`);
+                    parentPath = currentGreatGrandchildPath;
+                    subCollectionName = 'greatGreatGrandchildren';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
+                    lastLeafNodePath = currentPath;
+                    lastJustificationL1Path = null;
+                    isTask = true;
+                    isLeaf = true;
+                    if (parentPath) {
+                        updates[`${parentPath}/hasChildren`] = true;
+                        updates[`${parentPath}/executions`] = null; 
+                    }
+                    break;
+                case 'justification':
+                    if (!lastLeafNodePath) throw new Error(`Không tìm thấy công việc lá (Cha) cho giải trình ${ttExcel}`);
+                    parentPath = lastLeafNodePath;
+                    subCollectionName = 'justifications';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
+                    lastJustificationL1Path = currentPath;
+                    break;
+                case 'subJustification':
+                    const parentJustIdExcel = ttExcel.charAt(0);
+                    const parentJustIdStorage = convertTTForStorage(parentJustIdExcel);
+                    if (!lastJustificationL1Path.endsWith('/' + parentJustIdStorage)) throw new Error(`Giải trình cha ${parentJustIdExcel} không khớp cho ${ttExcel}`);
+                    parentPath = lastJustificationL1Path;
+                    subCollectionName = 'subJustifications';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
+                    if (parentPath) {
+                        updates[`${parentPath}/hasSubJustifications`] = true;
+                        updates[`${parentPath}/soLuong`] = null; 
+                        updates[`${parentPath}/donGia`] = null;
+                        updates[`${parentPath}/chiPhi`] = 0;
+                    }
+                    break;
+                default:
+                    // Thêm kiểm tra lỗi rõ ràng hơn
+                    if (isJustification.test(ttExcel) && !lastLeafNodePath) {
+                         throw new Error(`Không tìm thấy công việc lá (Cha) cho giải trình ${ttExcel}`);
+                    }
+                    if (isGrandchild.test(ttExcel) && !currentChildPath) {
+                        throw new Error(`Không tìm thấy công việc cấp 2 (Cha) cho mục ${ttExcel}`);
+                    }
+                    throw new Error(`Không thể xác định đường dẫn hoặc thiếu cha phù hợp: ${ttExcel}`);
+            }
+            // === KẾT THÚC THAY ĐỔI: Logic kiểm tra TT ===
+
+            // --- Các bước 2, 3, 4 (thu thập dữ liệu và ghi updates) giữ nguyên ---
             for (const [field, keys] of Object.entries(masterDataFieldMapping)) {
                 if (hasHeaderForField(keys, headersSet)) {
                     const value = findValue(row, keys, headers);
@@ -1033,12 +1149,11 @@ function buildImportUpdates_Merge(jsonData, headers) {
                         else if (field === 'tanSuatTH') data[field] = Math.max(0, parseInt(value, 10)) || 0;
                         else data[field] = value;
                     } else {
-                        data[field] = null; // Cột có nhưng giá trị rỗng
+                        data[field] = null; 
                     }
                 }
             }
 
-            // --- 3. Xử lý Dữ liệu Giao dịch (executions) - Giữ nguyên logic v4 ---
             if (isLeaf && isTask) {
                 if (hasExecutionColumns) {
                     const executions = readExecutionsForRow(row, headers);
@@ -1049,42 +1164,30 @@ function buildImportUpdates_Merge(jsonData, headers) {
                             return obj;
                         }, {});
                     } else {
-                        data.executions = null; // Ghi đè null nếu cột có nhưng hàng này rỗng
+                        data.executions = null; 
                     }
                 }
-                 // Nếu không có cột -> không thêm data.executions
             } else if (isTask && !isLeaf && hasExecutionColumns) {
-                 // Nút cha và file có cột execution -> đảm bảo executions là null
                  data.executions = null;
             }
 
-            // --- 4. Ghi vào Gói Cập nhật (LOGIC THAY ĐỔI) ---
-            // Luôn ghi trường 'tt'
             updates[`${currentPath}/tt`] = convertedTT;
-
-            // Lặp qua các trường đã đọc được trong 'data' và ghi vào 'updates'
             for (const field in data) {
-                 if (field !== 'tt') { // Bỏ qua trường 'tt' vì đã ghi
+                 if (field !== 'tt') {
                      updates[`${currentPath}/${field}`] = data[field];
                  }
             }
-
-            // Đảm bảo các trường tính toán sẽ tồn tại nếu đây là task mới (để recalc chạy đúng)
             if (isTask) {
-                 
                  if (updates[`${currentPath}/chiPhiThucHien`] === undefined) updates[`${currentPath}/chiPhiThucHien`] = 0;
                  if (updates[`${currentPath}/keHoachConLai`] === undefined) updates[`${currentPath}/keHoachConLai`] = 0;
             }
              
-
-
         } catch (e) {
             console.warn(`Bỏ qua hàng ${index + 2} (TT: ${ttExcel}): ${e.message}`);
         }
-    }); // Hết vòng lặp forEach
+    }); 
 
-    console.log(`=== END buildImportUpdates_Merge (v5). Total update paths: ${Object.keys(updates).length} ===`);
-    // console.log("Final updates object:", updates); // Bỏ comment để debug nếu cần
+    console.log(`=== END buildImportUpdates_Merge (v9). Total update paths: ${Object.keys(updates).length} ===`);
     return updates;
 }
 
@@ -4714,11 +4817,12 @@ window.exportFormattedExcel_HTML = async function() {
     });
 };
 
-    const childSort = (a, b) => {
-        const partsA = a.id.split(','), partsB = b.id.split(',');
-        const parentCompare = partsA[0].localeCompare(partsB[0]);
-        if (parentCompare !== 0) return parentCompare;
-        return parseInt(partsA[1], 10) - parseInt(partsB[1], 10);
+   const childSort = (a, b) => {
+        // (CẬP NHẬT) a.id và b.id bây giờ chỉ là 'I', 'V', 'X'.
+        // Không cần split hay so sánh parent.
+        const numA = romanToNumber(a.id);
+        const numB = romanToNumber(b.id);
+        return numA - numB;
     };
 
     const numericSort = (a, b) => {
@@ -4887,11 +4991,9 @@ window.exportFormattedExcel_HTML = async function() {
                         updateMax = !isNaN(currentNum) && currentNum > maxNumPart;
                     }
                 } else if (level === 'child') {
-                    const parts = tt.split(','); // Cấp 2 luôn dùng dấu phẩy theo format A,1
-                    if (parts.length === 2 && parts[0] === parentTT) {
-                        currentNum = parseInt(parts[1], 10);
-                        updateMax = !isNaN(currentNum) && currentNum > maxNumPart;
-                    }
+                    // (CẬP NHẬT) tt bây giờ chỉ là 'I', 'V', 'X'. Không cần kiểm tra parentTT.
+                    currentNum = romanToNumber(tt); 
+                    updateMax = !isNaN(currentNum) && currentNum > 0 && currentNum > maxNumPart;
                 } else if (level === 'grandchild') {
                     currentNum = parseInt(tt, 10); // Cấp 3 là số đơn giản
                     updateMax = !isNaN(currentNum) && currentNum > maxNumPart;
@@ -4949,7 +5051,9 @@ window.exportFormattedExcel_HTML = async function() {
         } else if (level === 'subJustification') {
              nextTT = `${parentTT}${maxNumPart + 1}`; // e.g., a1, a2
         } else if (level === 'child') {
-            nextTT = `${parentTT},${maxNumPart + 1}`; // e.g., A,1, A,2
+            const nextRoman = numberToRoman(maxNumPart + 1); // Chuyển 1 -> 'I', 10 -> 'X'
+            // (CẬP NHẬT) Mã hiệu mới chỉ là chữ số La Mã.
+            nextTT = nextRoman; // e.g., I, II
         } else if (level === 'grandchild') {
             nextTT = String(maxNumPart + 1); // e.g., 1, 2
         } else if (level === 'greatGrandchild' || level === 'greatGreatGrandchild') {
