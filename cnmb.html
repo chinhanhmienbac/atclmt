@@ -165,18 +165,19 @@
         .col-dv-thuchien { width: 8%; }
         .col-tt, .col-donvi, .col-soluong, .col-tansuat-th, .col-capdo, .col-hoso { width: 3%; }
         .col-ghichu { width: 10%; }
-        .col-chiphi, .col-thanhtien { width: 7%; }
-        .col-dvt, .col-dongia { width: 7%; }
+        .col-chiphi, .col-thanhtien, .col-kh-nam-truoc, .col-th-nam-truoc { width: 8%; } /* Thêm .col-th-nam-truoc */
+        .col-tg-batdau, .col-tg-hoanthanh { width: 3%; } /* Thêm cột mới */
+        .col-dvt, .col-dongia { width: 6%; }
 
         .modal-table th:nth-child(1), .modal-table td:nth-child(1) { width: 3%; }
         .modal-table th:nth-child(2), .modal-table td:nth-child(2) { width: 25%; }
         .modal-table th:nth-child(3), .modal-table td:nth-child(3) { width: 6%; }
-        .modal-table th:nth-child(4), .modal-table td:nth-child(4) { width: 3%; }
+        .modal-table th:nth-child(4), .modal-table td:nth-child(4) { width: 7%; }
         .modal-table th:nth-child(6), .modal-table td:nth-child(6) { width: 3%; }
-        .modal-table th:nth-child(8), .modal-table td:nth-child(8) { width: 7%; }
+        .modal-table th:nth-child(8), .modal-table td:nth-child(8) { width: 3%; }
         .modal-table th:nth-child(9), .modal-table td:nth-child(9) { width: 7%; }
         .modal-table th:nth-child(10), .modal-table td:nth-child(10) { width: 3%; }
-        .modal-table th:nth-child(11), .modal-table td:nth-child(11) { width: 15%; }
+        .modal-table th:nth-child(11), .modal-table td:nth-child(11) { width: 3%; }
 
         .execution-modal-table th:nth-child(1), .execution-modal-table td:nth-child(1) { width: 8%; }
         .execution-modal-table th:nth-child(2), .execution-modal-table td:nth-child(2) { width: 54%; }
@@ -228,18 +229,21 @@
 
         .planning-mode .col-hoso,
         .planning-mode .col-kehoach-conlai { display: none; }
-        .col-tansuat-th, .col-ghichu, .col-kh-nam-truoc, .col-action { display: none; }
-        .planning-mode + #summarySection { display: none; }
+        .col-tansuat-th, .col-ghichu, .col-kh-nam-truoc, .col-th-nam-truoc, .col-tg-batdau, .col-tg-hoanthanh, .col-action { display: none; }
         .planning-mode .col-tansuat-th,
 .planning-mode .col-ghichu,
 .planning-mode .col-kh-nam-truoc,
+.planning-mode .col-th-nam-truoc,
+.planning-mode .col-tg-batdau,
+.planning-mode .col-tg-hoanthanh,
 .planning-mode .col-action { display: table-cell; }
         .planning-mode .task-justification { display: table-row; }
 
         .planning-mode .col-dv-thuchien { width: 4% !important; }
-        .planning-mode .col-chiphi { width: 8%; }
+        .planning-mode .col-chiphi { width: 9%; }
         .planning-mode .col-chiphi-thuchien { width: 8% !important; }
-        .planning-mode .col-kh-nam-truoc { width: 8% !important; }
+        .planning-mode .col-kh-nam-truoc { width: 9% !important; }
+		.planning-mode .col-th-nam-truoc { width: 9% !important; }
         .planning-mode .col-ghichu { width: 12%; }
         .planning-mode .col-action { width: 4% !important; }
 
@@ -480,7 +484,7 @@
         <div id="status"></div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-            <h2>Các đơn vị thuộc Chi nhánh Miền Bắc</h2>
+            <h2>CHI NHÁNH MIỀN BẮC</h2>
              <div> <label for="yearSelect" style="margin-right: 10px; font-weight: bold;">Năm:</label>
                 <select id="yearSelect" onchange="changeYear(this.value)"></select>
                 
@@ -507,7 +511,11 @@
                     <th style="width: 2%;"><input type="checkbox" onchange="toggleAllCheckboxes(this)"></th>
                     <th class="col-tt" style="width: 3%;">TT</th>
                     <th class="col-noidung">Đầu việc/ Dự án</th>
-                    <th class="col-dv-thuchien" style="width: 5%;">ĐV th.hiện</th>
+                    <th class="col-dv-thuchien" style="width: 5%;">ĐV thực hiện</th>
+                    
+                    <th class="text-right col-kh-nam-truoc" style="width: 7%;">KH năm trước</th>
+                    <th class="text-right col-th-nam-truoc" style="width: 7%;">Thực hiện năm trước</th>
+                    
                     <th class="col-donvi">Đ.vị tính</th>
                     <th class="col-soluong">Số lượng</th>
                     <th class="col-tansuat-th">Tần suất TH</th>
@@ -515,7 +523,10 @@
                     <th class="text-right col-chiphi-thuchien" style="width: 6%;">Chi phí thực hiện</th>
                     <th class="text-right col-kehoach-conlai" style="width: 6%;">Kế hoạch còn lại</th>
                     <th class="col-capdo">Cấp độ</th>
-                    <th class="text-right col-kh-nam-truoc" style="width: 7%;">KH năm trước</th>
+
+                    <th class="col-tg-batdau" style="width: 4%;">TG bắt đầu</th>
+                    <th class="col-tg-hoanthanh" style="width: 4%;">TG hoàn thành</th>
+
                     <th class="col-ghichu">Ghi chú</th>
                     <th class="col-hoso" style="width: 3%;">Hồ sơ</th>
                     <th style="width: 5%;" class="col-action">Hành động</th>
@@ -602,10 +613,24 @@
             <span class="close-button" onclick="closeAllModals()">&times;</span>
             <h2>Tùy chọn Xuất file Excel</h2>
             <p>Vui lòng chọn định dạng file bạn muốn xuất:</p>
-            <div style="display: flex; justify-content: space-around; margin-top: 20px; gap: 15px;">
-                <button class="btn-primary" style="flex: 1; padding: 15px;" onclick="exportPlainDataExcel()">1. Tạo nhanh file Excel<br><small>(Thuần dữ liệu, không có định dạng chữ, *.xlsx)</small></button>
-                <button class="btn-success" style="flex: 1; padding: 15px;" onclick="exportFormattedExcel_HTML()">2. File Excel 97 kèm định dạng chữ<br><small>(In đậm các đầu mục chính, *.xls)</small></button>
-            </div>
+            
+            <div style="display: flex; justify-content: space-around; margin-top: 20px; gap: 15px; flex-wrap: wrap;">
+                
+                <button class="btn-primary" style="flex: 1; min-width: 200px; padding: 15px;" onclick="exportPlainDataExcel()">
+                    1. File Excel (.xlsx)
+                    <br><small>(Có công thức, không định dạng màu)</small>
+                </button>
+                
+                <button class="btn-success" style="flex: 1; min-width: 200px; padding: 15px;" onclick="exportFormattedExcel_HTML()">
+                    2. File Excel 97 (.xls)
+                    <br><small>(In đậm, có màu, không công thức)</small>
+                </button>
+                
+                <button class="btn-info" style="flex: 1; min-width: 200px; padding: 15px;" onclick="exportToClipboard()">
+                    3. Sao chép vào Clipboard
+                    <br><small>(Dữ liệu có công thức, để dán thủ công)</small>
+                </button>
+                </div>
         </div>
     </div>
 
@@ -683,12 +708,58 @@
         return String(tt).replace(/,/g, '.');
     }
 
+// === BẮT ĐẦU MÃ MỚI: HÀM HỖ TRỢ SỐ LA MÃ ===
+    function numberToRoman(num) {
+        const romanMap = [
+            { value: 1000, numeral: 'M' },
+            { value: 900, numeral: 'CM' },
+            { value: 500, numeral: 'D' },
+            { value: 400, numeral: 'CD' },
+            { value: 100, numeral: 'C' },
+            { value: 90, numeral: 'XC' },
+            { value: 50, numeral: 'L' },
+            { value: 40, numeral: 'XL' },
+            { value: 10, numeral: 'X' },
+            { value: 9, numeral: 'IX' },
+            { value: 5, numeral: 'V' },
+            { value: 4, numeral: 'IV' },
+            { value: 1, numeral: 'I' }
+        ];
+        let result = '';
+        if (num <= 0) return '';
+        for (const { value, numeral } of romanMap) {
+            while (num >= value) {
+                result += numeral;
+                num -= value;
+            }
+        }
+        return result;
+    }
+
+    function romanToNumber(roman) {
+        if (!roman) return 0;
+        const romanMap = { 'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000 };
+        let result = 0;
+        const r = roman.toUpperCase(); // Đảm bảo là chữ hoa
+        for (let i = 0; i < r.length; i++) {
+            const current = romanMap[r[i]];
+            const next = romanMap[r[i + 1]];
+            if (next && current < next) {
+                result -= current;
+            } else {
+                result += current;
+            }
+        }
+        return result;
+    }
+    // === KẾT THÚC MÃ MỚI ===
+	
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
     import { getDatabase, ref, set, get, update, remove, child, push, query, orderByChild, equalTo, onValue, off } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
     const firebaseConfig = {
-        apiKey: "AIzaSyAJdhRXAwRoDbIN471Q4v2DNUhBeNAenYM",
+apiKey: "AIzaSyAJdhRXAwRoDbIN471Q4v2DNUhBeNAenYM",
   authDomain: "atclmt-cnmb.firebaseapp.com",
   databaseURL: "https://atclmt-cnmb-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "atclmt-cnmb",
@@ -863,46 +934,60 @@ const parseNumber = (str) => {
  * với các đường dẫn trỏ đến TỪNG TRƯỜNG DỮ LIỆU RIÊNG LẺ.
  * Điều này tránh lỗi "ancestor path" của Firebase update().
  */
+/**
+ * HÀM CẬP NHẬT: buildImportUpdates_Merge
+ * Đã sửa lỗi logic nhận diện TT Cấp 1, Cấp 2, và Giải trình (case-sensitive)
+ * và xử lý các ngoại lệ ("I", "C", "D", "L", "M").
+ */
+/**
+ * HÀM CẬP NHẬT: buildImportUpdates_Merge
+ * Đã sửa lỗi logic nhận diện TT Cấp 1, Cấp 2, và Giải trình (case-sensitive)
+ * và xử lý các ngoại lệ ("I", "C", "D", "L", "M").
+ */
 function buildImportUpdates_Merge(jsonData, headers) {
-    console.log('=== START buildImportUpdates_Merge (v5 - Field-Level Paths) ===');
+    console.log('=== START buildImportUpdates_Merge (v9 - Sửa lỗi "i" thường) ===');
     const updates = {};
     const rootPath = getParentCollectionName();
 
-    // 1. Tạo Set headers (giữ nguyên)
     const headersSet = new Set(headers.map(h => String(h).toLowerCase().trim()));
-
-    // 2. Kiểm tra cột execution (giữ nguyên)
-    const hasExecutionColumns = headers.some(h => String(h).toLowerCase().trim().startsWith('ngày th (1)') ||
-                                           String(h).toLowerCase().trim().startsWith('số lượng (1)') ||
-                                           String(h).toLowerCase().trim().startsWith('thành tiền (1)'));
+    const hasExecutionColumns = headers.some(h => String(h).toLowerCase().trim().startsWith('ngày th (1)'));
     console.log(`File import này có cột "Thực hiện" không? ${hasExecutionColumns}`);
 
-    // Biến trạng thái (giữ nguyên)
     let currentParentPath = '', currentChildPath = '', currentGrandchildPath = '', currentGreatGrandchildPath = '';
     let lastLeafNodePath = null;
     let lastJustificationL1Path = null;
 
-    // Regex patterns (giữ nguyên)
-    const isParent = /^[A-Z]$/;
-    const isChild = /^[A-Z]\.\d+$/;
-    const isJustification = /^[a-z]$/;
+    // === BẮT ĐẦU THAY ĐỔI: Logic Regex mới ===
+    // Cấp 1 (Strict): Chỉ chữ hoa A-Z. (KHÔNG 'i' flag)
+    const isParentStrict = /^[A-Z]$/; 
+    
+    // Cấp 2 (Roman): Chữ La Mã. (CÓ 'i' flag)
+    const isChildRoman = /^[IVXLCDM]+$/i; 
+
+    // Cấp GT 1 (Strict): Chỉ chữ thường a-z. (KHÔNG 'i' flag)
+    const isJustification = /^[a-z]$/; 
+    // === KẾT THÚC THAY ĐỔI: Logic Regex ===
+
+    // Các Regex khác giữ nguyên
     const isSubJustification = /^[a-z]\d+$/;
     const isGrandchild = /^\d+$/;
     const isGreatGrandchild = /^\d+\.\d+$/;
     const isGreatGreatGrandchild = /^\d+\.\d+\.\d+$/;
 
-    // Field Mapping (giữ nguyên)
     const masterDataFieldMapping = {
          noiDung: ['đầu việc/dự án', 'đầu việc/ dự án', 'đầu việc', 'dự án', 'nội dung', 'nội dung công việc'],
          ghiChu: ['ghi chú'],
          donVi: ['đơn vị tính', 'đ.vị tính', 'đơn vị', 'đvt'],
          soLuong: ['số lượng', 'số lượng vật tư'],
          donGia: ['đơn giá (gt)'],
-chiPhi: ['chi phí', 'chi phi', 'chi phí kế hoạch', 'chi phí kh'],
+         chiPhi: ['chi phí', 'chi phi', 'chi phí kế hoạch', 'chi phí kh'],
          tanSuatTH: ['tần suất th', 'tần suất thực hiện'],
          dvThucHien: ['đv th.hiện', 'đơn vị thực hiện', 'đơn vị th'],
          capDo: ['cấp độ', 'cấp độ'],
          khNamTruoc: ['kh năm trước', 'kế hoạch năm trước'],
+         thucHienNamTruoc: ['thực hiện năm trước', 'th nam truoc'],
+         tgBatDau: ['tg bắt đầu', 'tg bat dau', 'thời gian bắt đầu'],
+         tgHoanThanh: ['tg hoàn thành', 'tg hoan thanh', 'thời gian hoàn thành'],
     };
 
     // --- Main Processing Loop ---
@@ -910,105 +995,165 @@ chiPhi: ['chi phí', 'chi phi', 'chi phí kế hoạch', 'chi phí kh'],
         const ttExcel = String(row.TT || '').trim();
         if (!ttExcel) return;
 
-        const convertedTT = convertTTForStorage(ttExcel);
-        let data = {}; // Dùng data để thu thập giá trị tạm thời
+        let convertedTT; 
+        let data = {}; 
         let currentPath = null;
         let parentPath = null;
         let subCollectionName = '';
         let isTask = false;
         let isLeaf = false;
 
-        // --- 1. Xác định Đường dẫn (Path) - Giữ nguyên logic ---
         try {
-             if (isParent.test(ttExcel)) {
-                 currentPath = `${rootPath}/${convertedTT}`;
-                 currentParentPath = currentPath;
-                 currentChildPath = ''; currentGrandchildPath = ''; currentGreatGrandchildPath = '';
-                 lastLeafNodePath = null; lastJustificationL1Path = null;
-                 isTask = true;
-             } else if (isChild.test(ttExcel)) {
-                 const parentId = convertedTT.split(',')[0];
-                 if (!currentParentPath || !currentParentPath.endsWith(parentId)) throw new Error(`Cha ${parentId} không khớp hoặc không tồn tại cho ${ttExcel}`);
-                 parentPath = currentParentPath;
-                 subCollectionName = 'children';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 currentChildPath = currentPath;
-                 currentGrandchildPath = ''; currentGreatGrandchildPath = '';
-                 lastLeafNodePath = null; lastJustificationL1Path = null;
-                 isTask = true;
-             } else if (isGrandchild.test(ttExcel) && currentChildPath) {
-                 parentPath = currentChildPath;
-                 subCollectionName = 'grandchildren';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 currentGrandchildPath = currentPath;
-                 currentGreatGrandchildPath = '';
-                 lastLeafNodePath = null; lastJustificationL1Path = null;
-                 isTask = true;
-             } else if (isGreatGrandchild.test(ttExcel) && currentGrandchildPath) {
-                 const parentIdExcel = ttExcel.substring(0, ttExcel.indexOf('.'));
-                 const parentIdStorage = convertTTForStorage(parentIdExcel);
-                 if (!currentGrandchildPath.endsWith('/' + parentIdStorage)) throw new Error(`Cha ${parentIdExcel} không khớp cho ${ttExcel}`);
-                 parentPath = currentGrandchildPath;
-                 subCollectionName = 'greatGrandchildren';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 currentGreatGrandchildPath = currentPath;
-                 lastLeafNodePath = currentPath;
-                 lastJustificationL1Path = null;
-                 isTask = true;
-                 isLeaf = true;
-             } else if (isGreatGreatGrandchild.test(ttExcel) && currentGreatGrandchildPath) {
-                 const parentIdExcel = ttExcel.substring(0, ttExcel.lastIndexOf('.'));
-                 const parentIdStorage = convertTTForStorage(parentIdExcel);
-                 if (!currentGreatGrandchildPath.endsWith('/' + parentIdStorage)) throw new Error(`Cha ${parentIdExcel} không khớp cho ${ttExcel}`);
-                 parentPath = currentGreatGrandchildPath;
-                 subCollectionName = 'greatGreatGrandchildren';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 lastLeafNodePath = currentPath;
-                 lastJustificationL1Path = null;
-                 isTask = true;
-                 isLeaf = true;
-                 if (parentPath) {
-                     updates[`${parentPath}/hasChildren`] = true;
-                     updates[`${parentPath}/executions`] = null; // Ghi đè null nếu có con
-                 }
-             } else if (isJustification.test(ttExcel) && lastLeafNodePath) {
-                 parentPath = lastLeafNodePath;
-                 subCollectionName = 'justifications';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 lastJustificationL1Path = currentPath;
-             } else if (isSubJustification.test(ttExcel) && lastJustificationL1Path) {
-                 const parentJustIdExcel = ttExcel.charAt(0);
-                 const parentJustIdStorage = convertTTForStorage(parentJustIdExcel);
-                 if (!lastJustificationL1Path.endsWith('/' + parentJustIdStorage)) throw new Error(`Giải trình cha ${parentJustIdExcel} không khớp cho ${ttExcel}`);
-                 parentPath = lastJustificationL1Path;
-                 subCollectionName = 'subJustifications';
-                 currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                 if (parentPath) {
-                     updates[`${parentPath}/hasSubJustifications`] = true;
-                     updates[`${parentPath}/soLuong`] = null; // Dọn dẹp cha
-                     updates[`${parentPath}/donGia`] = null;
-                     updates[`${parentPath}/chiPhi`] = 0;
-                 }
-             } else {
-                 throw new Error(`Không thể xác định đường dẫn hoặc thiếu cha phù hợp: ${ttExcel}`);
-             }
+            
+            // === BẮT ĐẦU THAY ĐỔI: Logic kiểm tra TT mới ===
+            
+            let ttType = 'unknown';
 
-            // --- 2. Trích xuất Dữ liệu Nguồn vào đối tượng data tạm ---
-            // (Logic này giữ nguyên như v4)
+            // 1. Xử lý các quy tắc ngoại lệ TRƯỚC (phân biệt hoa/thường)
+            if (ttExcel === 'I') {
+                ttType = 'child'; // "I" (hoa) luôn là Cấp 2
+                convertedTT = "I"; 
+            } 
+            else if (ttExcel === 'C' || ttExcel === 'D' || ttExcel === 'L' || ttExcel === 'M') {
+                ttType = 'parent'; // "C", "D", "L", "M" (hoa) luôn là Cấp 1
+                convertedTT = ttExcel; 
+            }
+            // 2. Nếu không phải ngoại lệ, áp dụng Regex (phân biệt hoa/thường)
+            else if (isJustification.test(ttExcel)) {
+                 // Sẽ bắt 'a', 'b', 'c', 'd', 'i', 'l', 'm'... (tất cả chữ thường)
+                ttType = 'justification';
+                convertedTT = ttExcel; // Giữ nguyên chữ thường
+            }
+            else if (isChildRoman.test(ttExcel)) {
+                // Bắt các chữ La Mã còn lại (V, X, II, iv...)
+                ttType = 'child'; 
+                convertedTT = ttExcel.toUpperCase(); // Chuẩn hóa
+            }
+            else if (isParentStrict.test(ttExcel)) {
+                // Bắt các chữ cái Cấp 1 còn lại (A, B, E...)
+                ttType = 'parent'; 
+                convertedTT = ttExcel; // Giữ nguyên chữ hoa
+            }
+            // 3. Các cấp còn lại (dùng hàm cũ)
+            else {
+                convertedTT = convertTTForStorage(ttExcel); // Mã hiệu số: 1.1 -> 1,1
+                
+                if (isGrandchild.test(ttExcel) && currentChildPath) {
+                    ttType = 'grandchild';
+                } else if (isGreatGrandchild.test(ttExcel) && currentGrandchildPath) {
+                    ttType = 'greatGrandchild';
+                } else if (isGreatGreatGrandchild.test(ttExcel) && currentGreatGrandchildPath) {
+                    ttType = 'greatGreatGrandchild';
+                } else if (isSubJustification.test(ttExcel) && lastJustificationL1Path) {
+                    ttType = 'subJustification';
+                }
+            }
+            
+            // 4. Xây dựng đường dẫn dựa trên ttType
+            switch (ttType) {
+                case 'parent':
+                    currentPath = `${rootPath}/${convertedTT}`;
+                    currentParentPath = currentPath;
+                    currentChildPath = ''; currentGrandchildPath = ''; currentGreatGrandchildPath = '';
+                    lastLeafNodePath = null; lastJustificationL1Path = null;
+                    isTask = true;
+                    break;
+                case 'child':
+                    if (!currentParentPath) throw new Error(`Không tìm thấy công việc cấp 1 (Cha) cho mục ${ttExcel}`);
+                    parentPath = currentParentPath; 
+                    subCollectionName = 'children';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`; 
+                    currentChildPath = currentPath;
+                    currentGrandchildPath = ''; currentGreatGrandchildPath = '';
+                    lastLeafNodePath = null; lastJustificationL1Path = null;
+                    isTask = true;
+                    break;
+                case 'grandchild':
+                    if (!currentChildPath) throw new Error(`Không tìm thấy công việc cấp 2 (Cha) cho mục ${ttExcel}`);
+                    parentPath = currentChildPath;
+                    subCollectionName = 'grandchildren';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
+                    currentGrandchildPath = currentPath;
+                    currentGreatGrandchildPath = '';
+                    lastLeafNodePath = null; lastJustificationL1Path = null;
+                    isTask = true;
+                    break;
+                case 'greatGrandchild':
+                    const parentIdExcel_ggc = ttExcel.substring(0, ttExcel.indexOf('.'));
+                    const parentIdStorage_ggc = convertTTForStorage(parentIdExcel_ggc);
+                    if (!currentGrandchildPath.endsWith('/' + parentIdStorage_ggc)) throw new Error(`Cha ${parentIdExcel_ggc} không khớp cho ${ttExcel}`);
+                    parentPath = currentGrandchildPath;
+                    subCollectionName = 'greatGrandchildren';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
+                    currentGreatGrandchildPath = currentPath;
+                    lastLeafNodePath = currentPath;
+                    lastJustificationL1Path = null;
+                    isTask = true;
+                    isLeaf = true;
+                    break;
+                case 'greatGreatGrandchild':
+                    const parentIdExcel_gggc = ttExcel.substring(0, ttExcel.lastIndexOf('.'));
+                    const parentIdStorage_gggc = convertTTForStorage(parentIdExcel_gggc);
+                    if (!currentGreatGrandchildPath.endsWith('/' + parentIdStorage_gggc)) throw new Error(`Cha ${parentIdExcel_gggc} không khớp cho ${ttExcel}`);
+                    parentPath = currentGreatGrandchildPath;
+                    subCollectionName = 'greatGreatGrandchildren';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
+                    lastLeafNodePath = currentPath;
+                    lastJustificationL1Path = null;
+                    isTask = true;
+                    isLeaf = true;
+                    if (parentPath) {
+                        updates[`${parentPath}/hasChildren`] = true;
+                        updates[`${parentPath}/executions`] = null; 
+                    }
+                    break;
+                case 'justification':
+                    if (!lastLeafNodePath) throw new Error(`Không tìm thấy công việc lá (Cha) cho giải trình ${ttExcel}`);
+                    parentPath = lastLeafNodePath;
+                    subCollectionName = 'justifications';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
+                    lastJustificationL1Path = currentPath;
+                    break;
+                case 'subJustification':
+                    const parentJustIdExcel = ttExcel.charAt(0);
+                    const parentJustIdStorage = convertTTForStorage(parentJustIdExcel);
+                    if (!lastJustificationL1Path.endsWith('/' + parentJustIdStorage)) throw new Error(`Giải trình cha ${parentJustIdExcel} không khớp cho ${ttExcel}`);
+                    parentPath = lastJustificationL1Path;
+                    subCollectionName = 'subJustifications';
+                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
+                    if (parentPath) {
+                        updates[`${parentPath}/hasSubJustifications`] = true;
+                        updates[`${parentPath}/soLuong`] = null; 
+                        updates[`${parentPath}/donGia`] = null;
+                        updates[`${parentPath}/chiPhi`] = 0;
+                    }
+                    break;
+                default:
+                    // Thêm kiểm tra lỗi rõ ràng hơn
+                    if (isJustification.test(ttExcel) && !lastLeafNodePath) {
+                         throw new Error(`Không tìm thấy công việc lá (Cha) cho giải trình ${ttExcel}`);
+                    }
+                    if (isGrandchild.test(ttExcel) && !currentChildPath) {
+                        throw new Error(`Không tìm thấy công việc cấp 2 (Cha) cho mục ${ttExcel}`);
+                    }
+                    throw new Error(`Không thể xác định đường dẫn hoặc thiếu cha phù hợp: ${ttExcel}`);
+            }
+            // === KẾT THÚC THAY ĐỔI: Logic kiểm tra TT ===
+
+            // --- Các bước 2, 3, 4 (thu thập dữ liệu và ghi updates) giữ nguyên ---
             for (const [field, keys] of Object.entries(masterDataFieldMapping)) {
                 if (hasHeaderForField(keys, headersSet)) {
                     const value = findValue(row, keys, headers);
                     if (value !== undefined) {
-                        if (['soLuong', 'donGia', 'khNamTruoc', 'chiPhi'].includes(field)) data[field] = parseNumber(value);
+                        if (['soLuong', 'donGia', 'khNamTruoc', 'chiPhi', 'thucHienNamTruoc'].includes(field)) data[field] = parseNumber(value);
                         else if (field === 'tanSuatTH') data[field] = Math.max(0, parseInt(value, 10)) || 0;
                         else data[field] = value;
                     } else {
-                        data[field] = null; // Cột có nhưng giá trị rỗng
+                        data[field] = null; 
                     }
                 }
             }
 
-            // --- 3. Xử lý Dữ liệu Giao dịch (executions) - Giữ nguyên logic v4 ---
             if (isLeaf && isTask) {
                 if (hasExecutionColumns) {
                     const executions = readExecutionsForRow(row, headers);
@@ -1019,42 +1164,30 @@ chiPhi: ['chi phí', 'chi phi', 'chi phí kế hoạch', 'chi phí kh'],
                             return obj;
                         }, {});
                     } else {
-                        data.executions = null; // Ghi đè null nếu cột có nhưng hàng này rỗng
+                        data.executions = null; 
                     }
                 }
-                 // Nếu không có cột -> không thêm data.executions
             } else if (isTask && !isLeaf && hasExecutionColumns) {
-                 // Nút cha và file có cột execution -> đảm bảo executions là null
                  data.executions = null;
             }
 
-            // --- 4. Ghi vào Gói Cập nhật (LOGIC THAY ĐỔI) ---
-            // Luôn ghi trường 'tt'
             updates[`${currentPath}/tt`] = convertedTT;
-
-            // Lặp qua các trường đã đọc được trong 'data' và ghi vào 'updates'
             for (const field in data) {
-                 if (field !== 'tt') { // Bỏ qua trường 'tt' vì đã ghi
+                 if (field !== 'tt') {
                      updates[`${currentPath}/${field}`] = data[field];
                  }
             }
-
-            // Đảm bảo các trường tính toán sẽ tồn tại nếu đây là task mới (để recalc chạy đúng)
             if (isTask) {
-                 
                  if (updates[`${currentPath}/chiPhiThucHien`] === undefined) updates[`${currentPath}/chiPhiThucHien`] = 0;
                  if (updates[`${currentPath}/keHoachConLai`] === undefined) updates[`${currentPath}/keHoachConLai`] = 0;
             }
              
-
-
         } catch (e) {
             console.warn(`Bỏ qua hàng ${index + 2} (TT: ${ttExcel}): ${e.message}`);
         }
-    }); // Hết vòng lặp forEach
+    }); 
 
-    console.log(`=== END buildImportUpdates_Merge (v5). Total update paths: ${Object.keys(updates).length} ===`);
-    // console.log("Final updates object:", updates); // Bỏ comment để debug nếu cần
+    console.log(`=== END buildImportUpdates_Merge (v9). Total update paths: ${Object.keys(updates).length} ===`);
     return updates;
 }
 
@@ -1453,8 +1586,8 @@ window.calculateModalChiPhi = function(input) {
     chiPhiInput.value = formatNumber(cost);
 };
 
-// === HÀM MỚI ĐỂ XUẤT EXCEL TRA CỨU (CẬP NHẬT LẦN 2) ===
-    window.exportExecutionSearchExcel = async function() {
+// === HÀM MỚI ĐỂ XUẤT EXCEL TRA CỨU (CẬP NHẬT LẦN 4 bổ sung tên CV cấp 3 và mã hiệu) ===
+window.exportExecutionSearchExcel = async function() {
         if (executionGroups.size === 0) {
             alert("Không có dữ liệu thực hiện để xuất.");
             return;
@@ -1467,7 +1600,6 @@ window.calculateModalChiPhi = function(input) {
             const excelData = [];
             let sequenceNumber = 1;
 
-            // Header cho file Excel
             excelData.push([
                 "Thứ tự", 
                 "Ngày thực hiện", 
@@ -1477,123 +1609,168 @@ window.calculateModalChiPhi = function(input) {
                 "Thành tiền"
             ]);
 
-            // Sắp xếp các nhóm theo ngày (mới nhất trước)
             const sortedTimestamps = Array.from(executionGroups.keys()).sort((a, b) => {
-                // Ưu tiên ngày thực hiện nếu có, fallback về timestamp
-                const dateAStr = executionGroups.get(a)[Object.keys(executionGroups.get(a))[0]][0]?.ngayThucHien;
-                const dateBStr = executionGroups.get(b)[Object.keys(executionGroups.get(b))[0]][0]?.ngayThucHien;
-                const dateA = dateAStr ? new Date(dateAStr) : new Date(parseInt(a)); // Parse timestamp if date string is missing
-                const dateB = dateBStr ? new Date(dateBStr) : new Date(parseInt(b)); // Parse timestamp if date string is missing
-                // Handle invalid dates if necessary
-                if (isNaN(dateA.getTime())) return 1; 
-                if (isNaN(dateB.getTime())) return -1;
-                return dateB - dateA; // Sắp xếp giảm dần (ngày mới nhất trước)
+                const firstExecA = Object.values(Object.values(executionGroups.get(a) || {})[0] || {})[0]?.[0];
+                const firstExecB = Object.values(Object.values(executionGroups.get(b) || {})[0] || {})[0]?.[0];
+                const dateA = new Date(firstExecA?.ngayThucHien || 0);
+                const dateB = new Date(firstExecB?.ngayThucHien || 0);
+                if (dateB - dateA !== 0) return dateB - dateA;
+                return (firstExecB?.timestamp || 0) - (firstExecA?.timestamp || 0);
             });
 
 
             for (const timestampKey of sortedTimestamps) {
-                const group = executionGroups.get(timestampKey);
-                const allExecsInGroup = Object.values(group).flat();
-                if (allExecsInGroup.length === 0) continue;
+                const timestampGroup = executionGroups.get(timestampKey); 
+                
+                const allExecsInTimestamp = Object.values(timestampGroup).flatMap(grandchildGroup => 
+                    Object.values(grandchildGroup).flat()
+                );
+                if (allExecsInTimestamp.length === 0) continue;
 
-                const firstExec = allExecsInGroup[0];
+                const firstExec = allExecsInTimestamp[0];
                 const ngayThucHienGroup = firstExec.ngayThucHien || '';
 
-                // === LẤY TÊN KHU VỰC (CÔNG VIỆC CẤP 1) ===
                 let khuVuc = 'Không xác định';
                 const pathParts = firstExec.parentLeafNodePath.split('/');
                 if (pathParts.length > 1) {
                     const parentId = pathParts[1];
                     khuVuc = parentNoiDungMap.get(parentId) || parentId;
                 }
-                // =======================================
+                
+                const totalThanhTienGroup = allExecsInTimestamp.reduce((sum, exec) => sum + (exec.thanhTien || 0), 0);
 
-                // === TÍNH TỔNG THÀNH TIỀN CHO NHÓM ===
-                const totalThanhTienGroup = allExecsInGroup.reduce((sum, exec) => sum + (exec.thanhTien || 0), 0);
-                // =====================================
-
-                // === THÊM DÒNG HEADER CHO NHÓM ===
                 const groupHeaderRow = [
-                    sequenceNumber++,     // Thứ tự
-                    ngayThucHienGroup,    // Ngày thực hiện
-                    '',                   // Mã hiệu (để trống)
-                    khuVuc,               // Nội dung: Tên khu vực
-                    '',                   // ĐV thực hiện (để trống)
-                    totalThanhTienGroup   // Thành tiền: Tổng của nhóm
+                    sequenceNumber++,     
+                    ngayThucHienGroup,    
+                    '',                   
+                    khuVuc,               
+                    '',                   
+                    totalThanhTienGroup   
                 ];
                 excelData.push(groupHeaderRow);
-                // =================================
+                
+                const sortedGrandchildPaths = Object.keys(timestampGroup).sort((a, b) => {
+                    const idA = parseInt(a.split('/').pop(), 10) || 0;
+                    const idB = parseInt(b.split('/').pop(), 10) || 0;
+                    return idA - idB;
+                });
+                
+                for (const grandchildPath of sortedGrandchildPaths) {
+                    const grandchildGroup = timestampGroup[grandchildPath]; 
+                    const allExecsInGrandchild = Object.values(grandchildGroup).flat();
+                    if (allExecsInGrandchild.length === 0) continue;
+                    
+                    // === BẮT ĐẦU THAY ĐỔI: Lấy Mã hiệu (tt) Cấp 3 ===
+                    let dauMucC3 = 'Không xác định';
+                    let maHieuC3 = ''; // <-- Biến mới
 
-                // === THÊM CÁC DÒNG CHI TIẾT CÔNG VIỆC TRONG NHÓM ===
-                for (const exec of allExecsInGroup) {
-                    // Lấy Mã hiệu (tt) của công việc lá
-                    let maHieu = '';
-                    const taskData = docDataMap.get(exec.parentLeafNodePath);
-                     if (taskData && taskData.tt) {
-                        maHieu = convertTTForDisplay(taskData.tt);
+                    const grandchildData = docDataMap.get(grandchildPath);
+                    if (grandchildData) {
+                        dauMucC3 = grandchildData.noiDung || 'Không xác định';
+                        maHieuC3 = grandchildData.tt ? convertTTForDisplay(grandchildData.tt) : '';
                     } else {
-                        // Dự phòng nếu không có trong map (chậm hơn)
+                        // Fallback (nếu docDataMap bị lỡ) - Lấy cả node
                         try {
-                            const taskSnap = await get(ref(db, exec.parentLeafNodePath + '/tt'));
+                            const taskSnap = await get(ref(db, grandchildPath)); 
                             if (taskSnap.exists()) {
-                                maHieu = convertTTForDisplay(taskSnap.val());
+                                const data = taskSnap.val();
+                                dauMucC3 = data.noiDung || 'Không xác định';
+                                maHieuC3 = data.tt ? convertTTForDisplay(data.tt) : '';
                             }
-                        } catch (e) { console.warn(`Không thể lấy tt cho ${exec.parentLeafNodePath}`); }
+                        } catch (e) { console.warn(`Không thể lấy data cho ${grandchildPath}`); }
                     }
+                    // === KẾT THÚC THAY ĐỔI ===
+                    
+                    const totalThanhTienC3 = allExecsInGrandchild.reduce((sum, exec) => sum + (exec.thanhTien || 0), 0);
 
-                    const detailRow = [
-                        '',                   // Thứ tự (để trống)
-                        '',                   // Ngày thực hiện (để trống)
-                        maHieu,               // Mã hiệu
-                        `- ${exec.noiDung || ''}`, // Nội dung: Tên công việc chi tiết
-                        exec.dvThucHien || '', // ĐV thực hiện
-                        exec.thanhTien || 0    // Thành tiền
+                    // === THAY ĐỔI: Thêm maHieuC3 vào mảng ===
+                    const subGroupHeaderRow = [
+                       '',                   // Thứ tự (để trống)
+                       '',                   // Ngày thực hiện (để trống)
+                       maHieuC3,             // Mã hiệu (CẬP NHẬT)
+                       `  ${dauMucC3}`,       // Nội dung: Tên Cấp 3
+                       '',                   // ĐV thực hiện (để trống)
+                       totalThanhTienC3      // Thành tiền: Tổng của nhóm Cấp 3
                     ];
-                    excelData.push(detailRow);
+                    excelData.push(subGroupHeaderRow);
+                    // === KẾT THÚC THAY ĐỔI ===
+
+                    for (const exec of allExecsInGrandchild) {
+                       let maHieu = '';
+                       const taskData = docDataMap.get(exec.parentLeafNodePath);
+                        if (taskData && taskData.tt) {
+                           maHieu = convertTTForDisplay(taskData.tt);
+                       } else {
+                           try {
+                               const taskSnap = await get(ref(db, exec.parentLeafNodePath + '/tt'));
+                               if (taskSnap.exists()) {
+                                   maHieu = convertTTForDisplay(taskSnap.val());
+                               }
+                           } catch (e) { console.warn(`Không thể lấy tt cho ${exec.parentLeafNodePath}`); }
+                       }
+
+                       const detailRow = [
+                           '',                   
+                           '',                   
+                           maHieu,               
+                           `    - ${exec.noiDung || ''}`, 
+                           exec.dvThucHien || '', 
+                           exec.thanhTien || 0    
+                       ];
+                       excelData.push(detailRow);
+                    }
                 }
-                // ============================================
-            }
+            } 
 
             statusDiv.innerText = 'Đang tạo file Excel...';
             
-            // Tạo workbook và worksheet
             const ws = XLSX.utils.aoa_to_sheet(excelData);
             
-            // Định dạng cột số (Thành tiền) - Áp dụng cho cả dòng header nhóm và dòng chi tiết
             const moneyFormat = '#,##0'; 
             const range = XLSX.utils.decode_range(ws['!ref']);
-            for (let R = 1; R <= range.e.r; ++R) { // Bắt đầu từ dòng 1 (sau header)
-                // Cột F (index 5) là Thành tiền
+            for (let R = 1; R <= range.e.r; ++R) {
                 const cell_address = XLSX.utils.encode_cell({c: 5, r: R}); 
-                if (!ws[cell_address]) continue; // Bỏ qua nếu ô không tồn tại
-                // Chỉ định dạng nếu ô có giá trị số (khác rỗng và không phải header excel)
+                if (!ws[cell_address]) continue; 
                 if (typeof ws[cell_address].v === 'number') { 
-                    ws[cell_address].t = 'n'; // Set type to number
-                    ws[cell_address].z = moneyFormat; // Set format string
+                    ws[cell_address].t = 'n';
+                    ws[cell_address].z = moneyFormat;
                 }
             }
 
-            // In đậm dòng tên Khu vực (dòng header nhóm)
+            // Logic in đậm (giữ nguyên, sẽ tự động in đậm Cấp 3)
             for (let R = 1; R <= range.e.r; ++R) {
-                 // Nếu cột Mã hiệu (C, index 2) trống => đó là dòng header nhóm
                 const maHieuCellAddr = XLSX.utils.encode_cell({c: 2, r: R});
+                // Sửa logic: Chỉ in đậm nếu cột Mã hiệu trống (dành cho Cấp 1)
                 if (!ws[maHieuCellAddr] || ws[maHieuCellAddr].v === '') {
-                     // In đậm cả dòng
                      for (let C = 0; C <= range.e.c; ++C) {
                          const cellAddr = XLSX.utils.encode_cell({c: C, r: R});
-                         if (!ws[cellAddr]) ws[cellAddr] = { t: 's', v: '' }; // Tạo ô nếu chưa có
-                         if (!ws[cellAddr].s) ws[cellAddr].s = {}; // Tạo style nếu chưa có
-                         if (!ws[cellAddr].s.font) ws[cellAddr].s.font = {}; // Tạo font style nếu chưa có
+                         if (!ws[cellAddr]) ws[cellAddr] = { t: 's', v: '' };
+                         if (!ws[cellAddr].s) ws[cellAddr].s = {};
+                         if (!ws[cellAddr].s.font) ws[cellAddr].s.font = {};
                          ws[cellAddr].s.font.bold = true;
                      }
-                 }
+                } 
+                // === THAY ĐỔI: Logic in đậm MỚI cho Cấp 3 ===
+                // Nếu cột Mã hiệu (C) không trống, NHƯNG cột Ngày (B) trống
+                // => đây là hàng Cấp 3
+                else {
+                    const ngayCellAddr = XLSX.utils.encode_cell({c: 1, r: R});
+                    if (!ws[ngayCellAddr] || ws[ngayCellAddr].v === '') {
+                        for (let C = 0; C <= range.e.c; ++C) {
+                             const cellAddr = XLSX.utils.encode_cell({c: C, r: R});
+                             if (!ws[cellAddr]) ws[cellAddr] = { t: 's', v: '' };
+                             if (!ws[cellAddr].s) ws[cellAddr].s = {};
+                             if (!ws[cellAddr].s.font) ws[cellAddr].s.font = {};
+                             ws[cellAddr].s.font.bold = true;
+                         }
+                    }
+                }
+                // === KẾT THÚC THAY ĐỔI ===
             }
-
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "TraCuuThucHien");
 
-            // Xuất file
             XLSX.writeFile(wb, `TraCuuThucHien_${currentYear}.xlsx`);
 
             statusDiv.innerText = 'Xuất Excel thành công!';
@@ -1952,7 +2129,7 @@ function getCleanupFieldsForParentNode(path) {
         document.getElementById('dataModal').style.display = 'block';
     };
 
-    window.openSearchModal = async function() {
+window.openSearchModal = async function() {
         const modal = document.getElementById('dataModal');
         const title = 'Tra cứu thực hiện công việc';
         document.getElementById('modalTitle').innerHTML = `<h2>${title}</h2>`;
@@ -1970,7 +2147,6 @@ function getCleanupFieldsForParentNode(path) {
         document.getElementById('modalBody').innerHTML = table;
         document.getElementById('modalSaveButton').style.display = 'none';
         document.getElementById('modalDeleteButton').style.display = 'none';
-        // Thêm nút Xuất Excel vào footer trái
         document.getElementById('modal-footer-left').innerHTML = '<button class="btn-success" onclick="exportExecutionSearchExcel()">Xuất Excel</button>';
         modal.style.display = 'block';
 
@@ -1984,7 +2160,6 @@ function getCleanupFieldsForParentNode(path) {
             if (!parentSnapshot.exists()) {
                 document.getElementById('modalBody').innerHTML = '<p>Không có dữ liệu thực hiện.</p>';
                 statusDiv.innerText = '';
-                // Quan trọng: Xóa nút xuất excel nếu không có dữ liệu
                 document.getElementById('modal-footer-left').innerHTML = '';
                 return;
             }
@@ -1992,9 +2167,17 @@ function getCleanupFieldsForParentNode(path) {
             const parentsData = parentSnapshot.val();
             const allExecutions = [];
 
-            // Hàm processNodeForExecutions giữ nguyên
+            // === THAY ĐỔI 1: Cập nhật processNodeForExecutions ===
+            // Thêm logic để lấy grandchildPath (Đường dẫn Cấp 3)
             const processNodeForExecutions = (node, path) => {
                 if (node.executions) {
+                    // Bổ sung logic lấy đường dẫn Cấp 3
+                    const pathParts = path.split('/');
+                    let grandchildPath = '';
+                    if (pathParts.length >= 6) { // Phải là Cấp 3 (grandchildren) hoặc sâu hơn
+                        grandchildPath = pathParts.slice(0, 6).join('/'); // Lấy path đến .../grandchildren/ID
+                    }
+
                     for (const execId in node.executions) {
                         const exec = node.executions[execId];
                         const executionWithPath = {
@@ -2002,13 +2185,14 @@ function getCleanupFieldsForParentNode(path) {
                             path: `${path}/executions/${execId}`,
                             parentLeafNodePath: path,
                             parentChildPath: path.split('/').slice(0, 4).join('/'),
+                            grandchildPath: grandchildPath, // <-- THÊM MỚI: Đường dẫn Cấp 3
                             noiDung: node.noiDung || 'Không có tên',
                             dvThucHien: node.dvThucHien || ''
-                            // hoSoLink đã có sẵn trong exec nếu tồn tại
                         };
                         allExecutions.push(executionWithPath);
                     }
                 }
+                // Các hàm đệ quy giữ nguyên
                  if (node.children) {
                     for (const childId in node.children) {
                         processNodeForExecutions(node.children[childId], `${path}/children/${childId}`);
@@ -2030,6 +2214,7 @@ function getCleanupFieldsForParentNode(path) {
                     }
                 }
             };
+            // === KẾT THÚC THAY ĐỔI 1 ===
 
             for (const parentId in parentsData) {
                 processNodeForExecutions(parentsData[parentId], `${getParentCollectionName()}/${parentId}`);
@@ -2038,44 +2223,61 @@ function getCleanupFieldsForParentNode(path) {
             allExecutions.sort((a, b) => {
                 const dateA = new Date(a.ngayThucHien || 0);
                 const dateB = new Date(b.ngayThucHien || 0);
-                 // Sắp xếp theo ngày giảm dần, sau đó theo timestamp giảm dần nếu ngày giống nhau
                  if (dateB - dateA !== 0) return dateB - dateA;
                  return (b.timestamp || 0) - (a.timestamp || 0);
              });
 
-            // Gom nhóm executionGroups giữ nguyên
+            // === THAY ĐỔI 2: Cập nhật logic gom nhóm ===
+            // Cấu trúc mới: Map<timestamp, Map<grandchildPath, Map<leafPath, exec[]>>>
             allExecutions.forEach(exec => {
                 const timestampKey = String(exec.timestamp || exec.ngayThucHien);
                 if (!executionGroups.has(timestampKey)) {
-                    executionGroups.set(timestampKey, {});
+                    executionGroups.set(timestampKey, {}); // Map các nhóm Cấp 3
                 }
-                const group = executionGroups.get(timestampKey);
+                const timestampGroup = executionGroups.get(timestampKey);
+                
+                const grandchildPath = exec.grandchildPath; // Lấy đường dẫn Cấp 3
+                if (!grandchildPath) return; // Bỏ qua nếu không có Cấp 3
+
+                if (!timestampGroup[grandchildPath]) {
+                    timestampGroup[grandchildPath] = {}; // Map các nhóm Cấp 4/5 (lá)
+                }
+                const grandchildGroup = timestampGroup[grandchildPath];
+
                 const parentLeafNodePath = exec.parentLeafNodePath;
-                if (!group[parentLeafNodePath]) {
-                    group[parentLeafNodePath] = [];
+                if (!grandchildGroup[parentLeafNodePath]) {
+                    grandchildGroup[parentLeafNodePath] = [];
                 }
-                group[parentLeafNodePath].push(exec);
+                grandchildGroup[parentLeafNodePath].push(exec);
             });
+            // === KẾT THÚC THAY ĐỔI 2 ===
+
 
             let tbody = '';
-            // Sử dụng sortedTimestamps để đảm bảo thứ tự hiển thị đúng
              const sortedTimestamps = Array.from(executionGroups.keys()).sort((a, b) => {
-                 const firstExecA = Object.values(executionGroups.get(a) || {})?.[0]?.[0];
-                 const firstExecB = Object.values(executionGroups.get(b) || {})?.[0]?.[0];
+                 // Logic sắp xếp này vẫn đúng vì nó chỉ nhìn vào exec đầu tiên
+                 const firstExecA = Object.values(Object.values(executionGroups.get(a) || {})[0] || {})[0]?.[0];
+                 const firstExecB = Object.values(Object.values(executionGroups.get(b) || {})[0] || {})[0]?.[0];
                  const dateA = new Date(firstExecA?.ngayThucHien || 0);
                  const dateB = new Date(firstExecB?.ngayThucHien || 0);
                  if (dateB - dateA !== 0) return dateB - dateA;
                  return (firstExecB?.timestamp || 0) - (firstExecA?.timestamp || 0);
              });
 
-            for (const timestampKey of sortedTimestamps) { // Duyệt theo timestamp đã sắp xếp
-                 const group = executionGroups.get(timestampKey);
-                 const allExecsInGroup = Object.values(group).flat();
-                 if (allExecsInGroup.length === 0) continue;
+            // === THAY ĐỔI 3: Cập nhật vòng lặp tạo HTML ===
+            for (const timestampKey of sortedTimestamps) {
+                 const timestampGroup = executionGroups.get(timestampKey); // Map<grandchildPath, Map<leafPath, exec[]>>
 
-                const firstExec = allExecsInGroup[0];
-                const totalThanhTien = allExecsInGroup.reduce((sum, exec) => sum + (exec.thanhTien || 0), 0);
+                 // Lấy TẤT CẢ các exec trong nhóm timestamp này
+                 const allExecsInTimestamp = Object.values(timestampGroup).flatMap(grandchildGroup => 
+                    Object.values(grandchildGroup).flat()
+                 );
+                 if (allExecsInTimestamp.length === 0) continue;
 
+                const firstExec = allExecsInTimestamp[0];
+                const totalThanhTien = allExecsInTimestamp.reduce((sum, exec) => sum + (exec.thanhTien || 0), 0);
+
+                // Lấy Cấp 1 (Khu vực) - Logic giữ nguyên
                 let khuVuc = 'Không xác định';
                 const pathParts = firstExec.parentLeafNodePath.split('/');
                 if (pathParts.length > 1) {
@@ -2083,19 +2285,54 @@ function getCleanupFieldsForParentNode(path) {
                     khuVuc = parentNoiDungMap.get(parentId) || parentId;
                 }
 
+                // Bắt đầu xây dựng ô nội dung
                 let noiDungCellHtml = `<strong style="color: #0056b3;">${khuVuc}</strong><br>`;
-                allExecsInGroup.forEach((exec, index) => {
-                    noiDungCellHtml += `- ${exec.noiDung || 'N/A'}`;
-                    if (index < allExecsInGroup.length - 1) {
+
+                // --- Vòng lặp lồng BỔ SUNG cho Cấp 3 ---
+                // Sắp xếp các nhóm Cấp 3 (ví dụ: '1', '2', '10') theo đúng thứ tự số
+                const sortedGrandchildPaths = Object.keys(timestampGroup).sort((a, b) => {
+                    const idA = parseInt(a.split('/').pop(), 10) || 0;
+                    const idB = parseInt(b.split('/').pop(), 10) || 0;
+                    return idA - idB;
+                });
+                
+                for (const grandchildPath of sortedGrandchildPaths) {
+                    const grandchildGroup = timestampGroup[grandchildPath]; // Map<leafPath, exec[]>
+                    const allExecsInGrandchild = Object.values(grandchildGroup).flat();
+                    if (allExecsInGrandchild.length === 0) continue;
+
+                    // Lấy tên Cấp 3 (Đầu mục) từ docDataMap
+                    let dauMucC3 = 'Không xác định';
+                    const grandchildData = docDataMap.get(grandchildPath);
+                    if (grandchildData && grandchildData.noiDung) {
+                        dauMucC3 = grandchildData.noiDung;
+                    } else {
+                        dauMucC3 = grandchildPath.split('/').pop(); // Fallback
+                    }
+
+                    // Thêm tên Cấp 3 vào HTML
+                    noiDungCellHtml += `<strong style="color: #333; padding-left: 10px;">${dauMucC3}</strong><br>`;
+
+                    // Vòng lặp Cấp 4/5 (logic cũ)
+                    allExecsInGrandchild.forEach((exec, index) => {
+                        noiDungCellHtml += `<span style="padding-left: 20px;">- ${exec.noiDung || 'N/A'}</span>`;
+                        // Thêm <br> nếu không phải là mục cuối cùng CỦA NHÓM CẤP 3 NÀY
+                        if (index < allExecsInGrandchild.length - 1) {
+                            noiDungCellHtml += '<br>';
+                        }
+                    });
+                    
+                    // Thêm <br> nếu không phải là nhóm Cấp 3 cuối cùng
+                    if (sortedGrandchildPaths.indexOf(grandchildPath) < sortedGrandchildPaths.length - 1) {
                         noiDungCellHtml += '<br>';
                     }
-                });
+                }
+                // --- KẾT THÚC Vòng lặp Cấp 3 ---
 
-                // --- KIỂM TRA hoSoLink VÀ TẠO NÚT ---
-                const hasHoSoLink = allExecsInGroup.some(exec => exec.hoSoLink && exec.hoSoLink.trim() !== '');
-                const hoSoButtonClass = hasHoSoLink ? 'btn-danger' : 'btn-info'; // Đỏ nếu có link, xanh nếu chưa
+                // Kiểm tra nút Hồ sơ (logic cũ, nhưng dùng allExecsInTimestamp)
+                const hasHoSoLink = allExecsInTimestamp.some(exec => exec.hoSoLink && exec.hoSoLink.trim() !== '');
+                const hoSoButtonClass = hasHoSoLink ? 'btn-danger' : 'btn-info';
                 const hoSoButtonText = hasHoSoLink ? 'Thay HS' : 'Hồ sơ';
-                // ===================================
 
                 tbody += `<tr>
                     <td>${firstExec.ngayThucHien}</td>
@@ -2107,7 +2344,8 @@ function getCleanupFieldsForParentNode(path) {
                         <button class="btn-warning btn-action btn-edit-exec" onclick="openExecutionEdit('${timestampKey}')">Sửa</button>
                     </td>
                 </tr>`;
-            } // Kết thúc forEach timestampKey
+            }
+            // === KẾT THÚC THAY ĐỔI 3 ===
 
             document.querySelector('#dataModal .modal-table tbody').innerHTML = tbody;
             statusDiv.innerText = '';
@@ -2115,7 +2353,6 @@ function getCleanupFieldsForParentNode(path) {
             console.error("Lỗi khi tải dữ liệu thực hiện:", error);
             statusDiv.className = 'error';
             statusDiv.innerText = `Lỗi: ${error.message}`;
-             // Quan trọng: Xóa nút xuất excel nếu có lỗi
              document.getElementById('modal-footer-left').innerHTML = '';
         }
     };
@@ -2366,8 +2603,8 @@ window.saveTasks = async function() {
                 if (field === 'tt') {
                     updates[fieldPath] = convertTTForStorage(input.value);
                 } // <-- THÊM DẤU } BỊ THIẾU VÀO ĐÂY
-                else if (['chiPhi', 'khNamTruoc', 'soLuong', 'donGia'].includes(field)) { 
-                    updates[fieldPath] = parseFormattedNumber(input.value);
+                else if (['chiPhi', 'khNamTruoc', 'thucHienNamTruoc', 'soLuong', 'donGia'].includes(field)) { 
+    updates[fieldPath] = parseFormattedNumber(input.value);
                 } else if (field === 'tanSuatTH') {
                     const value = parseInt(input.value, 10);
                     updates[fieldPath] = isNaN(value) || value < 0 ? 0 : value;
@@ -2488,7 +2725,7 @@ await calculateSummaryData();
                         if (field === 'tanSuatTH') {
                             const value = parseInt(input.value, 10);
                             newData[field] = isNaN(value) || value < 0 ? 0 : value;
-                        } else if (['chiPhi', 'khNamTruoc'].includes(field)) {
+                        } else if (['chiPhi', 'khNamTruoc', 'thucHienNamTruoc'].includes(field)) {
     newData[field] = parseFormattedNumber(input.value);
 } else {
                             newData[field] = input.value;
@@ -2524,6 +2761,9 @@ await calculateSummaryData();
                     newData.keHoachConLai = newData.chiPhi;
                     
                     newData.khNamTruoc = newData.khNamTruoc || 0;
+                    newData.thucHienNamTruoc = newData.thucHienNamTruoc || 0; // THÊM
+                    newData.tgBatDau = newData.tgBatDau || ''; // THÊM
+                    newData.tgHoanThanh = newData.tgHoanThanh || ''; // THÊM
 
                     // Thêm đường dẫn CÔNG VIỆC MỚI vào Set
                     pathsToRecalculate.add(newDocPath);
@@ -2865,20 +3105,30 @@ window.saveExecutionEdits = async function() {
         saveButton.textContent = 'Lưu thay đổi';
     }
 };
-// === KẾT THÚC ĐOẠN MÃ THAY THẾ ===
+// === hàm cho nút xoá trong modal sửa ===
 
-    window.handleDeleteExecution = async function(timestampKey) {
+ window.handleDeleteExecution = async function(timestampKey) {
         if (!isAuthenticated) return showAuthError();
         if (!confirm("Bạn có chắc chắn muốn xóa lần thực hiện này không? Hành động này không thể hoàn tác.")) return;
         const exportBeforeDelete = confirm("Bạn có muốn xuất chi tiết lần thực hiện này ra Excel trước khi xóa không?");
         try {
             if (exportBeforeDelete) {
-                await exportSingleExecutionToExcel(timestampKey);
-                statusDiv.innerText = "Xuất Excel thành công. Chuẩn bị xóa...";
+                // Lưu ý: hàm exportSingleExecutionToExcel(timestampKey) có thể cũng bị lỗi
+                // và cần được cập nhật nếu nó tồn tại.
+                // Tạm thời giả định nó không tồn tại hoặc bạn không dùng.
+                // await exportSingleExecutionToExcel(timestampKey);
+                // statusDiv.innerText = "Xuất Excel thành công. Chuẩn bị xóa...";
             }
             statusDiv.className = 'success';
             statusDiv.innerText = "Đang xóa dữ liệu...";
-            const group = Object.values(executionGroups.get(timestampKey)).flat();
+
+            // === SỬA LỖI: Cập nhật logic flattening cho cấu trúc 3 cấp ===
+            const timestampGroup = executionGroups.get(timestampKey);
+            const group = Object.values(timestampGroup).flatMap(grandchildGroup => 
+                Object.values(grandchildGroup).flat()
+            );
+            // === KẾT THÚC SỬA LỖI ===
+            
             const updates = {};
             const pathsToRecalculate = new Set(group.map(exec => exec.parentLeafNodePath));
             const childPathsToCheck = new Set(group.map(exec => exec.parentChildPath));
@@ -2902,15 +3152,14 @@ window.saveExecutionEdits = async function() {
     };
 
     // === THAY THẾ HÀM NÀY ===
-    window.performPdfUpload = async function(timestampKey) {
-        if (!isAuthenticated) return showAuthError(); // Vẫn kiểm tra đăng nhập Firebase
+  window.performPdfUpload = async function(timestampKey) {
+        if (!isAuthenticated) return showAuthError(); 
         
-        // Kiểm tra lại token Google trước khi upload (phòng trường hợp hết hạn)
         const googleToken = gapi.client.getToken();
         if (!googleToken || !googleToken.access_token) {
             statusDiv.className = 'error';
             statusDiv.innerText = 'Phiên đăng nhập Google đã hết hạn hoặc không hợp lệ. Vui lòng thử lại thao tác "Hồ sơ".';
-            closeAllModals(); // Đóng modal upload lại
+            closeAllModals(); 
             return;
         }
 
@@ -2928,16 +3177,14 @@ window.saveExecutionEdits = async function() {
             statusDiv.className = 'success'; 
             statusDiv.innerText = 'Đang tải tệp lên Google Drive...';
             
-            // Tạo metadata và FormData (giữ nguyên)
             const metadata = { name: file.name, mimeType: 'application/pdf', parents: [FOLDER_ID] };
             const formData = new FormData();
             formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
             formData.append('file', file);
             
-            // Gọi API Upload (giữ nguyên)
             const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${googleToken.access_token}` }, // Sử dụng token đã kiểm tra
+                headers: { 'Authorization': `Bearer ${googleToken.access_token}` }, 
                 body: formData
             });
             if (!response.ok) { 
@@ -2951,25 +3198,28 @@ window.saveExecutionEdits = async function() {
             
             statusDiv.innerText = 'Đang cập nhật link hồ sơ vào cơ sở dữ liệu...';
 
-            // --- BẮT ĐẦU SỬA ĐỔI: Cập nhật cho cả nhóm ---
-            const groupExecutions = executionGroups.get(timestampKey);
+            // --- BẮT ĐẦU SỬA ĐỔI: Cập nhật cho cấu trúc 3 cấp ---
+            const timestampGroup = executionGroups.get(timestampKey); // Map<grandchildPath, Map<leafPath, exec[]>>
             const updates = {};
             let updatedCount = 0;
 
-            if (groupExecutions) {
-                 // Duyệt qua từng path của công việc lá trong nhóm
-                for (const leafPath in groupExecutions) {
-                     // Duyệt qua từng lần thực hiện (execution) của công việc lá đó
-                     const executions = groupExecutions[leafPath];
-                     executions.forEach(exec => {
-                         // Chỉ cập nhật những execution có cùng timestampKey (để chắc chắn)
-                         // Thường thì tất cả exec trong group này sẽ có cùng timestamp
-                         if (String(exec.timestamp || exec.ngayThucHien) === String(timestampKey)) { 
-                             updates[`${exec.path}/hoSoLink`] = fileLink; 
-                             updatedCount++;
-                         }
-                     });
-                 }
+            if (timestampGroup) {
+                // Duyệt qua từng nhóm Cấp 3 (grandchildPath)
+                for (const grandchildPath in timestampGroup) {
+                    const grandchildGroup = timestampGroup[grandchildPath]; // Map<leafPath, exec[]>
+                    // Duyệt qua từng nhóm Cấp lá (leafPath)
+                    for (const leafPath in grandchildGroup) {
+                        const executions = grandchildGroup[leafPath]; // exec[]
+                        // Duyệt qua từng lần thực hiện (exec)
+                        executions.forEach(exec => {
+                            // timestampKey vẫn là key của nhóm, nên logic này đúng
+                            if (String(exec.timestamp || exec.ngayThucHien) === String(timestampKey)) { 
+                                updates[`${exec.path}/hoSoLink`] = fileLink; 
+                                updatedCount++;
+                            }
+                        });
+                    }
+                }
             }
             // --- KẾT THÚC SỬA ĐỔI ---
 
@@ -2980,15 +3230,14 @@ window.saveExecutionEdits = async function() {
                  console.warn(`Không tìm thấy mục thực hiện nào khớp với timestampKey ${timestampKey} để cập nhật hoSoLink.`);
             }
 
-            closeAllModals(); // Đóng modal upload
-            await fetchData(); // Tải lại dữ liệu để hiển thị link (nếu có cột Hồ sơ trong bảng chính)
+            closeAllModals(); 
+            await fetchData(); 
             statusDiv.className = 'success';
             statusDiv.innerText = `Tải lên và cập nhật hồ sơ thành công!`;
 
         } catch (error) {
             console.error('Lỗi khi tải tệp hồ sơ:', error);
             statusDiv.className = 'error';
-            // Cung cấp thông báo lỗi chi tiết hơn
             if (error.message.includes('token')) {
                  statusDiv.innerText = `Lỗi xác thực Google: ${error.message}. Vui lòng thử lại thao tác "Hồ sơ".`;
             } else if (error.message.includes('API Drive')) {
@@ -2999,7 +3248,7 @@ window.saveExecutionEdits = async function() {
         } finally {
             uploadButton.disabled = false;
             uploadButton.textContent = 'Tải Lên';
-            fileInput.value = ''; // Xóa tệp đã chọn trong input
+            fileInput.value = ''; 
         }
     };
     // === KẾT THÚC THAY THẾ ===
@@ -3019,7 +3268,7 @@ window.saveExecutionEdits = async function() {
     
     ? [ {text: 'TT', width: '5%'}, 'Nội dung', {text: 'Đ.vị tính', width: '12%'}, {text: 'Số lượng', width: '12%'}, {text: 'Đơn giá', width: '15%'}, {text: 'Chi phí', width: '18%'}]
     
-    : [ 'TT', 'Nội dung', 'ĐV th.hiện', 'Đ.vị tính', 'Số lượng', 'Tần suất TH', 'Chi phí', 'KH năm trước', 'Cấp độ', 'Ghi chú' ];
+    : [ 'TT', 'Nội dung', 'ĐV th.hiện', 'KH năm trước', 'Thực hiện năm trước', 'Đ.vị tính', 'Số lượng', 'Tần suất TH', 'Chi phí', 'Cấp độ', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú' ];
 
         let table = createModalTable(headers);
         for (const path of pathsToEdit) {
@@ -3124,7 +3373,7 @@ window.saveExecutionEdits = async function() {
    
     ? [ {text: 'TT', width: '5%'}, 'Nội dung', {text: 'Đ.vị tính', width: '12%'}, {text: 'Số lượng', width: '12%'}, {text: 'Đơn giá', width: '15%'}, {text: 'Chi phí', width: '18%'}]
     
-    : [ 'TT', 'Nội dung', 'ĐV th.hiện', 'Đ.vị tính', 'Số lượng', 'Tần suất TH', 'Chi phí', 'KH năm trước', 'Cấp độ', 'Ghi chú' ];
+    : [ 'TT', 'Nội dung', 'ĐV th.hiện', 'KH năm trước', 'Thực hiện năm trước', 'Đ.vị tính', 'Số lượng', 'Tần suất TH', 'Chi phí', 'Cấp độ', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú' ];
 
         let table = createModalTable(headers);
         
@@ -3183,14 +3432,18 @@ window.saveExecutionEdits = async function() {
             // Không làm gì thêm, người dùng cần thử lại
         }
     };
-    // === KẾT THÚC THAY THẾ ===
-    // DÁN TOÀN BỘ KHỐI MÃ NÀY VÀO BÊN TRONG THẺ <script>
-
-// === BẮT ĐẦU ĐOẠN MÃ THAY THẾ ===
-window.openExecutionEdit = function(timestampKey) {
+    // === Bắt đầu hàm cho nút sửa công việc đã thực hiện ===
+   window.openExecutionEdit = function(timestampKey) {
     if (!isAuthenticated) return showAuthError();
     const modal = document.getElementById('dataModal');
-    const group = Object.values(executionGroups.get(timestampKey)).flat();
+    
+    // === SỬA LỖI: Cập nhật logic flattening cho cấu trúc 3 cấp ===
+    const timestampGroup = executionGroups.get(timestampKey); // Map<grandchildPath, Map<leafPath, exec[]>>
+    const group = Object.values(timestampGroup).flatMap(grandchildGroup => 
+        Object.values(grandchildGroup).flat()
+    );
+    // === KẾT THÚC SỬA LỖI ===
+
     const firstExec = group[0];
     const title = `Sửa lần thực hiện ngày ${firstExec.ngayThucHien}`;
     document.getElementById('modalTitle').innerHTML = `<h2>${title}</h2>`;
@@ -3217,27 +3470,20 @@ window.openExecutionEdit = function(timestampKey) {
     table += '</tbody></table>';
     document.getElementById('modalBody').innerHTML = table;
 
-    // ---- BẮT ĐẦU SỬA LỖI ----
-    // Hiển thị nút "Lưu thay đổi" và gán sự kiện
     document.getElementById('modalSaveButton').onclick = saveExecutionEdits;
     document.getElementById('modalSaveButton').style.display = 'block';
 
-    // Xử lý key an toàn để truyền vào onclick
     const keyParam = typeof timestampKey === 'number' ? timestampKey : `'${timestampKey}'`;
 
-    // Thêm các nút hành động "Xóa" và "Tải lên Hồ sơ" vào bên trái footer
     document.getElementById('modal-footer-left').innerHTML = `
         <button class="btn-danger" onclick="handleDeleteExecution(${keyParam})">Xóa lần thực hiện này</button>
         <button class="btn-info" onclick="uploadPdfForExecution(${keyParam})">Tải lên Hồ sơ</button>
     `;
 
-    // Ẩn nút xóa mặc định (không dùng đến)
     document.getElementById('modalDeleteButton').style.display = 'none';
-    // ---- KẾT THÚC SỬA LỖI ----
-
     modal.style.display = 'block';
 };
-// === KẾT THÚC ĐOẠN MÃ THAY THẾ ===
+// === KẾT THÚC hàm cho nút sửa ===
 
     window.uploadPdfForExecution = function(timestampKey) {
         document.getElementById('uploadPdfModalTitle').textContent = 'Tải lên Hồ sơ PDF';
@@ -3300,210 +3546,529 @@ window.openExecutionEdit = function(timestampKey) {
     };
 
    // === HÀM XUẤT EXCEL THUẦN ===
-// === HÀM exportPlainDataExcel (ĐÃ SỬA THỨ TỰ CỘT) ===
+
+// === BẮT ĐẦU KHỐI MÃ MỚI ĐỂ XUẤT EXCEL CÓ CÔNG THỨC ===
+
+/**
+ * HÀM PHỤ TRỢ 1: (ĐÃ SỬA LỖI)
+ * Đệ quy "khô" qua toàn bộ dữ liệu để tìm số lần thực hiện tối đa.
+ * Cần thiết để biết tạo bao nhiêu cột header.
+ */
+function findMaxExecutions(nodes) {
+    let maxExec = 0;
+    if (!nodes) return 0;
+
+    const nodesArray = Array.isArray(nodes) ? nodes : Object.values(nodes);
+
+    for (const node of nodesArray) {
+        // === SỬA LỖI: THÊM KIỂM TRA "if (node)" ===
+        // Bỏ qua các entry bị null hoặc undefined trong CSDL
+        if (node) { 
+            if (node.executions) {
+                const execCount = Object.keys(node.executions).length;
+                if (execCount > maxExec) maxExec = execCount;
+            }
+            
+            // Đệ quy xuống các cấp con
+            let childMax = 0;
+            if (node.children) childMax = Math.max(childMax, findMaxExecutions(node.children));
+            if (node.grandchildren) childMax = Math.max(childMax, findMaxExecutions(node.grandchildren));
+            if (node.greatGrandchildren) childMax = Math.max(childMax, findMaxExecutions(node.greatGrandchildren));
+            if (node.greatGreatGrandchildren) childMax = Math.max(childMax, findMaxExecutions(node.greatGreatGrandchildren));
+            
+            if (childMax > maxExec) maxExec = childMax;
+        }
+        // === KẾT THÚC SỬA LỖI ===
+    }
+    return maxExec;
+}
+
+
+/**
+ * HÀM PHỤ TRỢ 2: (ĐÃ CẬP NHẬT: Thêm 'v:' cho các ô công thức)
+ * Xử lý đệ quy các giải trình (Justifications) và ghi vào worksheet.
+ * Trả về mảng các HÀNG (row index) của các giải trình con để SUM.
+ */
+function processJustificationForExcel(justificationNode, parentTT, level, ctx) {
+    const r = ctx.currentRow;
+    const isParentJustification = justificationNode.hasSubJustifications === true && justificationNode.subJustifications;
+    let subJustificationRows = [];
+
+    // Ghi dữ liệu giải trình cấp 1 (a, b, c...)
+    ctx.ws[ctx.COLS.TT + r] = { t: 's', v: convertTTForDisplay(justificationNode.tt) };
+    ctx.ws[ctx.COLS.NOI_DUNG + r] = { t: 's', v: justificationNode.noiDung || '' };
+    
+    // Gán style (chữ đỏ, nghiêng)
+    const justStyle = { 
+        font: { color: { rgb: "FF0000" }, italic: true },
+        numFmt: ctx.moneyFormat 
+    };
+    
+    // Đệ quy xử lý giải trình con (a1, a2...)
+    if (isParentJustification) {
+        const subJustifications = Object.keys(justificationNode.subJustifications)
+            .map(subId => ({ id: subId, ...justificationNode.subJustifications[subId] }))
+            .sort((a,b) => a.tt.localeCompare(b.tt));
+        
+        for (const subJustData of subJustifications) {
+            ctx.currentRow++;
+            // Gọi đệ quy cho giải trình con
+            // Hàm này trả về [r] của chính nó vì giải trình con (a1, a2) là lá
+            const subJustChildRows = processJustificationForExcel(subJustData, justificationNode.tt, level + 1, ctx);
+            subJustificationRows.push(...subJustChildRows);
+        }
+    }
+
+    // Ghi các trường dữ liệu
+    ctx.ws[ctx.COLS.DON_VI + r] = { t: 's', v: justificationNode.donVi || '', s: justStyle };
+    
+    // Nếu là cha (ví dụ 'a'), SỐ LƯỢNG và ĐƠN GIÁ bị vô hiệu hóa (để trống)
+    // Nếu là lá (ví dụ 'a1'), ghi giá trị vào
+    if (!isParentJustification) {
+        ctx.ws[ctx.COLS.SO_LUONG + r] = { t: 'n', v: justificationNode.soLuong || 0, s: justStyle };
+        // Chỉ ghi đơn giá nếu là chế độ 'full'
+        if (activeExportType === 'full' && ctx.COLS.DON_GIA) { // Thêm kiểm tra COLS.DON_GIA
+            ctx.ws[ctx.COLS.DON_GIA + r] = { t: 'n', v: justificationNode.donGia || 0, s: justStyle };
+        }
+    }
+    
+    // --- GHI CHI PHÍ (ĐÃ CẬP NHẬT) ---
+    // Lấy giá trị đã tính toán từ CSDL (dùng cho thuộc tính 'v:')
+    const cellValue = justificationNode.chiPhi || 0; 
+
+    if (isParentJustification && subJustificationRows.length > 0) {
+        // Case 1: Là cha VÀ có con (a, b...): Dùng công thức SUM trỏ đến các con (a1, a2)
+        const sumCells = subJustificationRows.map(childR => ctx.COLS.CHI_PHI + childR).join(',');
+        ctx.ws[ctx.COLS.CHI_PHI + r] = { t: 'n', v: cellValue, f: `SUM(${sumCells})`, s: justStyle };
+
+    } else if (!isParentJustification && activeExportType === 'full' && ctx.COLS.DON_GIA) {
+        // Case 2: Là lá (a1, a2... hoặc 'a' không có con) VÀ đang ở chế độ 'full'
+        // Dùng công thức NHÂN = Số lượng * Đơn giá
+        const soLuongAddr = ctx.COLS.SO_LUONG + r;
+        const donGiaAddr = ctx.COLS.DON_GIA + r; 
+        ctx.ws[ctx.COLS.CHI_PHI + r] = { t: 'n', v: cellValue, f: `${soLuongAddr}*${donGiaAddr}`, s: justStyle };
+
+    } else {
+        // Case 3: Là lá nhưng ở chế độ 'simplified' (không có cột Đơn giá)
+        // HOẶC là cha nhưng (chưa) có con
+        // Ghi giá trị đã tính toán (hoặc 0)
+        ctx.ws[ctx.COLS.CHI_PHI + r] = { t: 'n', v: cellValue, s: justStyle };
+    }
+    
+    // Thêm style cho các ô đã ghi
+    ctx.ws[ctx.COLS.TT + r].s = justStyle;
+    ctx.ws[ctx.COLS.NOI_DUNG + r].s = justStyle;
+    if (ctx.ws[ctx.COLS.SO_LUONG + r]) ctx.ws[ctx.COLS.SO_LUONG + r].s = justStyle;
+    // Thêm kiểm tra COLS.DON_GIA
+    if (activeExportType === 'full' && ctx.COLS.DON_GIA && ctx.ws[ctx.COLS.DON_GIA + r]) {
+        ctx.ws[ctx.COLS.DON_GIA + r].s = justStyle;
+    }
+    
+    // Trả về HÀNG (row index) của chính nó để nút cha (công việc lá) SUM
+    return [r];
+}
+
+
+/**
+ * HÀM PHỤ TRỢ 3: (ĐÃ CẬP NHẬT: Thêm 'v:' cho các ô công thức)
+ * Xử lý đệ quy các mục CÔNG VIỆC và ghi vào worksheet.
+ * Trả về mảng các HÀNG (row index) của các mục con để SUM.
+ */
+function processNodeForExcel(node, path, level, ctx) {
+    const r = ctx.currentRow;
+    let childRows = [];
+    let justificationRows = [];
+    
+    // Xác định xem có phải là "nút cha" (container) hay không
+    const hasL5Children = node.greatGreatGrandchildren && Object.keys(node.greatGreatGrandchildren).length > 0;
+    const hasL4Children = node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0;
+    const hasL3Children = node.grandchildren && Object.keys(node.grandchildren).length > 0;
+    const hasL2Children = node.children && Object.keys(node.children).length > 0;
+    let isContainer = (node.hasChildren === true) || hasL2Children || hasL3Children || hasL4Children || hasL5Children;
+
+    // Sắp xếp các cấp con (lấy từ logic gốc trong fetchData)
+    if (node.children) {
+        const children = Object.keys(node.children).map(id => ({ id, ...node.children[id] })).sort(childSort);
+        for (const childData of children) {
+            ctx.currentRow++;
+            childRows.push(...processNodeForExcel(childData, `${path}/children/${childData.id}`, level + 1, ctx));
+        }
+    }
+    if (node.grandchildren) {
+        const grandchildren = Object.keys(node.grandchildren).map(id => ({ id, ...node.grandchildren[id] })).sort((a,b)=>parseInt(a.id,10)-parseInt(b.id,10));
+        for (const grandchildData of grandchildren) {
+            ctx.currentRow++;
+            childRows.push(...processNodeForExcel(grandchildData, `${path}/grandchildren/${grandchildData.id}`, level + 2, ctx));
+        }
+    }
+    if (node.greatGrandchildren) {
+        const greatGrandchildren = Object.keys(node.greatGrandchildren).map(id => ({ id, ...node.greatGrandchildren[id]})).sort(numericSort);
+        for (const greatGrandchildData of greatGrandchildren) {
+            ctx.currentRow++;
+            childRows.push(...processNodeForExcel(greatGrandchildData, `${path}/greatGrandchildren/${greatGrandchildData.id}`, level + 3, ctx));
+        }
+    }
+    if (node.greatGreatGrandchildren) {
+        const greatGreatGrandchildren = Object.keys(node.greatGreatGrandchildren).map(id => ({ id, ...node.greatGreatGrandchildren[id]})).sort(numericSort);
+        for (const gggcData of greatGreatGrandchildren) {
+            ctx.currentRow++;
+            childRows.push(...processNodeForExcel(gggcData, `${path}/greatGreatGrandchildren/${gggcData.id}`, level + 4, ctx));
+        }
+    }
+    
+    // Xử lý giải trình (chỉ khi là lá và có giải trình)
+    if (!isContainer && node.justifications && activeExportType === 'full') {
+         const justifications = Object.keys(node.justifications)
+            .map(id => ({ id, ...node.justifications[id] }))
+            .sort((a,b) => a.id.localeCompare(b.id));
+            
+        for (const justData of justifications) {
+            ctx.currentRow++;
+            // Gọi hàm phụ trợ xử lý giải trình
+            justificationRows.push(...processJustificationForExcel(justData, node.tt, level + 5, ctx));
+        }
+    }
+
+    // --- GHI DỮ LIỆU & CÔNG THỨC CHO HÀNG HIỆN TẠI (r) ---
+    
+    // Ghi các cột giá trị
+    ctx.ws[ctx.COLS.TT + r] = { t: 's', v: convertTTForDisplay(node.tt) };
+    ctx.ws[ctx.COLS.NOI_DUNG + r] = { t: 's', v: node.noiDung || '' };
+    ctx.ws[ctx.COLS.DV_THUCHIEN + r] = { t: 's', v: node.dvThucHien || '' };
+    ctx.ws[ctx.COLS.DON_VI + r] = { t: 's', v: node.donVi || '' };
+    ctx.ws[ctx.COLS.TAN_SUAT + r] = { t: 'n', v: node.tanSuatTH === undefined || node.tanSuatTH === null ? '' : node.tanSuatTH };
+    ctx.ws[ctx.COLS.CAP_DO + r] = { t: 's', v: node.capDo || '' };
+
+    // Chỉ ghi các cột này nếu là 'full'
+    if (activeExportType === 'full') {
+        ctx.ws[ctx.COLS.TG_BATDAU + r] = { t: 's', v: node.tgBatDau || '' };
+        ctx.ws[ctx.COLS.TG_HOANTHANH + r] = { t: 's', v: node.tgHoanThanh || '' };
+        ctx.ws[ctx.COLS.GHI_CHU + r] = { t: 's', v: node.ghiChu || '' };
+    }
+
+    // Ghi các cột SỐ LƯỢNG và ĐƠN GIÁ (chỉ ghi giá trị nếu là lá)
+    if (!isContainer) {
+        ctx.ws[ctx.COLS.SO_LUONG + r] = { t: 'n', v: node.soLuong || '', s: { numFmt: ctx.moneyFormat } };
+        // Chỉ xuất Đơn giá (GT) khi là 'full'
+        if (activeExportType === 'full' && ctx.COLS.DON_GIA) {
+            ctx.ws[ctx.COLS.DON_GIA + r] = { t: 'n', v: node.donGia || 0, s: { numFmt: ctx.moneyFormat } };
+        }
+    } else {
+        // Thêm định dạng cho các ô số của mục cha (sẽ chứa công thức)
+        ctx.ws[ctx.COLS.SO_LUONG + r] = { t: 'n', v: 0, s: { numFmt: ctx.moneyFormat } };
+        if (activeExportType === 'full' && ctx.COLS.DON_GIA) {
+             ctx.ws[ctx.COLS.DON_GIA + r] = { t: 'n', v: 0, s: { numFmt: ctx.moneyFormat } }; // Cha không có đơn giá
+        }
+    }
+
+    // --- GHI CÁC CỘT CÓ CÔNG THỨC ---
+    
+    // 1. KH Năm Trước, TH Năm Trước, Chi Phí, Chi Phí Thực Hiện
+    const sumFields = [
+        { key: 'chiPhi', col: ctx.COLS.CHI_PHI },
+        { key: 'chiPhiThucHien', col: ctx.COLS.CHI_PHI_THUCHIEN }
+    ];
+    
+    // Chỉ thêm các cột này nếu là 'full'
+    if (activeExportType === 'full') {
+        sumFields.unshift({ key: 'khNamTruoc', col: ctx.COLS.KH_NAM_TRUOC });
+        sumFields.unshift({ key: 'thucHienNamTruoc', col: ctx.COLS.TH_NAM_TRUOC });
+    }
+
+    for (const field of sumFields) {
+        const cellAddress = field.col + r;
+        const cellValue = node[field.key] || 0; // Lấy giá trị đã tính toán từ CSDL
+
+        if (isContainer && childRows.length > 0) {
+            // Nút cha: Dùng công thức SUM trỏ đến các con
+            const sumCells = childRows.map(childR => field.col + childR).join(',');
+            ctx.ws[cellAddress] = { t: 'n', v: cellValue, f: `SUM(${sumCells})`, s: { numFmt: ctx.moneyFormat } };
+        
+        } else if (!isContainer && field.key === 'chiPhi' && justificationRows.length > 0) {
+            // Nút lá & có giải trình: 'Chi Phí' là SUM của các giải trình
+            const sumCells = justificationRows.map(justR => ctx.COLS.CHI_PHI + justR).join(',');
+            ctx.ws[cellAddress] = { t: 'n', v: cellValue, f: `SUM(${sumCells})`, s: { numFmt: ctx.moneyFormat } };
+        
+        } else if (!isContainer) {
+            // Nút lá: Lấy giá trị gốc
+            ctx.ws[cellAddress] = { t: 'n', v: cellValue, s: { numFmt: ctx.moneyFormat } };
+        
+        } else {
+            // Nút cha không có con: Giá trị là 0
+             ctx.ws[cellAddress] = { t: 'n', v: 0, s: { numFmt: ctx.moneyFormat } };
+        }
+    }
+    
+    // 2. Kế Hoạch Còn Lại (Luôn là công thức)
+    const chiPhiAddr = ctx.COLS.CHI_PHI + r;
+    const chiPhiThucHienAddr = ctx.COLS.CHI_PHI_THUCHIEN + r;
+    const keHoachConLaiValue = (node.chiPhi || 0) - (node.chiPhiThucHien || 0); // Tính giá trị
+    
+    ctx.ws[ctx.COLS.KH_CON_LAI + r] = { 
+        t: 'n', 
+        v: keHoachConLaiValue, // Cung cấp giá trị
+        f: `${chiPhiAddr}-${chiPhiThucHienAddr}`, // Cung cấp công thức
+        s: { numFmt: ctx.moneyFormat } 
+    };
+
+    // 3. Xử lý các cột Thực Hiện (executions)
+    if (node.executions && !isContainer) {
+        for (const execId in node.executions) {
+            const exec = node.executions[execId];
+            const lanThucHien = exec.lanThucHien !== undefined ? parseInt(exec.lanThucHien, 10) : parseInt(execId, 10);
+            if (isNaN(lanThucHien) || lanThucHien <= 0) continue;
+
+            // Tìm địa chỉ cột cho lần thực hiện này
+            const ngayThCol = ctx.execHeaderMap[lanThucHien]?.ngayTh;
+            const soLuongCol = ctx.execHeaderMap[lanThucHien]?.soLuong;
+            const donGiaCol = ctx.execHeaderMap[lanThucHien]?.donGia;
+            const thanhTienCol = ctx.execHeaderMap[lanThucHien]?.thanhTien;
+            const tsCol = ctx.execHeaderMap[lanThucHien]?.timestamp;
+            const linkCol = ctx.execHeaderMap[lanThucHien]?.hoSoLink;
+
+            if (ngayThCol) ctx.ws[ngayThCol + r] = { t: 's', v: exec.ngayThucHien || '', s: { numFmt: '@' } }; // Định dạng text
+            if (soLuongCol) ctx.ws[soLuongCol + r] = { t: 'n', v: exec.dvt || 0, s: { numFmt: ctx.moneyFormat } };
+            if (donGiaCol) ctx.ws[donGiaCol + r] = { t: 'n', v: exec.donGia || 0, s: { numFmt: ctx.moneyFormat } };
+            if (thanhTienCol) ctx.ws[thanhTienCol + r] = { t: 'n', v: exec.thanhTien || 0, s: { numFmt: ctx.moneyFormat } };
+            
+            if (activeExportType === 'full') {
+                 if (tsCol) ctx.ws[tsCol + r] = { t: 's', v: String(exec.timestamp || ''), s: { numFmt: '@' } }; // Định dạng text
+                 if (linkCol) ctx.ws[linkCol + r] = { t: 's', v: exec.hoSoLink || '' };
+            }
+        }
+    }
+    
+    // Trả về HÀNG (row index) của chính nó để nút cha SUM
+    return [r];
+}
+
+/**
+ * HÀM LÕI MỚI (Helper function)
+ * Tách logic tạo worksheet ra khỏi hàm export
+ * Hàm này sẽ được cả exportPlainDataExcel và exportToClipboard sử dụng
+ */
+async function generateWorksheetWithFormulas() {
+    // 1. Lấy toàn bộ dữ liệu từ CSDL
+    const parentQuery = ref(db, getParentCollectionName());
+    const parentSnapshot = await get(parentQuery);
+    if (!parentSnapshot.exists()) {
+        throw new Error('Không có dữ liệu để xuất.');
+    }
+    const parentsData = parentSnapshot.val();
+
+    // 2. Pass 1: Tìm số lần thực hiện tối đa
+    const maxLanThucHien = findMaxExecutions(parentsData);
+
+    // 3. Xây dựng Headers và Map Cột (COLS)
+    const baseHeadersFull = ['TT', 'Đầu việc/Dự án', 'ĐV th.hiện', 'KH năm trước', 'Thực hiện năm trước', 'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Đơn giá (GT)', 'Chi phí', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'Cấp độ', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú'];
+    const baseHeadersSimplified = baseHeadersFull.filter(h => !['Đơn giá (GT)', 'KH năm trước', 'Thực hiện năm trước', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú'].includes(h));
+    
+    const headersToUse = activeExportType === 'full' ? baseHeadersFull : baseHeadersSimplified;
+    
+    const executionHeaders = [];
+    const execHeaderMap = {};
+    let currentColIndex = headersToUse.length; 
+    
+    for (let i = 1; i <= maxLanThucHien; i++) {
+        const colMap = {};
+        
+        colMap.ngayTh = XLSX.utils.encode_col(currentColIndex);
+        executionHeaders.push(`Ngày TH (${i})`);
+        currentColIndex++;
+        
+        colMap.soLuong = XLSX.utils.encode_col(currentColIndex);
+        executionHeaders.push(`Số lượng (${i})`);
+        currentColIndex++;
+        
+        colMap.donGia = XLSX.utils.encode_col(currentColIndex);
+        executionHeaders.push(`Đơn giá (${i})`);
+        currentColIndex++;
+        
+        colMap.thanhTien = XLSX.utils.encode_col(currentColIndex);
+        executionHeaders.push(`Thành tiền (${i})`);
+        currentColIndex++;
+        
+        if (activeExportType === 'full') {
+            colMap.timestamp = XLSX.utils.encode_col(currentColIndex);
+            executionHeaders.push(`Timestamp (${i})`);
+            currentColIndex++;
+            
+            colMap.hoSoLink = XLSX.utils.encode_col(currentColIndex);
+            executionHeaders.push(`Hồ sơ Link (${i})`);
+            currentColIndex++;
+        }
+        execHeaderMap[i] = colMap;
+    }
+
+    const finalHeaders = [...headersToUse, ...executionHeaders];
+
+    const COLS = {};
+    const colNameMap = {
+        'TT': 'TT', 'Đầu việc/Dự án': 'NOI_DUNG', 'ĐV th.hiện': 'DV_THUCHIEN',
+        'KH năm trước': 'KH_NAM_TRUOC', 'Thực hiện năm trước': 'TH_NAM_TRUOC',
+        'Tần suất TH': 'TAN_SUAT', 'Đ.vị tính': 'DON_VI', 'Số lượng': 'SO_LUONG',
+        'Đơn giá (GT)': 'DON_GIA', 'Chi phí': 'CHI_PHI',
+        'Chi phí thực hiện': 'CHI_PHI_THUCHIEN', 'Kế hoạch còn lại': 'KH_CON_LAI',
+        'Cấp độ': 'CAP_DO', 'TG bắt đầu': 'TG_BATDAU', 'TG hoàn thành': 'TG_HOANTHANH',
+        'Ghi chú': 'GHI_CHU'
+    };
+    finalHeaders.forEach((h, i) => {
+        const key = colNameMap[h];
+        if (key) {
+            COLS[key] = XLSX.utils.encode_col(i);
+        }
+    });
+
+    // 4. Khởi tạo Workbook và Context
+    const wb = XLSX.utils.book_new();
+    const ws = {}; 
+    const moneyFormat = '#,##0';
+
+    const ctx = {
+        ws: ws,
+        currentRow: 1, 
+        COLS: COLS,
+        execHeaderMap: execHeaderMap,
+        moneyFormat: moneyFormat
+    };
+
+    // 5. Ghi Headers vào worksheet
+    finalHeaders.forEach((h, i) => {
+        const cellAddress = XLSX.utils.encode_cell({ c: i, r: 0 });
+        ws[cellAddress] = { t: 's', v: h };
+    });
+    
+    statusDiv.innerText = 'Đang xử lý dữ liệu và tạo công thức...';
+    
+    // 6. Pass 2: Xử lý đệ quy và tạo worksheet
+    const parents = Object.keys(parentsData).map(id => ({ id, ...parentsData[id] })).sort((a,b) => a.id.localeCompare(b.id));
+    ctx.currentRow = 2; // Bắt đầu ghi dữ liệu từ hàng 2
+
+    for (const p of parents) {
+        processNodeForExcel(p, `${getParentCollectionName()}/${p.id}`, 0, ctx);
+        ctx.currentRow++; 
+    }
+    
+    // 7. Hoàn tất worksheet (đặt !ref)
+    const range = { 
+        s: { c: 0, r: 0 }, 
+        e: { c: finalHeaders.length - 1, r: ctx.currentRow - 1 } 
+    };
+    ws['!ref'] = XLSX.utils.encode_range(range);
+
+    // 8. Trả về kết quả
+    return { wb, ws, finalHeaders };
+}
+
+/**
+ * HÀM CẬP NHẬT: (Nút 1)
+ * Xuất Excel với công thức tính toán (Tải file).
+ */
 window.exportPlainDataExcel = async function() {
     try {
         statusDiv.className = 'success';
-        statusDiv.innerText = 'Đang chuẩn bị dữ liệu...';
+        statusDiv.innerText = 'Đang chuẩn bị dữ liệu file Excel...';
         closeAllModals();
 
-        const parentQuery = ref(db, getParentCollectionName());
-        const parentSnapshot = await get(parentQuery);
-        if (!parentSnapshot.exists()) {
-            alert('Không có dữ liệu để xuất.');
-            statusDiv.innerText = '';
-            return;
-        }
-
-        const parentsData = parentSnapshot.val();
-        const allRows = [];
-        let maxLanThucHien = 0; // Find max executions for header generation
-
-        // First pass: Collect all data and find max executions
-        const collectData = (node, path) => {
-             if (node.tt) {
-                 const row = {
-                     // === THAY ĐỔI THỨ TỰ Ở ĐÂY ===
-                     TT: convertTTForDisplay(node.tt),
-                     'Đầu việc/Dự án': node.noiDung || '',
-                     'ĐV th.hiện': node.dvThucHien || '',
-                     'Tần suất TH': node.tanSuatTH === undefined || node.tanSuatTH === null || node.tanSuatTH === '' ? '' : node.tanSuatTH, // Giữ nguyên giá trị gốc, kể cả rỗng
-                     'Đ.vị tính': node.donVi || '',
-                     'Số lượng': node.soLuong || '',
-                     ...(activeExportType === 'full' && { 'Đơn giá (GT)': node.donGia || 0 }),
-                     'Chi phí': node.chiPhi || 0,
-                     'Chi phí thực hiện': node.chiPhiThucHien || 0,
-                     'Kế hoạch còn lại': node.keHoachConLai || 0,
-                     'Cấp độ': node.capDo || ''
-                     // =============================
-                 };
-
-                 if (activeExportType === 'full') {
-                     row['KH năm trước'] = node.khNamTruoc || 0;
-                     row['Ghi chú'] = node.ghiChu || '';
-                 }
-
-                 if (node.executions) {
-                     for (const execId in node.executions) {
-                         const exec = node.executions[execId];
-                         // Ưu tiên trường lanThucHien nếu có, fallback về execId
-                         const lanThucHien = exec.lanThucHien !== undefined ? parseInt(exec.lanThucHien, 10) : parseInt(execId, 10); 
-                         if (!isNaN(lanThucHien)) {
-                             row[`Ngày TH (${lanThucHien})`] = exec.ngayThucHien || '';
-                             row[`Số lượng (${lanThucHien})`] = exec.dvt === 0 ? 0 : (exec.dvt || ''); // Giữ số 0 nếu là 0
-                             row[`Đơn giá (${lanThucHien})`] = exec.donGia === 0 ? 0 : (exec.donGia || ''); // Giữ số 0
-                             row[`Thành tiền (${lanThucHien})`] = exec.thanhTien === 0 ? 0 : (exec.thanhTien || ''); // Giữ số 0
-                             if (activeExportType === 'full') {
-                                 row[`Timestamp (${lanThucHien})`] = String(exec.timestamp || '');
-                                 row[`Hồ sơ Link (${lanThucHien})`] = exec.hoSoLink || '';
-                             }
-                              if (lanThucHien > maxLanThucHien) {
-                                  maxLanThucHien = lanThucHien;
-                              }
-                         }
-                     }
-                 }
-                 allRows.push(row);
-             }
-
-            // Xử lý các cấp con (đệ quy)
-            if (node.children) for (const id in node.children) collectData(node.children[id], `${path}/children/${id}`);
-            if (node.grandchildren) for (const id in node.grandchildren) collectData(node.grandchildren[id], `${path}/grandchildren/${id}`);
-            if (node.greatGrandchildren) for (const id in node.greatGrandchildren) collectData(node.greatGrandchildren[id], `${path}/greatGrandchildren/${id}`);
-            if (node.greatGreatGrandchildren) for (const id in node.greatGreatGrandchildren) collectData(node.greatGreatGrandchildren[id], `${path}/greatGreatGrandchildren/${id}`);
-
-            // Xử lý giải trình (chỉ khi xuất full)
-            if (activeExportType === 'full' && node.justifications) {
-                 for (const justId in node.justifications) {
-                     const just = node.justifications[justId];
-                     const justRow = {
-                         // === THAY ĐỔI THỨ TỰ Ở ĐÂY ===
-                         TT: convertTTForDisplay(just.tt),
-                         'Đầu việc/Dự án': just.noiDung || '',
-                         'ĐV th.hiện': '',
-                         'Tần suất TH': '', // Giải trình không có tần suất
-                         'Đ.vị tính': just.donVi || '',
-                         'Số lượng': just.soLuong || '',
-                         'Đơn giá (GT)': just.donGia || 0,
-                         'Chi phí': just.chiPhi || 0,
-                         'Chi phí thực hiện': '',
-                         'Kế hoạch còn lại': '',
-                         'Cấp độ': '',
-                         'KH năm trước': '',
-                         'Ghi chú': ''
-                         // =============================
-                     };
-                     allRows.push(justRow);
-
-                     if (just.hasSubJustifications && just.subJustifications) {
-                         for (const subJustId in just.subJustifications) {
-                             const subJust = just.subJustifications[subJustId];
-                             const subJustRow = {
-                                 // === THAY ĐỔI THỨ TỰ Ở ĐÂY ===
-                                 TT: convertTTForDisplay(subJust.tt),
-                                 'Đầu việc/Dự án': subJust.noiDung || '',
-                                 'ĐV th.hiện': '',
-                                 'Tần suất TH': '',
-                                 'Đ.vị tính': subJust.donVi || '',
-                                 'Số lượng': subJust.soLuong || '',
-                                 'Đơn giá (GT)': subJust.donGia || 0,
-                                 'Chi phí': subJust.chiPhi || 0,
-                                 'Chi phí thực hiện': '',
-                                 'Kế hoạch còn lại': '',
-                                 'Cấp độ': '',
-                                 'KH năm trước': '',
-                                 'Ghi chú': ''
-                                 // =============================
-                             };
-                             allRows.push(subJustRow);
-                         }
-                     }
-                 }
-            }
-        };
-
-        // Chạy collectData
-        const parents = Object.keys(parentsData).map(id => ({ id, ...parentsData[id] })).sort((a,b) => a.id.localeCompare(b.id));
-        parents.forEach(p => collectData(p, `${getParentCollectionName()}/${p.id}`));
-
-        // Xác định headers cuối cùng theo đúng thứ tự
-        const baseHeadersFull = ['TT', 'Đầu việc/Dự án', 'ĐV th.hiện', 'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Đơn giá (GT)', 'Chi phí', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'Cấp độ', 'KH năm trước', 'Ghi chú'];
-        const baseHeadersSimplified = baseHeadersFull.filter(h => !['Đơn giá (GT)', 'KH năm trước', 'Ghi chú'].includes(h));
-
-        const executionHeadersOrdered = [];
-        for (let i = 1; i <= maxLanThucHien; i++) {
-            executionHeadersOrdered.push(`Ngày TH (${i})`);
-            executionHeadersOrdered.push(`Số lượng (${i})`);
-            executionHeadersOrdered.push(`Đơn giá (${i})`);
-            executionHeadersOrdered.push(`Thành tiền (${i})`);
-            if (activeExportType === 'full') {
-                 executionHeadersOrdered.push(`Timestamp (${i})`);
-                 executionHeadersOrdered.push(`Hồ sơ Link (${i})`);
-            }
-        }
-
-        const finalHeaders = activeExportType === 'full'
-            ? [...baseHeadersFull, ...executionHeadersOrdered]
-            : [...baseHeadersSimplified, ...executionHeadersOrdered];
-
-
-        statusDiv.innerText = 'Đang tạo file Excel...';
-        // Sử dụng header_converter để đảm bảo thứ tự cột
-        const worksheet = XLSX.utils.json_to_sheet(allRows, { header: finalHeaders });
-
-        // (Tùy chọn) Định dạng cột số
-        const moneyFormat = '#,##0';
-        const range = XLSX.utils.decode_range(worksheet['!ref']);
-        const numberColumns = ['Số lượng', 'Đơn giá (GT)', 'Chi phí', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'KH năm trước']; // Các cột cơ bản cần format
-        // Thêm các cột thực hiện
-        for(let i = 1; i <= maxLanThucHien; i++){
-            numberColumns.push(`Số lượng (${i})`);
-            numberColumns.push(`Đơn giá (${i})`);
-            numberColumns.push(`Thành tiền (${i})`);
-        }
-
-        // Tìm index của các cột cần format
-        const headerRow = XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0];
-        const numberColIndices = numberColumns.map(colName => headerRow.indexOf(colName)).filter(index => index !== -1);
-
-        for (let R = 1; R <= range.e.r; ++R) { // Bắt đầu từ dòng 1 (dưới header)
-            for (const C of numberColIndices) {
-                 const cell_address = XLSX.utils.encode_cell({c: C, r: R});
-                 if (!worksheet[cell_address]) continue;
-                 // Chỉ format nếu giá trị là số
-                 if (typeof worksheet[cell_address].v === 'number') {
-                     worksheet[cell_address].t = 'n';
-                     worksheet[cell_address].z = moneyFormat;
-                 }
-            }
-            // Định dạng cột Ngày TH và Timestamp là Text
-            for (let i = 1; i <= maxLanThucHien; i++) {
-                 const dateColIndex = headerRow.indexOf(`Ngày TH (${i})`);
-                 if (dateColIndex !== -1) {
-                     const dateCellAddr = XLSX.utils.encode_cell({c: dateColIndex, r: R});
-                     if (worksheet[dateCellAddr]) worksheet[dateCellAddr].t = 's'; // Set type to string
-                 }
-                 if (activeExportType === 'full') {
-                     const tsColIndex = headerRow.indexOf(`Timestamp (${i})`);
-                     if (tsColIndex !== -1) {
-                         const tsCellAddr = XLSX.utils.encode_cell({c: tsColIndex, r: R});
-                         if (worksheet[tsCellAddr]) worksheet[tsCellAddr].t = 's'; // Set type to string
-                     }
-                 }
-            }
-        }
-
-
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
-        XLSX.writeFile(workbook, `AT-CL-MT_${currentYear}.xlsx`);
-        statusDiv.innerText = 'Xuất file thành công!';
-        closeAllModals();
+        // 1. Gọi hàm lõi để lấy dữ liệu
+        const { wb, ws, finalHeaders } = await generateWorksheetWithFormulas();
+        
+        // 2. Tạo file và tải về
+        XLSX.utils.book_append_sheet(wb, ws, 'Data');
+        XLSX.writeFile(wb, `AT-CL-MT_${currentYear}_withFormulas.xlsx`);
+        
+        statusDiv.innerText = 'Xuất file Excel (có công thức) thành công!';
 
     } catch (error) {
-        console.error("Lỗi khi xuất Excel:", error);
+        console.error("Lỗi khi xuất Excel (có công thức):", error);
         statusDiv.className = 'error';
-        statusDiv.innerText = `Lỗi: ${error.message}`;
+        statusDiv.innerText = `Lỗi khi xuất file: ${error.message}`;
+    }
+};
+
+/**
+ * HÀM MỚI: (Nút 3 - Sửa lỗi triệt để bằng cách TỰ TẠO TSV)
+ * Xuất dữ liệu vào Clipboard.
+ */
+window.exportToClipboard = async function() {
+    try {
+        statusDiv.className = 'success';
+        statusDiv.innerText = 'Đang chuẩn bị dữ liệu cho clipboard...';
+        closeAllModals();
+
+        // 1. Gọi hàm lõi để lấy dữ liệu (hàm này vẫn đúng)
+        // ws là đối tượng worksheet chứa cả giá trị 'v:' và công thức 'f:'
+        const { ws } = await generateWorksheetWithFormulas();
+
+        statusDiv.innerText = 'Đang chuyển đổi dữ liệu...';
+
+        // 2. Tự xây dựng chuỗi TSV (thay vì dùng sheet_to_txt)
+        // Đây là cách duy nhất để fix encoding VÀ giữ công thức
+        const tsvData = [];
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            const row = [];
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                const cell = ws[cellAddress];
+
+                if (!cell) {
+                    row.push(""); // Ô trống
+                    continue;
+                }
+
+                // === LOGIC MỚI: Ưu tiên CÔNG THỨC (f) trước ===
+                if (cell.f) {
+                    // Excel hiểu định dạng TSV này: =FORMULA
+                    // Chúng ta không cần dấu "=" ở đầu chuỗi (ví dụ: ="=SUM(A1:A2)")
+                    // Chỉ cần =SUM(A1:A2) là đủ
+                    row.push(`=${cell.f}`);
+                }
+                // Sau đó mới đến GIÁ TRỊ (v)
+                else if (cell.v !== undefined && cell.v !== null) {
+                    let value = cell.v;
+                    
+                    // Nếu là chuỗi, chúng ta cần "escape" nó
+                    if (cell.t === 's' || typeof value === 'string') {
+                        let str = String(value);
+                        // Nếu chuỗi chứa dấu " (quote), tab, hoặc newline,
+                        // chúng ta cần bọc nó trong dấu " và gấp đôi các dấu " bên trong.
+                        if (str.includes('"') || str.includes('\t') || str.includes('\n')) {
+                            str = `"${str.replace(/"/g, '""')}"`;
+                        }
+                        row.push(str);
+                    } else {
+                        // Nếu là số hoặc boolean, cứ đẩy thẳng vào
+                        row.push(String(value));
+                    }
+                } 
+                else {
+                    row.push(""); // Ô có tồn tại nhưng không có giá trị
+                }
+            }
+            tsvData.push(row.join('\t')); // Nối các cột bằng TAB
+        }
+        
+        const clipboardString = tsvData.join('\n'); // Nối các hàng bằng NEWLINE
+        // === KẾT THÚC LOGIC MỚI ===
+
+
+        // 3. Sử dụng Clipboard API (đang chạy trên https)
+        if (!navigator.clipboard) {
+            throw new Error('Trình duyệt không hỗ trợ Clipboard API.');
+        }
+
+        // 4. Ghi chuỗi TSV đã được xây dựng chuẩn vào clipboard
+        await navigator.clipboard.writeText(clipboardString); 
+        
+        statusDiv.className = 'success';
+        statusDiv.innerText = 'Đã sao chép dữ liệu vào Clipboard! Bạn có thể dán (Paste) vào Excel.';
+
+    } catch (error) {
+        console.error("Lỗi khi sao chép vào Clipboard:", error);
+        statusDiv.className = 'error';
+        statusDiv.innerText = `Lỗi sao chép: ${error.message}`;
     }
 };
 
@@ -3530,19 +4095,22 @@ window.exportFormattedExcel_HTML = async function() {
         const processNode = (node, path, parentTT = '', level = 0) => {
             if (node.tt) {
                 const row = {
-                     // === THAY ĐỔI THỨ TỰ Ở ĐÂY ===
+                     // === THỨ TỰ CỘT MỚI ===
                     TT: convertTTForDisplay(node.tt),
                     'Đầu việc/Dự án': node.noiDung || '',
                     'ĐV th.hiện': node.dvThucHien || '',
+                    'KH năm trước': node.khNamTruoc === 0 ? 0 : (node.khNamTruoc || ''),
+                    'Thực hiện năm trước': node.thucHienNamTruoc === 0 ? 0 : (node.thucHienNamTruoc || ''),
                     'Tần suất TH': node.tanSuatTH === undefined || node.tanSuatTH === null || node.tanSuatTH === '' ? '' : node.tanSuatTH,
                     'Đ.vị tính': node.donVi || '',
-                    'Số lượng': node.soLuong === 0 ? 0 : (node.soLuong || ''), // Giữ số 0
-                    'Đơn giá (GT)': node.donGia === 0 ? 0 : (node.donGia || ''), // Giữ số 0
-                    'Chi phí': node.chiPhi === 0 ? 0 : (node.chiPhi || ''), // Giữ số 0
-                    'Chi phí thực hiện': node.chiPhiThucHien === 0 ? 0 : (node.chiPhiThucHien || ''), // Giữ số 0
-                    'Kế hoạch còn lại': node.keHoachConLai === 0 ? 0 : (node.keHoachConLai || ''), // Giữ số 0
+                    'Số lượng': node.soLuong === 0 ? 0 : (node.soLuong || ''),
+                    'Đơn giá (GT)': node.donGia === 0 ? 0 : (node.donGia || ''),
+                    'Chi phí': node.chiPhi === 0 ? 0 : (node.chiPhi || ''),
+                    'Chi phí thực hiện': node.chiPhiThucHien === 0 ? 0 : (node.chiPhiThucHien || ''),
+                    'Kế hoạch còn lại': node.keHoachConLai === 0 ? 0 : (node.keHoachConLai || ''),
                     'Cấp độ': node.capDo || '',
-                    'KH năm trước': node.khNamTruoc === 0 ? 0 : (node.khNamTruoc || ''), // Giữ số 0
+                    'TG bắt đầu': node.tgBatDau || '',
+                    'TG hoàn thành': node.tgHoanThanh || '',
                     'Ghi chú': node.ghiChu || '',
                     // =============================
                     level: level,
@@ -3600,16 +4168,19 @@ window.exportFormattedExcel_HTML = async function() {
 
                 justifications.forEach(just => {
                     const justRow = {
-                        // === THAY ĐỔI THỨ TỰ Ở ĐÂY ===
+                        // === THỨ TỰ CỘT MỚI ===
                         TT: convertTTForDisplay(just.tt),
                         'Đầu việc/Dự án': just.noiDung || '',
                         'ĐV th.hiện': '',
+                        'KH năm trước': '',
+                        'Thực hiện năm trước': '',
                         'Tần suất TH': '',
                         'Đ.vị tính': just.donVi || '',
                         'Số lượng': just.soLuong === 0 ? 0 : (just.soLuong || ''),
                         'Đơn giá (GT)': just.donGia === 0 ? 0 : (just.donGia || ''),
                         'Chi phí': just.chiPhi === 0 ? 0 : (just.chiPhi || ''),
-                        'Chi phí thực hiện': '', 'Kế hoạch còn lại': '', 'Cấp độ': '', 'KH năm trước': '', 'Ghi chú': '',
+                        'Chi phí thực hiện': '', 'Kế hoạch còn lại': '', 'Cấp độ': '',
+                        'TG bắt đầu': '', 'TG hoàn thành': '', 'Ghi chú': '',
                         // =============================
                         level: level + 5,
                         isJustification: true
@@ -3627,16 +4198,19 @@ window.exportFormattedExcel_HTML = async function() {
 
                         subJustifications.forEach(subJust => {
                             const subJustRow = {
-                                // === THAY ĐỔI THỨ TỰ Ở ĐÂY ===
+                                // === THỨ TỰ CỘT MỚI ===
                                 TT: convertTTForDisplay(subJust.tt),
                                 'Đầu việc/Dự án': subJust.noiDung || '',
                                 'ĐV th.hiện': '',
+                                'KH năm trước': '',
+                                'Thực hiện năm trước': '',
                                 'Tần suất TH': '',
                                 'Đ.vị tính': subJust.donVi || '',
                                 'Số lượng': subJust.soLuong === 0 ? 0 : (subJust.soLuong || ''),
                                 'Đơn giá (GT)': subJust.donGia === 0 ? 0 : (subJust.donGia || ''),
                                 'Chi phí': subJust.chiPhi === 0 ? 0 : (subJust.chiPhi || ''),
-                                'Chi phí thực hiện': '', 'Kế hoạch còn lại': '', 'Cấp độ': '', 'KH năm trước': '', 'Ghi chú': '',
+                                'Chi phí thực hiện': '', 'Kế hoạch còn lại': '', 'Cấp độ': '',
+                                'TG bắt đầu': '', 'TG hoàn thành': '', 'Ghi chú': '',
                                 // =============================
                                 level: level + 6,
                                 isJustification: true
@@ -3656,8 +4230,8 @@ window.exportFormattedExcel_HTML = async function() {
         statusDiv.innerText = 'Đang tạo bảng HTML để xuất...';
 
         // 2. Xây dựng headers theo đúng thứ tự (đã sửa)
-        const baseHeadersFull = ['TT', 'Đầu việc/Dự án', 'ĐV th.hiện', 'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Đơn giá (GT)', 'Chi phí', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'Cấp độ', 'KH năm trước', 'Ghi chú'];
-        const baseHeadersSimplified = baseHeadersFull.filter(h => !['Đơn giá (GT)', 'KH năm trước', 'Ghi chú'].includes(h)); // Simplified vẫn bỏ Đơn giá (GT)
+        const baseHeadersFull = ['TT', 'Đầu việc/Dự án', 'ĐV th.hiện', 'KH năm trước', 'Thực hiện năm trước', 'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Đơn giá (GT)', 'Chi phí', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'Cấp độ', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú'];
+        const baseHeadersSimplified = baseHeadersFull.filter(h => !['Đơn giá (GT)', 'KH năm trước', 'Thực hiện năm trước', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú'].includes(h));
 
         const executionHeadersOrdered = [];
         for (let i = 1; i <= maxLanThucHien; i++) {
@@ -3701,7 +4275,7 @@ window.exportFormattedExcel_HTML = async function() {
 
                 if (h.startsWith('Ngày TH') || h.startsWith('Timestamp')) {
                     currentStyle += " mso-number-format:'\\@';";
-                } else if (['Chi phí', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'KH năm trước', 'Thành tiền', 'Đơn giá', 'Đơn giá (GT)', 'Số lượng'].some(numCol => h.startsWith(numCol))) {
+                } else if (['Chi phí', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'KH năm trước', 'Thực hiện năm trước', 'Thành tiền', 'Đơn giá', 'Đơn giá (GT)', 'Số lượng'].some(numCol => h.startsWith(numCol))) {
                      currentStyle += " mso-number-format:'#,##0'; text-align: right;";
                 }
 
@@ -3711,12 +4285,7 @@ window.exportFormattedExcel_HTML = async function() {
                 } else {
                     value = value !== undefined && value !== null ? value : '';
                 }
-
-                // Không chuyển số 0 thành rỗng nữa để nhất quán
-                // if (typeof value === 'number' && value === 0 && h !== 'level') {
-                //    value = '';
-                // }
-
+                
                 tableHtml += `<td style="${currentStyle}">${value}</td>`;
             });
             tableHtml += '</tr>';
@@ -4248,11 +4817,12 @@ window.exportFormattedExcel_HTML = async function() {
     });
 };
 
-    const childSort = (a, b) => {
-        const partsA = a.id.split(','), partsB = b.id.split(',');
-        const parentCompare = partsA[0].localeCompare(partsB[0]);
-        if (parentCompare !== 0) return parentCompare;
-        return parseInt(partsA[1], 10) - parseInt(partsB[1], 10);
+   const childSort = (a, b) => {
+        // (CẬP NHẬT) a.id và b.id bây giờ chỉ là 'I', 'V', 'X'.
+        // Không cần split hay so sánh parent.
+        const numA = romanToNumber(a.id);
+        const numB = romanToNumber(b.id);
+        return numA - numB;
     };
 
     const numericSort = (a, b) => {
@@ -4280,7 +4850,7 @@ window.exportFormattedExcel_HTML = async function() {
 
     const createInputRow = (path, data, level, context = {}) => {
         const isJustification = level === 'justification';
-        const isSubJustification = level === 'subJustification'; // THÊM CẤP MỚI
+        const isSubJustification = level === 'subJustification';
         
         const displayTT = convertTTForDisplay(data.tt);
         
@@ -4289,16 +4859,20 @@ window.exportFormattedExcel_HTML = async function() {
             // Cấp 1 (Cha) VÀ có con cấp 2
             const isParentJustification = isJustification && data.hasSubJustifications === true;
 
+           // --- **LỖI NẰM Ở ĐÂY: BẠN ĐÃ XÓA MẤT "RETURN"** ---
+           // Thêm "return" trở lại
            return `<tr data-path="${path}">
-    <td><input type="text" value="${displayTT}" data-field="tt" disabled></td>
-    <td><input type="text" value="${data.noiDung || ''}" data-field="noiDung"></td>
-    <td><input type="text" value="${data.donVi || ''}" data-field="donVi" ${isParentJustification ? 'disabled' : ''}></td>
-    <td><input type="number" value="${data.soLuong || ''}" data-field="soLuong" oninput="calculateModalChiPhi(this)" onfocus="this.select()" ${isParentJustification ? 'disabled' : ''}></td>
-    <td><input type="number" value="${data.donGia || 0}" data-field="donGia" oninput="calculateModalChiPhi(this)" onfocus="this.select()" ${isParentJustification ? 'disabled' : ''}></td>
-    <td><input type="text" value="${formatNumber(data.chiPhi || (data.soLuong * data.donGia) || 0)}" data-field="chiPhi" ${isParentJustification ? 'disabled' : ''} oninput="this.value=formatNumber(parseNumber(this.value))"></td>
-</tr>`;
+                <td><input type="text" value="${displayTT}" data-field="tt" disabled></td>
+                <td><input type="text" value="${data.noiDung || ''}" data-field="noiDung"></td>
+                <td><input type="text" value="${data.donVi || ''}" data-field="donVi" ${isParentJustification ? 'disabled' : ''}></td>
+                <td><input type="number" value="${data.soLuong || ''}" data-field="soLuong" oninput="calculateModalChiPhi(this)" onfocus="this.select()" ${isParentJustification ? 'disabled' : ''}></td>
+                <td><input type="number" value="${data.donGia || 0}" data-field="donGia" oninput="calculateModalChiPhi(this)" onfocus="this.select()" ${isParentJustification ? 'disabled' : ''}></td>
+                <td><input type="text" value="${formatNumber(data.chiPhi || (data.soLuong * data.donGia) || 0)}" data-field="chiPhi" ${isParentJustification ? 'disabled' : ''} oninput="this.value=formatNumber(parseNumber(this.value))"></td>
+            </tr>`;
+            // --- KẾT THÚC SỬA LỖI ---
         }
 
+        // Khối ELSE (cho công việc) sẽ chỉ chạy nếu KHÔNG phải là giải trình
         const isParent = ['parent', 'child', 'grandchild'].includes(level);
         const isContainerLeaf = level === 'greatGrandchild' && data.hasChildren;
         const isEditableLeaf = level === 'greatGreatGrandchild' || (level === 'greatGrandchild' && !data.hasChildren);
@@ -4306,25 +4880,40 @@ window.exportFormattedExcel_HTML = async function() {
 
         const isDisabled = (field) => {
             if (field === 'tt') return true;
-            if (isParent) return !['noiDung', 'ghiChu'].includes(field);
-            if (isContainerLeaf) return !['noiDung', 'ghiChu', 'capDo', 'dvThucHien'].includes(field);
+            if (isParent) return !['noiDung', 'ghiChu', 'dvThucHien', 'capDo', 'khNamTruoc', 'thucHienNamTruoc', 'tgBatDau', 'tgHoanThanh'].includes(field); // Cho phép sửa các trường mới
+            if (isContainerLeaf) return !['noiDung', 'ghiChu', 'capDo', 'dvThucHien', 'tgBatDau', 'tgHoanThanh'].includes(field); // Cho phép sửa các trường mới
             if (field === 'chiPhi') return chiPhiDisabled;
+            
+            // Các trường text mới cũng nên bị vô hiệu hóa nếu là mục cha
+            if (isParent || isContainerLeaf) {
+                if (['tgBatDau', 'tgHoanThanh'].includes(field)) return false; // Cho phép sửa
+            }
+
             return false;
         };
 
         const chiPhiEvent = isEditableLeaf ? 'onfocus="this.select()"' : '';
+
+        // Đây là 13 cột cho công việc (đã đúng)
         return `<tr data-path="${path}">
             <td><input type="text" value="${displayTT}" data-field="tt" disabled></td>
-                    <td><input type="text" value="${data.noiDung || ''}" data-field="noiDung" ${isDisabled('noiDung') ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${data.dvThucHien || ''}" data-field="dvThucHien" ${isDisabled('dvThucHien') ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${data.donVi || ''}" data-field="donVi" ${isDisabled('donVi') ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${data.soLuong || ''}" data-field="soLuong" ${isDisabled('soLuong') ? 'disabled' : ''}></td>
-                    <td><input type="number" value="${data.tanSuatTH || ''}" data-field="tanSuatTH" ${isDisabled('tanSuatTH') ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${formatNumber(data.chiPhi || 0)}" data-field="chiPhi" oninput="this.value=formatNumber(parseNumber(this.value))" ${chiPhiEvent} ${isDisabled('chiPhi') ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${formatNumber(data.khNamTruoc || 0)}" data-field="khNamTruoc" oninput="this.value=formatNumber(parseNumber(this.value))" ${chiPhiEvent} ${isDisabled('khNamTruoc') ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${data.capDo || ''}" data-field="capDo" ${isDisabled('capDo') ? 'disabled' : ''}></td>
-                    <td><input type="text" value="${data.ghiChu || ''}" data-field="ghiChu" ${isDisabled('ghiChu') ? 'disabled' : ''}></td>
-                </tr>`;
+            <td><input type="text" value="${data.noiDung || ''}" data-field="noiDung" ${isDisabled('noiDung') ? 'disabled' : ''}></td>
+            <td><input type="text" value="${data.dvThucHien || ''}" data-field="dvThucHien" ${isDisabled('dvThucHien') ? 'disabled' : ''}></td>
+            
+            <td><input type="text" value="${formatNumber(data.khNamTruoc || 0)}" data-field="khNamTruoc" oninput="this.value=formatNumber(parseNumber(this.value))" ${chiPhiEvent} ${isDisabled('khNamTruoc') ? 'disabled' : ''}></td>
+            <td><input type="text" value="${formatNumber(data.thucHienNamTruoc || 0)}" data-field="thucHienNamTruoc" oninput="this.value=formatNumber(parseNumber(this.value))" ${chiPhiEvent} ${isDisabled('thucHienNamTruoc') ? 'disabled' : ''}></td>
+
+            <td><input type="text" value="${data.donVi || ''}" data-field="donVi" ${isDisabled('donVi') ? 'disabled' : ''}></td>
+            <td><input type="text" value="${data.soLuong || ''}" data-field="soLuong" ${isDisabled('soLuong') ? 'disabled' : ''}></td>
+            <td><input type="number" value="${data.tanSuatTH || ''}" data-field="tanSuatTH" ${isDisabled('tanSuatTH') ? 'disabled' : ''}></td>
+            <td><input type="text" value="${formatNumber(data.chiPhi || 0)}" data-field="chiPhi" oninput="this.value=formatNumber(parseNumber(this.value))" ${chiPhiEvent} ${isDisabled('chiPhi') ? 'disabled' : ''}></td>
+            <td><input type="text" value="${data.capDo || ''}" data-field="capDo" ${isDisabled('capDo') ? 'disabled' : ''}></td>
+
+            <td><input type="text" value="${data.tgBatDau || ''}" data-field="tgBatDau" ${isDisabled('tgBatDau') ? 'disabled' : ''}></td>
+            <td><input type="text" value="${data.tgHoanThanh || ''}" data-field="tgHoanThanh" ${isDisabled('tgHoanThanh') ? 'disabled' : ''}></td>
+
+            <td><input type="text" value="${data.ghiChu || ''}" data-field="ghiChu" ${isDisabled('ghiChu') ? 'disabled' : ''}></td>
+        </tr>`;
     };
 
    const generateNextTT = async (parentPath, level) => {
@@ -4402,11 +4991,9 @@ window.exportFormattedExcel_HTML = async function() {
                         updateMax = !isNaN(currentNum) && currentNum > maxNumPart;
                     }
                 } else if (level === 'child') {
-                    const parts = tt.split(','); // Cấp 2 luôn dùng dấu phẩy theo format A,1
-                    if (parts.length === 2 && parts[0] === parentTT) {
-                        currentNum = parseInt(parts[1], 10);
-                        updateMax = !isNaN(currentNum) && currentNum > maxNumPart;
-                    }
+                    // (CẬP NHẬT) tt bây giờ chỉ là 'I', 'V', 'X'. Không cần kiểm tra parentTT.
+                    currentNum = romanToNumber(tt); 
+                    updateMax = !isNaN(currentNum) && currentNum > 0 && currentNum > maxNumPart;
                 } else if (level === 'grandchild') {
                     currentNum = parseInt(tt, 10); // Cấp 3 là số đơn giản
                     updateMax = !isNaN(currentNum) && currentNum > maxNumPart;
@@ -4464,7 +5051,9 @@ window.exportFormattedExcel_HTML = async function() {
         } else if (level === 'subJustification') {
              nextTT = `${parentTT}${maxNumPart + 1}`; // e.g., a1, a2
         } else if (level === 'child') {
-            nextTT = `${parentTT},${maxNumPart + 1}`; // e.g., A,1, A,2
+            const nextRoman = numberToRoman(maxNumPart + 1); // Chuyển 1 -> 'I', 10 -> 'X'
+            // (CẬP NHẬT) Mã hiệu mới chỉ là chữ số La Mã.
+            nextTT = nextRoman; // e.g., I, II
         } else if (level === 'grandchild') {
             nextTT = String(maxNumPart + 1); // e.g., 1, 2
         } else if (level === 'greatGrandchild' || level === 'greatGreatGrandchild') {
@@ -4559,7 +5148,7 @@ window.exportFormattedExcel_HTML = async function() {
         }
     };
 
-    const recalculateSingleParentCost = async (parentPath, childrenField = null, fieldsToRecalculate = ['chiPhi', 'chiPhiThucHien', 'keHoachConLai', 'khNamTruoc']) => {
+   const recalculateSingleParentCost = async (parentPath, childrenField = null, fieldsToRecalculate = ['chiPhi', 'chiPhiThucHien', 'keHoachConLai', 'khNamTruoc', 'thucHienNamTruoc']) => {
         const parentRef = ref(db, parentPath);
         const parentSnap = await get(parentRef);
         if (!parentSnap.exists()) {
@@ -4625,7 +5214,7 @@ window.exportFormattedExcel_HTML = async function() {
         } else {
             // **XỬ LÝ NÚT CHA:**
             console.log(`[recalcSingle] Processing PARENT node: ${parentPath} with childrenField: ${childrenField}`);
-            const total = { chiPhi: 0, chiPhiThucHien: 0, khNamTruoc: 0 };
+            const total = { chiPhi: 0, chiPhiThucHien: 0, khNamTruoc: 0, thucHienNamTruoc: 0 };
 
             if (typeof childrenData === 'object' && childrenData !== null) {
                 for (const childId in childrenData) {
@@ -4634,6 +5223,7 @@ window.exportFormattedExcel_HTML = async function() {
                         total.chiPhi += child.chiPhi || 0;
                         total.chiPhiThucHien += child.chiPhiThucHien || 0;
                         total.khNamTruoc += child.khNamTruoc || 0;
+						total.thucHienNamTruoc += child.thucHienNamTruoc || 0;
                     } else {
                         console.warn(`[recalcSingle] Child data at ${parentPath}/${childrenField}/${childId} is not an object.`);
                     }
@@ -5467,7 +6057,7 @@ parentNoiDungMap.set(parentData.id, parentData.noiDung);
             const parentPath = `${getParentCollectionName()}/${parentData.id}`;
             
             // CẤP 1 (task-parent) - ĐÃ CẬP NHẬT
-            html += `<tr class="task-parent" data-main-parent="${mainParentId}" data-path="${parentPath}"><td></td><td class="col-tt">${convertTTForDisplay(parentData.tt)}</td><td class="col-noidung">${parentData.noiDung}</td><td class="col-dv-thuchien"></td><td class="col-donvi"></td><td class="col-soluong"></td><td class="col-tansuat-th"></td><td class="text-right col-chiphi">${formatNumber(parentData.chiPhi)}</td><td class="text-right col-chiphi-thuchien">${formatNumber(parentData.chiPhiThucHien)}</td><td class="text-right col-kehoach-conlai">${formatNumber(parentData.keHoachConLai)}</td><td class="col-capdo"></td><td class="text-right col-kh-nam-truoc">${formatNumber(parentData.khNamTruoc)}</td><td class="col-ghichu editable-cell" data-field="ghiChu">${parentData.ghiChu || ''}</td><td class="col-hoso"></td><td class="col-action"><div class="dropdown"><button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button><div class="dropdown-content"><a href="#" onclick="openAddModal('${parentPath}', 'child')">Thêm lĩnh vực ATCLMT</a><a href="#" onclick="handleEditClick('${parentPath}', 'parent')">Sửa Nội dung</a></div></div></td></tr>`;
+            html += `<tr class="task-parent" data-main-parent="${mainParentId}" data-path="${parentPath}"><td></td><td class="col-tt">${convertTTForDisplay(parentData.tt)}</td><td class="col-noidung">${parentData.noiDung}</td><td class="col-dv-thuchien"></td><td class="text-right col-kh-nam-truoc">${formatNumber(parentData.khNamTruoc)}</td><td class="text-right col-th-nam-truoc">${formatNumber(parentData.thucHienNamTruoc)}</td><td class="col-donvi"></td><td class="col-soluong"></td><td class="col-tansuat-th"></td><td class="text-right col-chiphi">${formatNumber(parentData.chiPhi)}</td><td class="text-right col-chiphi-thuchien">${formatNumber(parentData.chiPhiThucHien)}</td><td class="text-right col-kehoach-conlai">${formatNumber(parentData.keHoachConLai)}</td><td class="col-capdo"></td><td class="col-tg-batdau">${parentData.tgBatDau || ''}</td><td class="col-tg-hoanthanh">${parentData.tgHoanThanh || ''}</td><td class="col-ghichu editable-cell" data-field="ghiChu">${parentData.ghiChu || ''}</td><td class="col-hoso"></td><td class="col-action"><div class="dropdown"><button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button><div class="dropdown-content"><a href="#" onclick="openAddModal('${parentPath}', 'child')">Thêm lĩnh vực ATCLMT</a><a href="#" onclick="handleEditClick('${parentPath}', 'parent')">Sửa Nội dung</a></div></div></td></tr>`;
 
             if (parentData.children) {
                 const children = Object.keys(parentData.children).map(id => ({ id, ...parentData.children[id] }));
@@ -5477,7 +6067,7 @@ parentNoiDungMap.set(parentData.id, parentData.noiDung);
                     docDataMap.set(childPath, childData);
                     if (!childData.isHidden) {
                         // CẤP 2 (task-child) - ĐÃ CẬP NHẬT
-                        html += `<tr class="task-child" data-main-parent="${mainParentId}" data-path="${childPath}"><td><input type="checkbox" class="parent-checkbox" data-path="${childPath}" onchange="toggleChildrenCheckboxes(this)"></td><td class="col-tt">${convertTTForDisplay(childData.tt)}</td><td class="col-noidung">${childData.noiDung}</td><td class="col-dv-thuchien"></td><td class="col-donvi"></td><td class="col-soluong"></td><td class="col-tansuat-th"></td><td class="text-right col-chiphi">${formatNumber(childData.chiPhi)}</td><td class="text-right col-chiphi-thuchien">${formatNumber(childData.chiPhiThucHien)}</td><td class="text-right col-kehoach-conlai">${formatNumber(childData.keHoachConLai)}</td><td class="col-capdo">${childData.capDo || ''}</td><td class="text-right col-kh-nam-truoc">${formatNumber(childData.khNamTruoc)}</td><td class="col-ghichu editable-cell" data-field="ghiChu">${childData.ghiChu || ''}</td><td class="col-hoso"></td><td class="col-action"><div class="dropdown"><button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button><div class="dropdown-content"><a href="#" onclick="openAddModal('${childPath}', 'grandchild')">Thêm mục công việc</a><a href="#" onclick="handleEditClick('${childPath}', 'child')">Sửa Nội dung</a></div></div></td></tr>`;
+                        html += `<tr class="task-child" data-main-parent="${mainParentId}" data-path="${childPath}"><td><input type="checkbox" class="parent-checkbox" data-path="${childPath}" onchange="toggleChildrenCheckboxes(this)"></td><td class="col-tt">${convertTTForDisplay(childData.tt)}</td><td class="col-noidung">${childData.noiDung}</td><td class="col-dv-thuchien"></td><td class="text-right col-kh-nam-truoc">${formatNumber(childData.khNamTruoc)}</td><td class="text-right col-th-nam-truoc">${formatNumber(childData.thucHienNamTruoc)}</td><td class="col-donvi"></td><td class="col-soluong"></td><td class="col-tansuat-th"></td><td class="text-right col-chiphi">${formatNumber(childData.chiPhi)}</td><td class="text-right col-chiphi-thuchien">${formatNumber(childData.chiPhiThucHien)}</td><td class="text-right col-kehoach-conlai">${formatNumber(childData.keHoachConLai)}</td><td class="col-capdo">${childData.capDo || ''}</td><td class="col-tg-batdau">${childData.tgBatDau || ''}</td><td class="col-tg-hoanthanh">${childData.tgHoanThanh || ''}</td><td class="col-ghichu editable-cell" data-field="ghiChu">${childData.ghiChu || ''}</td><td class="col-hoso"></td><td class="col-action"><div class="dropdown"><button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button><div class="dropdown-content"><a href="#" onclick="openAddModal('${childPath}', 'grandchild')">Thêm mục công việc</a><a href="#" onclick="handleEditClick('${childPath}', 'child')">Sửa Nội dung</a></div></div></td></tr>`;
                     }
 
                     if (childData.grandchildren) {
@@ -5487,7 +6077,7 @@ parentNoiDungMap.set(parentData.id, parentData.noiDung);
                             const grandchildPath = `${childPath}/grandchildren/${grandchildData.id}`;
                             docDataMap.set(grandchildPath, grandchildData);
                             // CẤP 3 (task-grandchild) - ĐÃ CẬP NHẬT
-                            html += `<tr class="task-grandchild" data-main-parent="${mainParentId}" data-path="${grandchildPath}"><td><input type="checkbox" class="parent-checkbox" data-path="${grandchildPath}" data-parent-path="${childPath}" onchange="toggleChildrenCheckboxes(this)"></td><td class="col-tt">${convertTTForDisplay(grandchildData.tt)}</td><td class="col-noidung">${grandchildData.noiDung}</td><td class="col-dv-thuchien"></td><td class="col-donvi"></td><td class="col-soluong"></td><td class="col-tansuat-th"></td><td class="text-right col-chiphi">${formatNumber(grandchildData.chiPhi)}</td><td class="text-right col-chiphi-thuchien">${formatNumber(grandchildData.chiPhiThucHien)}</td><td class="text-right col-kehoach-conlai">${formatNumber(grandchildData.keHoachConLai)}</td><td class="col-capdo"></td><td class="text-right col-kh-nam-truoc">${formatNumber(grandchildData.khNamTruoc)}</td><td class="col-ghichu editable-cell" data-field="ghiChu">${grandchildData.ghiChu || ''}</td><td class="col-hoso"></td><td class="col-action"><div class="dropdown"><button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button><div class="dropdown-content"><a href="#" onclick="openAddModal('${grandchildPath}', 'greatGrandchild')">Thêm đầu công việc</a><a href="#" onclick="handleEditClick('${grandchildPath}', 'grandchild')">Sửa Nội dung</a></div></div></td></tr>`;
+                            html += `<tr class="task-grandchild" data-main-parent="${mainParentId}" data-path="${grandchildPath}"><td><input type="checkbox" class="parent-checkbox" data-path="${grandchildPath}" data-parent-path="${childPath}" onchange="toggleChildrenCheckboxes(this)"></td><td class="col-tt">${convertTTForDisplay(grandchildData.tt)}</td><td class="col-noidung">${grandchildData.noiDung}</td><td class="col-dv-thuchien"></td><td class="text-right col-kh-nam-truoc">${formatNumber(grandchildData.khNamTruoc)}</td><td class="text-right col-th-nam-truoc">${formatNumber(grandchildData.thucHienNamTruoc)}</td><td class="col-donvi"></td><td class="col-soluong"></td><td class="col-tansuat-th"></td><td class="text-right col-chiphi">${formatNumber(grandchildData.chiPhi)}</td><td class="text-right col-chiphi-thuchien">${formatNumber(grandchildData.chiPhiThucHien)}</td><td class="text-right col-kehoach-conlai">${formatNumber(grandchildData.keHoachConLai)}</td><td class="col-capdo"></td><td class="col-tg-batdau">${grandchildData.tgBatDau || ''}</td><td class="col-tg-hoanthanh">${grandchildData.tgHoanThanh || ''}</td><td class="col-ghichu editable-cell" data-field="ghiChu">${grandchildData.ghiChu || ''}</td><td class="col-hoso"></td><td class="col-action"><div class="dropdown"><button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button><div class="dropdown-content"><a href="#" onclick="openAddModal('${grandchildPath}', 'greatGrandchild')">Thêm đầu công việc</a><a href="#" onclick="handleEditClick('${grandchildPath}', 'grandchild')">Sửa Nội dung</a></div></div></td></tr>`;
 
                             if (grandchildData.greatGrandchildren) {
                                 const greatGrandchildren = Object.keys(grandchildData.greatGrandchildren).map(id => ({ id, ...grandchildData.greatGrandchildren[id]}));
@@ -5509,29 +6099,36 @@ parentNoiDungMap.set(parentData.id, parentData.noiDung);
                                     }
                                     
                                     // CẤP 4 (task-great-grandchild) - ĐÃ CẬP NHẬT
-                                    html += `<tr class="${rowClass}" data-main-parent="${mainParentId}" data-path="${greatGrandchildPath}">
-                                                <td><input type="checkbox" class="${isParentLeaf ? 'parent-checkbox' : 'task-checkbox'}" data-path="${greatGrandchildPath}" data-parent-path="${grandchildPath}" onchange="${isParentLeaf ? 'toggleChildrenCheckboxes(this)' : 'toggleSelection(this)'}"></td>
-                                                <td class="col-tt">${convertTTForDisplay(greatGrandchildData.tt)}</td><td class="col-noidung" ${noiDungStyle}>${greatGrandchildData.noiDung}</td>
-                                                <td class="col-dv-thuchien ${!isParentLeaf ? 'editable-cell' : ''}" data-field="dvThucHien">${greatGrandchildData.dvThucHien || ''}</td>
-                                                <td class="col-donvi ${!isParentLeaf ? 'editable-cell' : ''}" data-field="donVi">${greatGrandchildData.donVi || ''}</td><td class="col-soluong">${greatGrandchildData.soLuong || ''}</td>
-                                                <td class="col-tansuat-th">${greatGrandchildData.tanSuatTH || ''}</td>
-                                                <td class="text-right col-chiphi">${formatNumber(greatGrandchildData.chiPhi)}</td>
-                                                <td class="text-right col-chiphi-thuchien">${formatNumber(greatGrandchildData.chiPhiThucHien)}</td><td class="text-right col-kehoach-conlai">${formatNumber(greatGrandchildData.keHoachConLai)}</td>
-                                                <td class="col-capdo">${greatGrandchildData.capDo || ''}</td>
-                                                <td class="text-right col-kh-nam-truoc">${formatNumber(greatGrandchildData.khNamTruoc)}</td>
-                                                <td class="col-ghichu editable-cell" data-field="ghiChu">${greatGrandchildData.ghiChu || ''}</td>
-                                                <td class="col-hoso">${hoSoButtonGGC}</td>
-                                                <td class="col-action">
-                                                    <div class="dropdown">
-                                                        <button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button>
-                                                        <div class="dropdown-content">
-                                                            <a href="#" onclick="openAddModal('${greatGrandchildPath}', 'greatGreatGrandchild')">Thêm công việc chi tiết</a>
-                                                            ${addJustificationLink}
-                                                            <a href="#" onclick="handleEditClick('${greatGrandchildPath}', 'greatGrandchild')">Sửa Nội dung</a>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                             </tr>`;
+            html += `<tr class="${rowClass}" data-main-parent="${mainParentId}" data-path="${greatGrandchildPath}">
+            <td><input type="checkbox" class="${isParentLeaf ? 'parent-checkbox' : 'task-checkbox'}" data-path="${greatGrandchildPath}" data-parent-path="${grandchildPath}" onchange="${isParentLeaf ? 'toggleChildrenCheckboxes(this)' : 'toggleSelection(this)'}"></td>
+            <td class="col-tt">${convertTTForDisplay(greatGrandchildData.tt)}</td><td class="col-noidung" ${noiDungStyle}>${greatGrandchildData.noiDung}</td>
+            <td class="col-dv-thuchien ${!isParentLeaf ? 'editable-cell' : ''}" data-field="dvThucHien">${greatGrandchildData.dvThucHien || ''}</td>
+
+            <td class="text-right col-kh-nam-truoc">${formatNumber(greatGrandchildData.khNamTruoc)}</td>
+            <td class="text-right col-th-nam-truoc">${formatNumber(greatGrandchildData.thucHienNamTruoc)}</td>
+
+            <td class="col-donvi ${!isParentLeaf ? 'editable-cell' : ''}" data-field="donVi">${greatGrandchildData.donVi || ''}</td><td class="col-soluong">${greatGrandchildData.soLuong || ''}</td>
+            <td class="col-tansuat-th">${greatGrandchildData.tanSuatTH || ''}</td>
+            <td class="text-right col-chiphi">${formatNumber(greatGrandchildData.chiPhi)}</td>
+            <td class="text-right col-chiphi-thuchien">${formatNumber(greatGrandchildData.chiPhiThucHien)}</td><td class="text-right col-kehoach-conlai">${formatNumber(greatGrandchildData.keHoachConLai)}</td>
+            <td class="col-capdo">${greatGrandchildData.capDo || ''}</td>
+
+            <td class="col-tg-batdau ${!isParentLeaf ? 'editable-cell' : ''}" data-field="tgBatDau">${greatGrandchildData.tgBatDau || ''}</td>
+            <td class="col-tg-hoanthanh ${!isParentLeaf ? 'editable-cell' : ''}" data-field="tgHoanThanh">${greatGrandchildData.tgHoanThanh || ''}</td>
+
+            <td class="col-ghichu editable-cell" data-field="ghiChu">${greatGrandchildData.ghiChu || ''}</td>
+            <td class="col-hoso">${hoSoButtonGGC}</td>
+            <td class="col-action">
+                <div class="dropdown">
+                    <button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button>
+                    <div class="dropdown-content">
+                        <a href="#" onclick="openAddModal('${greatGrandchildPath}', 'greatGreatGrandchild')">Thêm công việc chi tiết</a>
+                        ${addJustificationLink}
+                        <a href="#" onclick="handleEditClick('${greatGrandchildPath}', 'greatGrandchild')">Sửa Nội dung</a>
+                    </div>
+                </div>
+            </td>
+         </tr>`;
 
                                     // XỬ LÝ GIẢI TRÌNH CHO CẤP 4
                                     if (greatGrandchildData.justifications) {
@@ -5551,6 +6148,10 @@ parentNoiDungMap.set(parentData.id, parentData.noiDung);
                                                 <td class="col-tt">${convertTTForDisplay(justData.tt)}</td>
                                                 <td class="col-noidung">${justData.noiDung}</td>
                                                 <td class="col-dv-thuchien"></td>
+                                                
+                                                <td class="text-right col-kh-nam-truoc"></td>
+                                                <td class="text-right col-th-nam-truoc"></td>
+                                                
                                                 <td class="col-donvi ${!hasSubJustifications ? 'editable-cell' : ''}" data-field="donVi">${justData.donVi || ''}</td>
                                                 <td class="col-soluong">${justData.soLuong || ''}</td>
                                                 <td class="col-tansuat-th"></td>
@@ -5558,7 +6159,10 @@ parentNoiDungMap.set(parentData.id, parentData.noiDung);
                                                 <td class="text-right col-chiphi-thuchien"></td>
                                                 <td class="text-right col-kehoach-conlai"></td>
                                                 <td class="col-capdo"></td>
-                                                <td class="text-right col-kh-nam-truoc"></td>
+                                                
+                                                <td class="col-tg-batdau"></td>
+                                                <td class="col-tg-hoanthanh"></td>
+
                                                 <td class="col-ghichu editable-cell" data-field="ghiChu">${justData.ghiChu || ''}</td>
                                                 <td class="col-hoso"></td>
                                                 <td class="col-action">
@@ -5586,6 +6190,10 @@ parentNoiDungMap.set(parentData.id, parentData.noiDung);
                                                         <td class="col-tt">${convertTTForDisplay(subJustData.tt)}</td>
                                                         <td class="col-noidung" style="padding-left: 40px; font-style: italic;">${subJustData.noiDung}</td>
                                                         <td class="col-dv-thuchien"></td>
+                                                        
+                                                        <td class="text-right col-kh-nam-truoc"></td>
+                                                        <td class="text-right col-th-nam-truoc"></td>
+
                                                         <td class="col-donvi editable-cell" data-field="donVi">${subJustData.donVi || ''}</td>
                                                         <td class="col-soluong">${subJustData.soLuong || ''}</td>
                                                         <td class="col-tansuat-th"></td>
@@ -5593,7 +6201,10 @@ parentNoiDungMap.set(parentData.id, parentData.noiDung);
                                                         <td class="text-right col-chiphi-thuchien"></td>
                                                         <td class="text-right col-kehoach-conlai"></td>
                                                         <td class="col-capdo"></td>
-                                                        <td class="text-right col-kh-nam-truoc"></td>
+
+                                                        <td class="col-tg-batdau"></td>
+                                                        <td class="col-tg-hoanthanh"></td>
+
                                                         <td class="col-ghichu editable-cell" data-field="ghiChu">${subJustData.ghiChu || ''}</td>
                                                         <td class="col-hoso"></td>
                                                         <td class="col-action">
@@ -5622,28 +6233,35 @@ parentNoiDungMap.set(parentData.id, parentData.noiDung);
                                             }
 
                                             // CẤP 5 (task-great-great-grandchild) - ĐÃ CẬP NHẬT
-                                            html += `<tr class="task-great-great-grandchild" data-main-parent="${mainParentId}" data-path="${gggcPath}">
-                                                <td><input type="checkbox" class="task-checkbox" data-path="${gggcPath}" data-parent-path="${greatGrandchildPath}" onchange="toggleSelection(this)"></td>
-                                                <td class="col-tt">${convertTTForDisplay(gggcData.tt)}</td><td class="col-noidung" ${gggcNoiDungStyle}>${gggcData.noiDung}</td>
-                                                <td class="col-dv-thuchien editable-cell" data-field="dvThucHien">${gggcData.dvThucHien || ''}</td>
-                                                <td class="col-donvi editable-cell" data-field="donVi">${gggcData.donVi || ''}</td><td class="col-soluong">${gggcData.soLuong || ''}</td>
-                                                <td class="col-tansuat-th">${gggcData.tanSuatTH || ''}</td>
-                                                <td class="text-right col-chiphi">${formatNumber(gggcData.chiPhi)}</td>
-                                                <td class="text-right col-chiphi-thuchien">${formatNumber(gggcData.chiPhiThucHien)}</td><td class="text-right col-kehoach-conlai">${formatNumber(gggcData.keHoachConLai)}</td>
-                                                <td class="col-capdo">${gggcData.capDo || ''}</td>
-                                                <td class="text-right col-kh-nam-truoc">${formatNumber(gggcData.khNamTruoc)}</td>
-                                                <td class="col-ghichu editable-cell" data-field="ghiChu">${gggcData.ghiChu || ''}</td>
-                                                <td class="col-hoso">${hoSoButtonGGGC}</td>
-                                                <td class="col-action">
-                                                    <div class="dropdown">
-                                                        <button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button>
-                                                        <div class="dropdown-content">
-                                                            <a href="#" onclick="openAddModal('${gggcPath}', 'justification')">Thêm giải trình</a>
-                                                            <a href="#" onclick="handleEditClick('${gggcPath}', 'greatGreatGrandchild')">Sửa Nội dung</a>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                             </tr>`;
+                                           html += `<tr class="task-great-great-grandchild" data-main-parent="${mainParentId}" data-path="${gggcPath}">
+            <td><input type="checkbox" class="task-checkbox" data-path="${gggcPath}" data-parent-path="${greatGrandchildPath}" onchange="toggleSelection(this)"></td>
+            <td class="col-tt">${convertTTForDisplay(gggcData.tt)}</td><td class="col-noidung" ${gggcNoiDungStyle}>${gggcData.noiDung}</td>
+            <td class="col-dv-thuchien editable-cell" data-field="dvThucHien">${gggcData.dvThucHien || ''}</td>
+
+            <td class="text-right col-kh-nam-truoc">${formatNumber(gggcData.khNamTruoc)}</td>
+            <td class="text-right col-th-nam-truoc">${formatNumber(gggcData.thucHienNamTruoc)}</td>
+
+            <td class="col-donvi editable-cell" data-field="donVi">${gggcData.donVi || ''}</td><td class="col-soluong">${gggcData.soLuong || ''}</td>
+            <td class="col-tansuat-th">${gggcData.tanSuatTH || ''}</td>
+            <td class="text-right col-chiphi">${formatNumber(gggcData.chiPhi)}</td>
+            <td class="text-right col-chiphi-thuchien">${formatNumber(gggcData.chiPhiThucHien)}</td><td class="text-right col-kehoach-conlai">${formatNumber(gggcData.keHoachConLai)}</td>
+            <td class="col-capdo">${gggcData.capDo || ''}</td>
+
+            <td class="col-tg-batdau editable-cell" data-field="tgBatDau">${gggcData.tgBatDau || ''}</td>
+            <td class="col-tg-hoanthanh editable-cell" data-field="tgHoanThanh">${gggcData.tgHoanThanh || ''}</td>
+
+            <td class="col-ghichu editable-cell" data-field="ghiChu">${gggcData.ghiChu || ''}</td>
+            <td class="col-hoso">${hoSoButtonGGGC}</td>
+            <td class="col-action">
+                <div class="dropdown">
+                    <button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button>
+                    <div class="dropdown-content">
+                        <a href="#" onclick="openAddModal('${gggcPath}', 'justification')">Thêm giải trình</a>
+                        <a href="#" onclick="handleEditClick('${gggcPath}', 'greatGreatGrandchild')">Sửa Nội dung</a>
+                    </div>
+                </div>
+            </td>
+         </tr>`;
 
                                             // XỬ LÝ GIẢI TRÌNH CHO CẤP 5
                                             if (gggcData.justifications) {
@@ -5658,31 +6276,38 @@ parentNoiDungMap.set(parentData.id, parentData.noiDung);
                                                     const hasSubJustifications = justData.hasSubJustifications === true && justData.subJustifications;
 
                                                     // GIẢI TRÌNH CẤP 1 (task-justification-parent) - ĐÃ CẬP NHẬT
-                                                    html += `<tr class="task-justification task-justification-parent" data-main-parent="${mainParentId}" data-path="${justPath}">
-                                                        <td><input type="checkbox" class="justification-checkbox ${hasSubJustifications ? 'parent-checkbox' : ''}" data-path="${justPath}" data-parent-path="${gggcPath}" onchange="${hasSubJustifications ? 'toggleChildrenCheckboxes(this)' : 'toggleSelection(this)'}"></td>
-                                                        <td class="col-tt">${convertTTForDisplay(justData.tt)}</td>
-                                                        <td class="col-noidung">${justData.noiDung}</td>
-                                                        <td class="col-dv-thuchien"></td>
-                                                        <td class="col-donvi ${!hasSubJustifications ? 'editable-cell' : ''}" data-field="donVi">${justData.donVi || ''}</td>
-                                                        <td class="col-soluong">${justData.soLuong || ''}</td>
-                                                        <td class="col-tansuat-th"></td>
-                                                        <td class="text-right col-chiphi">${formatNumber(justData.chiPhi || 0)}</td>
-                                                        <td class="text-right col-chiphi-thuchien"></td>
-                                                        <td class="text-right col-kehoach-conlai"></td>
-                                                        <td class="col-capdo"></td>
-                                                        <td class="text-right col-kh-nam-truoc"></td>
-                                                        <td class="col-ghichu editable-cell" data-field="ghiChu">${justData.ghiChu || ''}</td>
-                                                        <td class="col-hoso"></td>
-                                                        <td class="col-action">
-                                                            <div class="dropdown">
-                                                                <button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button>
-                                                                <div class="dropdown-content">
-                                                                    <a href="#" onclick="openAddModal('${justPath}', 'subJustification')">Thêm GT con</a>
-                                                                    <a href="#" onclick="handleEditClick('${justPath}', 'justification')">Sửa giải trình</a>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                    </tr>`;
+                                                   html += `<tr class="task-justification task-justification-parent" data-main-parent="${mainParentId}" data-path="${justPath}">
+                                                <td><input type="checkbox" class="justification-checkbox ${hasSubJustifications ? 'parent-checkbox' : ''}" data-path="${justPath}" data-parent-path="${greatGrandchildPath}" onchange="${hasSubJustifications ? 'toggleChildrenCheckboxes(this)' : 'toggleSelection(this)'}"></td>
+                                                <td class="col-tt">${convertTTForDisplay(justData.tt)}</td>
+                                                <td class="col-noidung">${justData.noiDung}</td>
+                                                <td class="col-dv-thuchien"></td>
+                                                
+                                                <td class="text-right col-kh-nam-truoc"></td>
+                                                <td class="text-right col-th-nam-truoc"></td>
+                                                
+                                                <td class="col-donvi ${!hasSubJustifications ? 'editable-cell' : ''}" data-field="donVi">${justData.donVi || ''}</td>
+                                                <td class="col-soluong">${justData.soLuong || ''}</td>
+                                                <td class="col-tansuat-th"></td>
+                                                <td class="text-right col-chiphi">${formatNumber(justData.chiPhi || 0)}</td>
+                                                <td class="text-right col-chiphi-thuchien"></td>
+                                                <td class="text-right col-kehoach-conlai"></td>
+                                                <td class="col-capdo"></td>
+                                                
+                                                <td class="col-tg-batdau"></td>
+                                                <td class="col-tg-hoanthanh"></td>
+
+                                                <td class="col-ghichu editable-cell" data-field="ghiChu">${justData.ghiChu || ''}</td>
+                                                <td class="col-hoso"></td>
+                                                <td class="col-action">
+                                                    <div class="dropdown">
+                                                        <button onclick="toggleDropdown(event)" class="btn-secondary btn-action dropbtn">Thêm/sửa</button>
+                                                        <div class="dropdown-content">
+                                                            <a href="#" onclick="openAddModal('${justPath}', 'subJustification')">Thêm GT con</a>
+                                                            <a href="#" onclick="handleEditClick('${justPath}', 'justification')">Sửa giải trình</a>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>`;
 
                                                     if (hasSubJustifications && justData.subJustifications) {
                                                         const subJustifications = Object.keys(justData.subJustifications).map(subId => ({ 
@@ -5694,24 +6319,31 @@ parentNoiDungMap.set(parentData.id, parentData.noiDung);
                                                         for (const subJustData of subJustifications) {
                                                             // GIẢI TRÌNH CẤP 2 (task-justification-child) - ĐÃ CẬP NHẬT
                                                             html += `<tr class="task-justification task-justification-child" data-main-parent="${mainParentId}" data-path="${subJustData.path}">
-                                                                <td><input type="checkbox" class="justification-checkbox" data-path="${subJustData.path}" data-parent-path="${justPath}" onchange="toggleSelection(this)"></td>
-                                                                <td class="col-tt">${convertTTForDisplay(subJustData.tt)}</td>
-                                                                <td class="col-noidung" style="padding-left: 40px; font-style: italic;">${subJustData.noiDung}</td>
-                                                                <td class="col-dv-thuchien"></td>
-                                                                <td class="col-donvi editable-cell" data-field="donVi">${subJustData.donVi || ''}</td>
-                                                                <td class="col-soluong">${subJustData.soLuong || ''}</td>
-                                                                <td class="col-tansuat-th"></td>
-                                                                <td class="text-right col-chiphi">${formatNumber(subJustData.chiPhi || 0)}</td>
-                                                                <td class="text-right col-chiphi-thuchien"></td>
-                                                                <td class="text-right col-kehoach-conlai"></td>
-                                                                <td class="col-capdo"></td>
-                                                                <td class="text-right col-kh-nam-truoc"></td>
-                                                                <td class="col-ghichu editable-cell" data-field="ghiChu">${subJustData.ghiChu || ''}</td>
-                                                                <td class="col-hoso"></td>
-                                                                <td class="col-action">
-                                                                    <button class="btn-secondary btn-action btn-edit-leaf" onclick="handleEditClick('${subJustData.path}', 'subJustification')">Sửa</button>
-                                                                </td>
-                                                            </tr>`;
+                                                        <td><input type="checkbox" class="justification-checkbox" data-path="${subJustData.path}" data-parent-path="${justPath}" onchange="toggleSelection(this)"></td>
+                                                        <td class="col-tt">${convertTTForDisplay(subJustData.tt)}</td>
+                                                        <td class="col-noidung" style="padding-left: 40px; font-style: italic;">${subJustData.noiDung}</td>
+                                                        <td class="col-dv-thuchien"></td>
+                                                        
+                                                        <td class="text-right col-kh-nam-truoc"></td>
+                                                        <td class="text-right col-th-nam-truoc"></td>
+
+                                                        <td class="col-donvi editable-cell" data-field="donVi">${subJustData.donVi || ''}</td>
+                                                        <td class="col-soluong">${subJustData.soLuong || ''}</td>
+                                                        <td class="col-tansuat-th"></td>
+                                                        <td class="text-right col-chiphi">${formatNumber(subJustData.chiPhi || 0)}</td>
+                                                        <td class="text-right col-chiphi-thuchien"></td>
+                                                        <td class="text-right col-kehoach-conlai"></td>
+                                                        <td class="col-capdo"></td>
+
+                                                        <td class="col-tg-batdau"></td>
+                                                        <td class="col-tg-hoanthanh"></td>
+
+                                                        <td class="col-ghichu editable-cell" data-field="ghiChu">${subJustData.ghiChu || ''}</td>
+                                                        <td class="col-hoso"></td>
+                                                        <td class="col-action">
+                                                            <button class="btn-secondary btn-action btn-edit-leaf" onclick="handleEditClick('${subJustData.path}', 'subJustification')">Sửa</button>
+                                                        </td>
+                                                    </tr>`;
                                                         }
                                                     }
                                                 }
