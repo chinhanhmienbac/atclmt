@@ -552,7 +552,7 @@
         <div id="status"></div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-            <h2>CHI NHÁNH MIỀN BẮC</h2>
+            <h2>CÁC ĐƠN VỊ CHI NHÁNH MIỀN BẮC</h2>
              <div> <label for="yearSelect" style="margin-right: 10px; font-weight: bold;">Năm:</label>
                 <select id="yearSelect" onchange="changeYear(this.value)"></select>
                 
@@ -3756,54 +3756,148 @@ window.saveExecutionEdits = async function() {
         document.getElementById('uploadPdfModal').style.display = 'block';
     };
 
-    window.toggleAllCheckboxes = function(checkbox) {
-        const isChecked = checkbox.checked;
-        const parentCheckboxes = document.querySelectorAll('#taskListBody .parent-checkbox');
-        parentCheckboxes.forEach(cb => {
+    /**
+     * Hàm xử lý Checkbox "Chọn tất cả" ở header bảng
+     */
+    window.toggleAllCheckboxes = function(headerCheckbox) {
+        const isChecked = headerCheckbox.checked;
+        const allCheckboxes = document.querySelectorAll('#taskListBody input[type="checkbox"]');
+        
+        // 1. Reset dữ liệu đã chọn để nạp lại từ đầu (tránh trùng lặp hoặc sót)
+        if (!isChecked) {
+            selectedTasks.clear();
+            selectedJustifications.clear();
+        }
+
+        allCheckboxes.forEach(cb => {
+            // Cập nhật trạng thái hiển thị
             cb.checked = isChecked;
+            cb.indeterminate = false; // Quan trọng: Xóa trạng thái "bán phần" nếu có
+
+            // Cập nhật dữ liệu vào Set
+            const path = cb.dataset.path;
             if (isChecked) {
-                toggleChildrenCheckboxes(cb);
-            } else {
-                clearChildrenCheckboxes(cb);
+                if (cb.classList.contains('justification-checkbox')) {
+                    selectedJustifications.add(path);
+                } else {
+                    selectedTasks.add(path);
+                }
             }
         });
+
+        updateButtonStates();
     };
 
+    /**
+     * Hàm Wrapper: Đảm bảo tính tương thích với HTML cũ
+     * (Vì trong HTML có chỗ gọi toggleChildrenCheckboxes, có chỗ gọi toggleSelection)
+     */
     window.toggleChildrenCheckboxes = function(parentCheckbox) {
-        const path = parentCheckbox.dataset.path;
-        const isChecked = parentCheckbox.checked;
-        const parentPath = parentCheckbox.dataset.parentPath;
-        const childCheckboxes = document.querySelectorAll(`.task-checkbox[data-parent-path="${path}"], .justification-checkbox[data-parent-path="${path}"]`);
-        childCheckboxes.forEach(cb => {
-            cb.checked = isChecked;
-            toggleSelection(cb);
-        });
-        if (isChecked) {
-            selectedTasks.add(path);
-        } else {
-            selectedTasks.delete(path);
-        }
-        updateButtonStates();
+        // Chuyển tiếp sang logic mới ở toggleSelection
+        window.toggleSelection(parentCheckbox);
     };
 
-    window.toggleSelection = function(checkbox) {
+    
+   /**
+     * Hàm xử lý chính: Chọn/Bỏ chọn task 
+     * Hỗ trợ lan truyền xuống (Down) và cập nhật ngược lên (Up)
+     */
+    window.toggleSelection = function(checkbox, isFromCascade = false) {
         const path = checkbox.dataset.path;
+        const isChecked = checkbox.checked;
         const isJustification = checkbox.classList.contains('justification-checkbox');
-        if (checkbox.checked) {
-            if (isJustification) {
-                selectedJustifications.add(path);
-            } else {
-                selectedTasks.add(path);
-            }
+
+        // 1. Cập nhật vào danh sách đã chọn (Set)
+        if (isChecked) {
+            if (isJustification) selectedJustifications.add(path);
+            else selectedTasks.add(path);
         } else {
-            if (isJustification) {
-                selectedJustifications.delete(path);
-            } else {
-                selectedTasks.delete(path);
-            }
+            if (isJustification) selectedJustifications.delete(path);
+            else selectedTasks.delete(path);
         }
-        updateButtonStates();
+
+        // 2. LAN TRUYỀN XUỐNG (Cascade Down): Chọn tất cả con cháu
+        // Chỉ chạy khi người dùng click trực tiếp (isFromCascade = false)
+        if (!isFromCascade) {
+            const descendantCheckboxes = document.querySelectorAll(`input[type="checkbox"][data-path^="${path}/"]`);
+            descendantCheckboxes.forEach(childCb => {
+                if (childCb !== checkbox) {
+                    childCb.checked = isChecked;
+                    childCb.indeterminate = false; // Con cháu thì phải rõ ràng (Chọn/Không)
+                    window.toggleSelection(childCb, true); // Gọi đệ quy nhẹ để cập nhật Set
+                }
+            });
+        }
+
+        // 3. CẬP NHẬT NGƯỢC LÊN (Bubble Up): Kiểm tra trạng thái cha/ông
+        // Luôn chạy để đảm bảo tính nhất quán visual
+        updateAncestors(path);
+
+        // 4. Cập nhật nút bấm
+        if (!isFromCascade) {
+            updateButtonStates();
+        }
     };
+
+    /**
+     * Hàm đệ quy cập nhật trạng thái visual của các cấp cha (Indeterminate)
+     */
+    function updateAncestors(currentPath) {
+        // Tìm đường dẫn cha bằng cách cắt bỏ 2 phần cuối (VD: .../children/ID)
+        // Regex: Tìm pattern "/[collection]/[id]" ở cuối chuỗi và loại bỏ nó
+        const parentPathMatch = currentPath.match(/^(.*)\/[^\/]+\/[^\/]+$/);
+        
+        if (!parentPathMatch) return; // Đã đến root hoặc không tìm thấy cha
+
+        const parentPath = parentPathMatch[1];
+        const parentCheckbox = document.querySelector(`input[type="checkbox"][data-path="${parentPath}"]`);
+
+        if (parentCheckbox) {
+            // Tìm tất cả con TRỰC TIẾP của cha này để kiểm tra trạng thái
+            // Logic: Tìm các checkbox có path bắt đầu bằng "parentPath/" 
+            // Lưu ý: Cách này tìm cả cháu chắt, nhưng ta chỉ cần kiểm tra tổng thể
+            const allDescendants = document.querySelectorAll(`input[type="checkbox"][data-path^="${parentPath}/"]`);
+            
+            let checkedCount = 0;
+            let indeterminateCount = 0;
+            const totalCount = allDescendants.length;
+
+            allDescendants.forEach(cb => {
+                if (cb.checked) checkedCount++;
+                if (cb.indeterminate) indeterminateCount++;
+            });
+
+            if (checkedCount === totalCount && totalCount > 0) {
+                // Tất cả con đều được chọn -> Cha chọn
+                parentCheckbox.checked = true;
+                parentCheckbox.indeterminate = false;
+                // Cập nhật Set cho cha
+                if(parentCheckbox.classList.contains('justification-checkbox')) selectedJustifications.add(parentPath);
+                else selectedTasks.add(parentPath);
+
+            } else if (checkedCount === 0 && indeterminateCount === 0) {
+                // Không con nào được chọn -> Cha bỏ chọn
+                parentCheckbox.checked = false;
+                parentCheckbox.indeterminate = false;
+                // Xóa Set cho cha
+                if(parentCheckbox.classList.contains('justification-checkbox')) selectedJustifications.delete(parentPath);
+                else selectedTasks.delete(parentPath);
+
+            } else {
+                // Trạng thái hỗn hợp -> Cha Indeterminate (dấu gạch ngang)
+                // Lưu ý: Indeterminate về mặt logic dữ liệu thường coi là chưa chọn (checked = false)
+                // hoặc tùy nghiệp vụ. Ở đây ta để checked = false để khi click vào nó sẽ thành true (chọn hết).
+                parentCheckbox.checked = false;
+                parentCheckbox.indeterminate = true;
+                // Xóa Set cho cha (vì chưa chọn trọn vẹn)
+                if(parentCheckbox.classList.contains('justification-checkbox')) selectedJustifications.delete(parentPath);
+                else selectedTasks.delete(parentPath);
+            }
+
+            // Tiếp tục đệ quy lên cấp ông/cố
+            updateAncestors(parentPath);
+        }
+    }
 
     window.scrollToTop = function() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4729,30 +4823,55 @@ window.exportFormattedExcel_HTML = async function() {
     }
 
     function updateButtonStates() {
-        const isCurrentYearEditable = editModeStatusByYear[currentYear] === true;
-        const canWrite = isAuthenticated && isCurrentYearEditable;
-        const planningToggle = document.getElementById('planningModeToggle');
+        // --- 1. ĐỊNH NGHĨA QUYỀN HẠN ---
 
-        planningToggle.disabled = false;
+        // Quyền Sửa đổi cấu trúc (Thêm, Sửa, Xóa task, Sửa inline):
+        // Giữ nguyên logic cũ: Phải đăng nhập VÀ Phải bật checkbox "Cho phép sửa đổi"
+        const isCurrentYearEditable = editModeStatusByYear[currentYear] === true;
+        const canEditStructure = isAuthenticated && isCurrentYearEditable;
+
+        // Quyền Thực hiện công việc:
+        // Logic MỚI: Chỉ cần Đăng nhập là được phép thực hiện
+        const canExecute = isAuthenticated;
+
+        const planningToggle = document.getElementById('planningModeToggle');
+        if (planningToggle) planningToggle.disabled = false;
+
+        // --- 2. CẬP NHẬT TRẠNG THÁI NÚT THỰC HIỆN ---
 
         const multiExecuteButton = document.getElementById('multiExecuteBtn');
-        multiExecuteButton.disabled = selectedTasks.size === 0 || !canWrite;
+        if (multiExecuteButton) {
+            // Nút này bây giờ chỉ phụ thuộc vào việc đã chọn task và đã đăng nhập (canExecute)
+            // Không còn bị khóa bởi checkbox sửa đổi nữa.
+            multiExecuteButton.disabled = selectedTasks.size === 0 || !canExecute;
+        }
+
+        // --- 3. GIỮ NGUYÊN GIỚI HẠN CHO CÁC NÚT KHÁC (Dùng canEditStructure) ---
 
         const deleteSelectedButton = document.getElementById('deleteSelectedBtn');
-        deleteSelectedButton.disabled = !canWrite || (selectedTasks.size === 0 && selectedJustifications.size === 0);
+        if (deleteSelectedButton) {
+            // Nút Xóa vẫn phải tuân thủ quy tắc nghiêm ngặt cũ
+            deleteSelectedButton.disabled = !canEditStructure || (selectedTasks.size === 0 && selectedJustifications.size === 0);
+        }
 
         const actionButtons = document.querySelectorAll('#taskList .dropbtn, #taskList .btn-edit-leaf');
         actionButtons.forEach(btn => {
-            btn.disabled = !canWrite;
+            // Các nút Thêm/Sửa nhỏ trong bảng vẫn tuân thủ quy tắc nghiêm ngặt cũ
+            btn.disabled = !canEditStructure;
         });
 
-        if (!canWrite) {
-            if (planningToggle.checked && isAuthenticated) {
+        // Logic tắt Planning Mode khi mất quyền sửa đổi (giữ nguyên để đảm bảo an toàn giao diện)
+        if (!canEditStructure) {
+            if (planningToggle && planningToggle.checked && isAuthenticated) {
                 planningToggle.checked = false;
                 const taskList = document.getElementById('taskList');
-                taskList.classList.remove('planning-mode');
-                document.getElementById('exportExcel1Btn').disabled = false;
-                document.getElementById('exportExcel2Btn').disabled = true;
+                if (taskList) taskList.classList.remove('planning-mode');
+                
+                const btnExcel1 = document.getElementById('exportExcel1Btn');
+                const btnExcel2 = document.getElementById('exportExcel2Btn');
+                if (btnExcel1) btnExcel1.disabled = false;
+                if (btnExcel2) btnExcel2.disabled = true;
+
                 const allRows = document.querySelectorAll('#taskListBody tr');
                 allRows.forEach(row => row.style.display = '');
             }
@@ -5291,15 +5410,17 @@ const createInputRow = (path, data, level, context = {}) => {
         return nextTT;
     };
 
+    /**
+     * Hàm nội bộ để bỏ chọn con (dùng cho nút "Chọn tất cả" ở đầu bảng)
+     * Giữ nguyên dạng function cục bộ như mã nguồn gốc
+     */
     function clearChildrenCheckboxes(parentCheckbox) {
-        const path = parentCheckbox.dataset.path;
-        const childCheckboxes = document.querySelectorAll(`.task-checkbox[data-parent-path="${path}"], .justification-checkbox[data-parent-path="${path}"]`);
-        childCheckboxes.forEach(cb => {
-            cb.checked = false;
-            toggleSelection(cb);
-        });
-        selectedTasks.delete(path);
-        updateButtonStates();
+        // Đảm bảo cha đã bỏ chọn trước khi gọi logic lan truyền
+        if (parentCheckbox.checked) {
+            parentCheckbox.checked = false;
+        }
+        // Tái sử dụng logic của toggleSelection để bỏ chọn toàn bộ con cháu
+        window.toggleSelection(parentCheckbox);
     }
 
     window.onscroll = function() {
