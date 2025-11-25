@@ -997,274 +997,277 @@ const parseNumber = (str) => {
         return `congViecMe${currentYear}`;
     }
 
+// === CÁC HÀM HELPER CHO LOGIC IMPORT MỚI ===
 
 /**
- * HÀM MỚI (THAY THẾ buildImportUpdates_Merge v4)
- *
- * Xây dựng một đối tượng 'updates' phẳng để HỢP NHẤT (MERGE),
- * với các đường dẫn trỏ đến TỪNG TRƯỜNG DỮ LIỆU RIÊNG LẺ.
- * Điều này tránh lỗi "ancestor path" của Firebase update().
+ * Hàm chuẩn hóa TT: Loại bỏ khoảng trắng thừa, chuyển dấu phẩy thành dấu chấm,
+ * loại bỏ dấu chấm ở cuối câu (ví dụ "1." -> "1").
  */
+function normalizeTT(rawTT) {
+    if (!rawTT) return '';
+    return String(rawTT)
+        .trim()                  // Xóa khoảng trắng đầu cuối
+        .replace(/\s+/g, '')     // Xóa khoảng trắng ở giữa (VD: "1. 1" -> "1.1")
+        .replace(/,/g, '.')      // Chuyển phẩy thành chấm (VD: "1,1" -> "1.1")
+        .replace(/\.$/, '')      // Xóa dấu chấm cuối cùng (VD: "A." -> "A")
+        .replace(/^\./, '');     // Xóa dấu chấm đầu tiên (nếu có)
+}
+
 /**
- * Đã sửa lỗi logic nhận diện TT Cấp 1, Cấp 2, và Giải trình (case-sensitive)
- * và xử lý các ngoại lệ ("I", "C", "D", "L", "M").
+ * Hàm xác định cấp độ của TT dựa trên Regex
+ * ĐÃ SỬA: Chỉ nhận diện số La Mã nếu viết IN HOA.
  */
+function detectLevel(tt) {
+    // 1. Cấp 1 (Parent): A, B, C... (Chữ cái in hoa)
+    const isLevel1_Alpha = /^[A-Z]$/;
+
+    // 2. Cấp 2 (Child - Roman): I, II, III, IV... (CHỈ IN HOA)
+    // --- SỬA ĐỔI: Đã xóa cờ 'i' ở cuối regex để bắt buộc khớp chính xác chữ hoa ---
+    const isLevel2_Roman = /^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|XIX|XX|XXI|XXII|XXIII|XXIV|XXV|XXVI|XXVII|XXVIII|XXIX|XXX|XXXI|XXXII|XXXIII|XXXIV|XXXV|XXXVI|XXXVII|XXXVIII|XXXIX)$/;
+
+    // 3. Cấp 3 (Grandchild - Integer): 1, 2, 3...
+    const isLevel3_Integer = /^\d+$/;
+
+    // 4. Cấp 4 (GreatGrandchild - x.x): 1.1, 2.3...
+    const isLevel4_Decimal = /^\d+\.\d+$/;
+
+    // 5. Cấp 5 (GreatGreatGrandchild - x.x.x): 1.1.1, 2.3.1...
+    const isLevel5_Decimal = /^\d+\.\d+\.\d+$/;
+
+    // 6. Giải trình (Justification - a, b, c... hoặc (a), a))
+    // Regex này bắt các chữ cái thường
+    const isJustification = /^(\(?[a-z]\)?|[a-z]\.)$/; 
+    
+    // 7. Giải trình con (SubJustification - a1, a2...)
+    const isSubJustification = /^[a-z]\d+$/;
+
+    // --- LOGIC PHÂN LOẠI ---
+    
+    // Kiểm tra số La Mã trước. Vì đã bỏ 'i', nó chỉ khớp I, V, X...
+    // Nếu là 'i', 'v' (thường), nó sẽ trả về false và trôi xuống check isJustification bên dưới.
+    if (isLevel2_Roman.test(tt)) return 'child';
+    
+    if (isLevel1_Alpha.test(tt)) return 'parent';
+    
+    if (isLevel5_Decimal.test(tt)) return 'greatGreatGrandchild';
+    if (isLevel4_Decimal.test(tt)) return 'greatGrandchild';
+    if (isLevel3_Integer.test(tt)) return 'grandchild';
+    
+    if (isSubJustification.test(tt)) return 'subJustification';
+    
+    // Xử lý giải trình (a, b, i...)
+    if (isJustification.test(tt)) return 'justification';
+
+    return 'unknown';
+}
+
+
 function buildImportUpdates_Merge(jsonData, headers) {
-    console.log('=== START buildImportUpdates_Merge (v9 - Sửa lỗi "i" thường) ===');
+    console.log('=== START Smart Import Logic (Optimized Regex) ===');
     const updates = {};
     const rootPath = getParentCollectionName();
 
+    // Map header để tìm dữ liệu bất kể chữ hoa/thường
     const headersSet = new Set(headers.map(h => String(h).toLowerCase().trim()));
-    const hasExecutionColumns = headers.some(h => String(h).toLowerCase().trim().startsWith('ngày th (1)'));
-    console.log(`File import này có cột "Thực hiện" không? ${hasExecutionColumns}`);
+    const hasExecutionColumns = headers.some(h => String(h).toLowerCase().trim().startsWith('ngày th'));
 
-    let currentParentPath = '', currentChildPath = '', currentGrandchildPath = '', currentGreatGrandchildPath = '';
-    let lastLeafNodePath = null;
-    let lastJustificationL1Path = null;
-
-    // === BẮT ĐẦU THAY ĐỔI: Logic Regex mới ===
-    // Cấp 1 (Strict): Chỉ chữ hoa A-Z. (KHÔNG 'i' flag)
-    const isParentStrict = /^[A-Z]$/; 
-    
-    // Cấp 2 (Roman): Chữ La Mã. (CÓ 'i' flag)
-    const isChildRoman = /^[IVXLCDM]+$/i; 
-
-    // Cấp GT 1 (Strict): Chỉ chữ thường a-z. (KHÔNG 'i' flag)
-    const isJustification = /^[a-z]$/; 
-    // === KẾT THÚC THAY ĐỔI: Logic Regex ===
-
-    // Các Regex khác giữ nguyên
-    const isSubJustification = /^[a-z]\d+$/;
-    const isGrandchild = /^\d+$/;
-    const isGreatGrandchild = /^\d+\.\d+$/;
-    const isGreatGreatGrandchild = /^\d+\.\d+\.\d+$/;
+    // State management: Lưu giữ đường dẫn cha hiện tại
+    let state = {
+        parent: null,           // Cấp 1 (A)
+        child: null,            // Cấp 2 (I)
+        grandchild: null,       // Cấp 3 (1)
+        greatGrandchild: null,  // Cấp 4 (1.1)
+        lastLeaf: null,         // Nút lá cuối cùng (để gán giải trình)
+        lastJustification: null // Giải trình cấp 1 cuối cùng (để gán giải trình con)
+    };
 
     const masterDataFieldMapping = {
          noiDung: ['đầu việc/dự án', 'đầu việc/ dự án', 'đầu việc', 'dự án', 'nội dung', 'nội dung công việc'],
-         ghiChu: ['ghi chú', 'ghi chu'],
          donVi: ['đơn vị tính', 'đ.vị tính', 'đơn vị', 'đvt'],
          soLuong: ['số lượng', 'số lượng vật tư'],
          donGia: ['đơn giá (gt)'],
          chiPhi: ['chi phí', 'chi phi', 'chi phí kế hoạch', 'chi phí kh'],
          tanSuatTH: ['tần suất th', 'tần suất thực hiện'],
          dvThucHien: ['đv th.hiện', 'đơn vị thực hiện', 'đơn vị th', 'đv thực hiện'],
-		 namPhanBo: ['năm phân bổ', 'năm pb', 'số năm phân bổ', 'nam phan bo'],
+         namPhanBo: ['năm phân bổ', 'năm pb', 'số năm phân bổ', 'nam phan bo'],
          capDo: ['cấp độ', 'cap do'],
          khNamTruoc: ['kh năm trước', 'kế hoạch năm trước'],
          thucHienNamTruoc: ['thực hiện năm trước', 'th nam truoc', 'th năm trước'],
          tgBatDau: ['tg bắt đầu', 'tg bat dau', 'thời gian bắt đầu'],
          tgHoanThanh: ['tg hoàn thành', 'tg hoan thanh', 'thời gian hoàn thành'],
+         ghiChu: ['ghi chú', 'ghi chu']
     };
 
-    // --- Main Processing Loop ---
     jsonData.forEach((row, index) => {
-        const ttExcel = String(row.TT || '').trim();
-        if (!ttExcel) return;
+        // 1. Chuẩn hóa TT đầu vào
+        const rawTT = String(row.TT || '');
+        const tt = normalizeTT(rawTT); // Ví dụ: " 1,1 " -> "1.1"
 
-        let convertedTT; 
-        let data = {}; 
-        let currentPath = null;
-        let parentPath = null;
-        let subCollectionName = '';
+        if (!tt) return; // Bỏ qua dòng trống TT
+
+        // 2. Xác định cấp độ
+        let level = detectLevel(tt);
+        
+        // --- XỬ LÝ NGOẠI LỆ "I" ---
+        // Nếu tt là "I", nó có thể là Cấp 1 (A, B... I, K) hoặc Cấp 2 (I, II).
+        // Logic thông minh: Nếu chưa có Cấp 1 nào (đầu file) -> I là cấp 1.
+        // Nếu vừa mới có Cấp 1 (ví dụ A) -> I là cấp 2.
+        if (tt === 'I') {
+            if (state.parent) level = 'child'; // Đã có cha (VD: A), thì I là con
+            else level = 'parent'; // Chưa có cha, I là cha đầu tiên (hiếm gặp nhưng có thể)
+        }
+        
+        // Chuẩn hóa TT cho Storage (Firebase dùng dấu phẩy cho path số)
+        const storageTT = (level === 'justification' || level === 'subJustification') 
+            ? tt.replace(/[\(\)\.]/g, '') // (a) -> a, a. -> a
+            : convertTTForStorage(tt);    // 1.1 -> 1,1
+
+        let currentPath = '';
         let isTask = false;
         let isLeaf = false;
 
         try {
-            
-            // === BẮT ĐẦU THAY ĐỔI: Logic kiểm tra TT mới ===
-            
-            let ttType = 'unknown';
+            switch (level) {
+                case 'parent': // A, B
+                    currentPath = `${rootPath}/${storageTT}`;
+                    // Reset cây con
+                    state.parent = currentPath;
+                    state.child = null; state.grandchild = null; state.greatGrandchild = null;
+                    state.lastLeaf = null;
+                    isTask = true;
+                    break;
 
-            // 1. Xử lý các quy tắc ngoại lệ TRƯỚC (phân biệt hoa/thường)
-            if (ttExcel === 'I') {
-                ttType = 'child'; // "I" (hoa) luôn là Cấp 2
-                convertedTT = "I"; 
-            } 
-            else if (ttExcel === 'C' || ttExcel === 'D' || ttExcel === 'L' || ttExcel === 'M') {
-                ttType = 'parent'; // "C", "D", "L", "M" (hoa) luôn là Cấp 1
-                convertedTT = ttExcel; 
-            }
-            // 2. Nếu không phải ngoại lệ, áp dụng Regex (phân biệt hoa/thường)
-            else if (isJustification.test(ttExcel)) {
-                 // Sẽ bắt 'a', 'b', 'c', 'd', 'i', 'l', 'm'... (tất cả chữ thường)
-                ttType = 'justification';
-                convertedTT = ttExcel; // Giữ nguyên chữ thường
-            }
-            else if (isChildRoman.test(ttExcel)) {
-                // Bắt các chữ La Mã còn lại (V, X, II, iv...)
-                ttType = 'child'; 
-                convertedTT = ttExcel.toUpperCase(); // Chuẩn hóa
-            }
-            else if (isParentStrict.test(ttExcel)) {
-                // Bắt các chữ cái Cấp 1 còn lại (A, B, E...)
-                ttType = 'parent'; 
-                convertedTT = ttExcel; // Giữ nguyên chữ hoa
-            }
-            // 3. Các cấp còn lại (dùng hàm cũ)
-            else {
-                convertedTT = convertTTForStorage(ttExcel); // Mã hiệu số: 1.1 -> 1,1
-                
-                if (isGrandchild.test(ttExcel) && currentChildPath) {
-                    ttType = 'grandchild';
-                } else if (isGreatGrandchild.test(ttExcel) && currentGrandchildPath) {
-                    ttType = 'greatGrandchild';
-                } else if (isGreatGreatGrandchild.test(ttExcel) && currentGreatGrandchildPath) {
-                    ttType = 'greatGreatGrandchild';
-                } else if (isSubJustification.test(ttExcel) && lastJustificationL1Path) {
-                    ttType = 'subJustification';
-                }
-            }
-            
-            // 4. Xây dựng đường dẫn dựa trên ttType
-            switch (ttType) {
-                case 'parent':
-                    currentPath = `${rootPath}/${convertedTT}`;
-                    currentParentPath = currentPath;
-                    currentChildPath = ''; currentGrandchildPath = ''; currentGreatGrandchildPath = '';
-                    lastLeafNodePath = null; lastJustificationL1Path = null;
+                case 'child': // I, II
+                    if (!state.parent) throw new Error(`Mục "${tt}" thiếu cấp cha (A, B...).`);
+                    currentPath = `${state.parent}/children/${storageTT}`;
+                    state.child = currentPath;
+                    state.grandchild = null; state.greatGrandchild = null;
+                    state.lastLeaf = null;
                     isTask = true;
                     break;
-                case 'child':
-                    if (!currentParentPath) throw new Error(`Không tìm thấy công việc cấp 1 (Cha) cho mục ${ttExcel}`);
-                    parentPath = currentParentPath; 
-                    subCollectionName = 'children';
-                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`; 
-                    currentChildPath = currentPath;
-                    currentGrandchildPath = ''; currentGreatGrandchildPath = '';
-                    lastLeafNodePath = null; lastJustificationL1Path = null;
+
+                case 'grandchild': // 1, 2
+                    if (!state.child) throw new Error(`Mục "${tt}" thiếu cấp cha La Mã (I, II...).`);
+                    currentPath = `${state.child}/grandchildren/${storageTT}`;
+                    state.grandchild = currentPath;
+                    state.greatGrandchild = null;
+                    state.lastLeaf = null;
                     isTask = true;
                     break;
-                case 'grandchild':
-                    if (!currentChildPath) throw new Error(`Không tìm thấy công việc cấp 2 (Cha) cho mục ${ttExcel}`);
-                    parentPath = currentChildPath;
-                    subCollectionName = 'grandchildren';
-                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                    currentGrandchildPath = currentPath;
-                    currentGreatGrandchildPath = '';
-                    lastLeafNodePath = null; lastJustificationL1Path = null;
+
+                case 'greatGrandchild': // 1.1, 1.2
+                    // Kiểm tra logic cha con: 1.1 phải nằm trong 1
+                    const parentOfL4 = storageTT.substring(0, storageTT.lastIndexOf(',')); // 1,1 -> 1
+                    if (!state.grandchild || !state.grandchild.endsWith(`/${parentOfL4}`)) {
+                         // Fallback mềm dẻo: Nếu không khớp cha logic, cứ nhét vào cha gần nhất
+                         if (!state.grandchild) throw new Error(`Mục "${tt}" thiếu cấp cha (1, 2...).`);
+                    }
+                    
+                    currentPath = `${state.grandchild}/greatGrandchildren/${storageTT}`;
+                    state.greatGrandchild = currentPath;
+                    state.lastLeaf = currentPath; // Tạm coi là lá, nếu có con 1.1.1 thì nó sẽ mất quyền lá
                     isTask = true;
+                    isLeaf = true; 
                     break;
-                case 'greatGrandchild':
-                    const parentIdExcel_ggc = ttExcel.substring(0, ttExcel.indexOf('.'));
-                    const parentIdStorage_ggc = convertTTForStorage(parentIdExcel_ggc);
-                    if (!currentGrandchildPath.endsWith('/' + parentIdStorage_ggc)) throw new Error(`Cha ${parentIdExcel_ggc} không khớp cho ${ttExcel}`);
-                    parentPath = currentGrandchildPath;
-                    subCollectionName = 'greatGrandchildren';
-                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                    currentGreatGrandchildPath = currentPath;
-                    lastLeafNodePath = currentPath;
-                    lastJustificationL1Path = null;
+
+                case 'greatGreatGrandchild': // 1.1.1
+                    // Logic tương tự cấp 4
+                    if (!state.greatGrandchild) throw new Error(`Mục "${tt}" thiếu cấp cha (1.1, 1.2...).`);
+                    
+                    currentPath = `${state.greatGrandchild}/greatGreatGrandchildren/${storageTT}`;
+                    state.lastLeaf = currentPath;
                     isTask = true;
                     isLeaf = true;
-                    break;
-                case 'greatGreatGrandchild':
-                    const parentIdExcel_gggc = ttExcel.substring(0, ttExcel.lastIndexOf('.'));
-                    const parentIdStorage_gggc = convertTTForStorage(parentIdExcel_gggc);
-                    if (!currentGreatGrandchildPath.endsWith('/' + parentIdStorage_gggc)) throw new Error(`Cha ${parentIdExcel_gggc} không khớp cho ${ttExcel}`);
-                    parentPath = currentGreatGrandchildPath;
-                    subCollectionName = 'greatGreatGrandchildren';
-                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                    lastLeafNodePath = currentPath;
-                    lastJustificationL1Path = null;
-                    isTask = true;
-                    isLeaf = true;
-                    if (parentPath) {
-                        updates[`${parentPath}/hasChildren`] = true;
-                        updates[`${parentPath}/executions`] = null; 
+                    
+                    // Cấp 4 bây giờ trở thành container, không còn là lá
+                    if (state.greatGrandchild) {
+                        updates[`${state.greatGrandchild}/hasChildren`] = true;
+                        updates[`${state.greatGrandchild}/executions`] = null; // Xóa thực hiện ở cha nếu có
                     }
                     break;
-                case 'justification':
-                    if (!lastLeafNodePath) throw new Error(`Không tìm thấy công việc lá (Cha) cho giải trình ${ttExcel}`);
-                    parentPath = lastLeafNodePath;
-                    subCollectionName = 'justifications';
-                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                    lastJustificationL1Path = currentPath;
+
+                case 'justification': // a, b
+                    if (!state.lastLeaf) throw new Error(`Giải trình "${tt}" không có công việc cha.`);
+                    currentPath = `${state.lastLeaf}/justifications/${storageTT}`;
+                    state.lastJustification = currentPath;
                     break;
-                case 'subJustification':
-                    const parentJustIdExcel = ttExcel.charAt(0);
-                    const parentJustIdStorage = convertTTForStorage(parentJustIdExcel);
-                    if (!lastJustificationL1Path.endsWith('/' + parentJustIdStorage)) throw new Error(`Giải trình cha ${parentJustIdExcel} không khớp cho ${ttExcel}`);
-                    parentPath = lastJustificationL1Path;
-                    subCollectionName = 'subJustifications';
-                    currentPath = `${parentPath}/${subCollectionName}/${convertedTT}`;
-                    if (parentPath) {
-                        updates[`${parentPath}/hasSubJustifications`] = true;
-                        updates[`${parentPath}/soLuong`] = null; 
-                        updates[`${parentPath}/donGia`] = null;
-                        updates[`${parentPath}/chiPhi`] = 0;
-                    }
+
+                case 'subJustification': // a1, a2
+                    if (!state.lastJustification) throw new Error(`Giải trình con "${tt}" thiếu giải trình cha (a, b...).`);
+                    currentPath = `${state.lastJustification}/subJustifications/${storageTT}`;
+                    updates[`${state.lastJustification}/hasSubJustifications`] = true;
+                    // Reset giá trị cha vì giờ nó là tổng của con
+                    updates[`${state.lastJustification}/chiPhi`] = 0; 
                     break;
+
                 default:
-                    // Thêm kiểm tra lỗi rõ ràng hơn
-                    if (isJustification.test(ttExcel) && !lastLeafNodePath) {
-                         throw new Error(`Không tìm thấy công việc lá (Cha) cho giải trình ${ttExcel}`);
-                    }
-                    if (isGrandchild.test(ttExcel) && !currentChildPath) {
-                        throw new Error(`Không tìm thấy công việc cấp 2 (Cha) cho mục ${ttExcel}`);
-                    }
-                    throw new Error(`Không thể xác định đường dẫn hoặc thiếu cha phù hợp: ${ttExcel}`);
+                    console.warn(`Không nhận diện được cấp độ của TT: ${tt}`);
+                    return;
             }
-            // === KẾT THÚC THAY ĐỔI: Logic kiểm tra TT ===
 
-            // --- Các bước 2, 3, 4 (thu thập dữ liệu và ghi updates) giữ nguyên ---
+            // --- THU THẬP DỮ LIỆU ---
+            const data = {};
+            // Luôn cập nhật TT chuẩn
+            updates[`${currentPath}/tt`] = storageTT;
+
             for (const [field, keys] of Object.entries(masterDataFieldMapping)) {
                 if (hasHeaderForField(keys, headersSet)) {
                     const value = findValue(row, keys, headers);
                     if (value !== undefined) {
-                        if (['soLuong', 'donGia', 'khNamTruoc', 'chiPhi', 'thucHienNamTruoc', 'namPhanBo'].includes(field)) data[field] = parseNumber(value);
-                        else if (field === 'tanSuatTH') data[field] = Math.max(0, parseInt(value, 10)) || 0;
-                        else data[field] = value;
+                        if (['soLuong', 'donGia', 'khNamTruoc', 'chiPhi', 'thucHienNamTruoc', 'namPhanBo'].includes(field)) {
+                            data[field] = parseNumber(value);
+                        } else if (field === 'tanSuatTH') {
+                            // Logic tần suất: Nếu trống -> 1
+                            data[field] = (value === '' || value === null) ? 1 : (parseInt(value, 10) || 0);
+                        } else {
+                            data[field] = value;
+                        }
                     } else {
+                        // Nếu trong file Excel có cột đó nhưng ô trống -> Set null
                         data[field] = null; 
                     }
                 }
             }
-// === THÊM LOGIC TÍNH TOÁN CP PHÂN BỔ ===
-            // Chỉ tính nếu là Nút Lá (Cấp 4/5)
-            if (isLeaf && data.namPhanBo && data.namPhanBo > 0) {
-                const cp = data.chiPhi || 0; 
-                data.chiPhiPhanBo = Math.round(cp / data.namPhanBo);
-            } else {
-                // Nếu là cha, hoặc không có năm, thì không tính (để 0 hoặc giữ nguyên)
-                // Lưu ý: hàm buildImport... cập nhật theo field, nên nếu không set thì nó giữ cũ hoặc null
-                // Tốt nhất là set 0 nếu là lá mà không có năm
-                if(isLeaf) data.chiPhiPhanBo = 0;
+
+            // Xử lý logic đặc biệt cho Chi phí phân bổ
+            if ((isLeaf && isTask) && data.namPhanBo && data.namPhanBo > 0) {
+                 const cp = data.chiPhi || 0;
+                 data.chiPhiPhanBo = Math.round(cp / data.namPhanBo);
+            } else if (isLeaf && isTask) {
+                 data.chiPhiPhanBo = 0;
             }
-            // ========================================
-            if (isLeaf && isTask) {
-                if (hasExecutionColumns) {
-                    const executions = readExecutionsForRow(row, headers);
-                    if (executions.length > 0) {
-                        data.executions = executions.reduce((obj, exec, i) => {
-                            const key = exec.lanThucHien || (i + 1);
-                            obj[key] = exec;
-                            return obj;
-                        }, {});
-                    } else {
-                        data.executions = null; 
-                    }
+
+            // Xử lý Executions (Thực hiện) - Chỉ dành cho nút lá
+            if (isLeaf && isTask && hasExecutionColumns) {
+                const executions = readExecutionsForRow(row, headers);
+                if (executions.length > 0) {
+                    data.executions = executions.reduce((obj, exec, i) => {
+                        obj[exec.lanThucHien || (i + 1)] = exec;
+                        return obj;
+                    }, {});
+                } else {
+                    data.executions = null;
                 }
-            } else if (isTask && !isLeaf && hasExecutionColumns) {
-                 data.executions = null;
             }
 
-            updates[`${currentPath}/tt`] = convertedTT;
+            // Ghi dữ liệu vào updates
             for (const field in data) {
-                 if (field !== 'tt') {
-                     updates[`${currentPath}/${field}`] = data[field];
-                 }
+                updates[`${currentPath}/${field}`] = data[field];
             }
-            if (isTask) {
-                 if (updates[`${currentPath}/chiPhiThucHien`] === undefined) updates[`${currentPath}/chiPhiThucHien`] = 0;
-                 if (updates[`${currentPath}/keHoachConLai`] === undefined) updates[`${currentPath}/keHoachConLai`] = 0;
-            }
-             
-        } catch (e) {
-            console.warn(`Bỏ qua hàng ${index + 2} (TT: ${ttExcel}): ${e.message}`);
-        }
-    }); 
 
-    console.log(`=== END buildImportUpdates_Merge (v9). Total update paths: ${Object.keys(updates).length} ===`);
+            // Khởi tạo các trường tính toán nếu chưa có
+            if (isTask) {
+                if (updates[`${currentPath}/chiPhiThucHien`] === undefined) updates[`${currentPath}/chiPhiThucHien`] = 0;
+                if (updates[`${currentPath}/keHoachConLai`] === undefined) updates[`${currentPath}/keHoachConLai`] = 0;
+            }
+
+        } catch (e) {
+            console.error(`Lỗi dòng ${index + 2} (TT: ${tt}): ${e.message}`);
+            // Có thể thêm logic thông báo lỗi vào UI tại đây nếu muốn
+        }
+    });
+
+    console.log(`=== END Smart Import. Total updates: ${Object.keys(updates).length} ===`);
     return updates;
 }
 
@@ -1623,8 +1626,39 @@ const deleteBtnHtml = canEdit ?
         yearSelect.value = currentYearValue;
     };
 
-    window.openDataManagementModal = function() {
-        document.getElementById('dataManagementModal').style.display = 'block';
+   window.openDataManagementModal = function() {
+        const modal = document.getElementById('dataManagementModal');
+        modal.style.display = 'block';
+
+        const unlockBtn = document.getElementById('unlockButton');
+        const toggleDiv = document.getElementById('editModeToggle');
+        const checkbox = document.getElementById('editModeCheckbox');
+        const adminEmail = "admin@pvgaslpg.com.vn";
+
+        // Reset trạng thái nút để tránh bị mờ từ lần trước
+        unlockBtn.disabled = false;
+        unlockBtn.textContent = 'Mở khóa cho phép sửa đổi';
+
+        // 1. Kiểm tra xem người dùng hiện tại có phải là Admin không
+        const currentUser = auth.currentUser;
+        const isAdmin = currentUser && currentUser.email === adminEmail;
+
+        // 2. Lấy trạng thái thực tế từ Database (đang bật hay tắt)
+        const isCurrentlyEnabled = editModeStatusByYear[currentYear] === true;
+
+        if (isAdmin) {
+            // Nếu là Admin: Hiện công tắc, Ẩn nút khóa
+            unlockBtn.style.display = 'none';
+            toggleDiv.style.display = 'block';
+            
+            // QUAN TRỌNG: Checkbox hiển thị đúng theo dữ liệu DB, không ép buộc = true
+            checkbox.checked = isCurrentlyEnabled;
+        } else {
+            // Nếu không phải Admin: Hiện nút khóa
+            unlockBtn.style.display = 'block';
+            toggleDiv.style.display = 'none';
+            checkbox.checked = isCurrentlyEnabled; // Vẫn gán để đồng bộ ngầm
+        }
     };
 
     window.promptForAuthentication = function() {
@@ -2725,16 +2759,64 @@ window.importData = function() {
         }
     };
 
-    window.promptForUnlock = function() {
-        if (!isAuthenticated) return showAuthError();
-        const password = prompt("Vui lòng nhập mật khẩu quản trị:");
-        if (password === '13579') {
-            document.getElementById('unlockButton').style.display = 'none';
-            const toggleDiv = document.getElementById('editModeToggle');
+   // HÀM MỚI: Xác thực bằng tài khoản Admin cố định
+  // HÀM MỚI (CẬP NHẬT): Tự động mở nếu đã là Admin, ngược lại yêu cầu mật khẩu
+   window.promptForUnlock = async function() {
+        const adminEmail = "admin@pvgaslpg.com.vn";
+        const unlockBtn = document.getElementById('unlockButton');
+        const originalText = "Mở khóa cho phép sửa đổi";
+        const toggleDiv = document.getElementById('editModeToggle');
+        const checkbox = document.getElementById('editModeCheckbox');
+
+        // Lấy trạng thái thực tế từ Database để hiển thị đúng
+        const isCurrentlyEnabled = editModeStatusByYear[currentYear] === true;
+
+        // 1. KIỂM TRA ĐĂNG NHẬP HIỆN TẠI (Đi tiếp nếu đã là Admin)
+        const currentUser = auth.currentUser;
+        if (currentUser && currentUser.email === adminEmail) {
+            // Đã là Admin -> Chỉ chuyển đổi giao diện
+            statusDiv.className = 'success';
+            statusDiv.innerText = "Đã nhận diện Admin.";
+
+            unlockBtn.style.display = 'none';
             toggleDiv.style.display = 'block';
-            document.getElementById('editModeCheckbox').checked = editModeStatusByYear[currentYear] === true;
-        } else if (password !== null) {
-            alert("Mật khẩu không chính xác.");
+            
+            // SỬA LỖI: Chỉ hiển thị trạng thái hiện tại, KHÔNG tự động bật
+            checkbox.checked = isCurrentlyEnabled;
+            return;
+        }
+
+        // 2. Nếu chưa phải Admin -> Hỏi mật khẩu
+        const password = prompt(`Nhập mật khẩu quản trị (${adminEmail}):`);
+        if (password === null) return;
+
+        try {
+            unlockBtn.disabled = true;
+            unlockBtn.textContent = "Đang xác thực...";
+
+            // Thực hiện Đăng nhập
+            await signInWithEmailAndPassword(auth, adminEmail, password);
+
+            statusDiv.className = 'success';
+            statusDiv.innerText = "Xác thực thành công.";
+            
+            // SỬA LỖI: Chỉ chuyển đổi giao diện hiển thị
+            unlockBtn.style.display = 'none';
+            toggleDiv.style.display = 'block';
+            
+            // SỬA LỖI: Tuyệt đối không tự động update DB hay tự động check
+            // Checkbox chỉ phản ánh đúng trạng thái hiện tại của hệ thống
+            checkbox.checked = isCurrentlyEnabled;
+
+        } catch (error) {
+            console.error(error);
+            alert("Mật khẩu không chính xác hoặc lỗi kết nối.");
+            statusDiv.className = 'error';
+            statusDiv.innerText = "Lỗi xác thực.";
+            
+            // Reset lại nút nếu lỗi
+            unlockBtn.disabled = false;
+            unlockBtn.textContent = originalText;
         }
     };
 
@@ -5783,7 +5865,7 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
         }
      }; // <-- Đóng hàm checkAndUpdateDaThucHien ở đây
 
-    const calculateSummaryData = async () => {
+  const calculateSummaryData = async () => {
         try {
             statusDiv.className = 'success';
             statusDiv.innerText = 'Đang tính toán dữ liệu tổng hợp...';
@@ -5792,9 +5874,8 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
             if (!parentSnapshot.exists()) {
                 // If no data exists for the year, clear summary and exit
                 const summaryRef = ref(db, `summary_data/${currentYear}`);
-                await set(summaryRef, null); // Clear existing summary data if any
-                statusDiv.innerText = ''; // Clear status message
-                // Also clear the summary section in the UI
+                await set(summaryRef, null); 
+                statusDiv.innerText = ''; 
                 document.getElementById('summarySection').innerHTML = '<p>Không có dữ liệu tổng hợp cho năm này.</p>';
                 return; 
             }
@@ -5809,23 +5890,17 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
                      totalExecutedLeafNodes: 0,
                      totalLeafNodesCap1: 0,
                      totalExecutedLeafNodesCap1: 0,
-                     totalPlannedCost: parentsData[parentId].chiPhi || 0, // Get cost directly from parent node
-                     totalExecutedCost: parentsData[parentId].chiPhiThucHien || 0 // Get executed cost directly
+                     totalPlannedCost: parentsData[parentId].chiPhi || 0, 
+                     totalExecutedCost: parentsData[parentId].chiPhiThucHien || 0 
                  };
             }
 
 
             const processNode = (node, path) => {
-                // Check if node itself has data and a tt field before processing
                 if (node && node.tt) { 
                     const parentId = path.split('/')[1];
-                    // Ensure parentSummary exists (it should due to initialization above)
                     const parentSummary = summaryData[parentId]; 
-                    if (!parentSummary) {
-                         console.warn(`Summary data for parent ${parentId} not initialized.`);
-                         return; // Skip if somehow summary wasn't initialized
-                    }
-
+                    if (!parentSummary) return; 
 
                     // --- Logic xác định lá và tính toán ---
                     const hasL5Children = node.greatGreatGrandchildren && Object.keys(node.greatGreatGrandchildren).length > 0;
@@ -5844,39 +5919,58 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
 
                     const pathLength = path.split('/').length;
 
-                    // --- BẮT ĐẦU LOGIC TÍNH TOÁN MỚI ---
-                    if (!isContainer && pathLength > 2) { // Là đầu việc chi tiết (không phải cấp 1 và không phải container)
+                    // --- BẮT ĐẦU LOGIC TÍNH TOÁN (CẬP NHẬT) ---
+                    if (!isContainer && pathLength > 2) { 
                         
                         // 1. Tính plannedCount (Số lượng kế hoạch)
                         let plannedCount;
-                        const tanSuat = node.tanSuatTH; // Lấy giá trị tanSuatTH
+                        const tanSuat = node.tanSuatTH; 
 
                         if (tanSuat === 0) {
-                             plannedCount = 0; // Nếu tần suất là 0 thì số lượng KH là 0
+                             plannedCount = 0; 
                         } else {
                              plannedCount = parseInt(tanSuat, 10);
-                             // Nếu tanSuat không hợp lệ (NaN, null, undefined, ''), mặc định là 1
                              if (isNaN(plannedCount) || tanSuat === null || tanSuat === undefined || tanSuat === '') {
                                  plannedCount = 1;
                              }
                         }
                         
-                        // Cộng vào tổng số lượng kế hoạch
                         parentSummary.totalLeafNodes += plannedCount;
 
                         // 2. Tính executedCount (Số lượng đã thực hiện)
                         let executedCount = 0;
-                        if (plannedCount > 1) {
-                            // Nếu kế hoạch > 1, đếm số lần thực hiện thực tế
-                            const actualExecutionCount = node.executions ? Object.keys(node.executions).length : 0;
-                            executedCount = Math.min(plannedCount, actualExecutionCount);
-                        } else if (plannedCount === 1) {
-                            // Nếu kế hoạch là 1 (hoặc mặc định là 1), kiểm tra chiPhiThucHien
-                            executedCount = node.chiPhiThucHien > 0 ? 1 : 0;
-                        } 
-                        // Trường hợp plannedCount = 0 thì executedCount = 0 (đã khởi tạo)
 
-                        // Cộng vào tổng số lượng thực hiện
+                        // === LOGIC MỚI: XỬ LÝ RIÊNG CHO CHI PHÍ = 0 ===
+                        if ((node.chiPhi || 0) === 0) {
+                             // Nếu chi phí = 0, chỉ tính là thực hiện nếu có Link Hồ sơ
+                             let validExecutionsWithLink = 0;
+                             if (node.executions) {
+                                 for (const key in node.executions) {
+                                     const exec = node.executions[key];
+                                     // Kiểm tra hoSoLink có tồn tại và không rỗng
+                                     if (exec.hoSoLink && exec.hoSoLink.trim() !== '') {
+                                         validExecutionsWithLink++;
+                                     }
+                                 }
+                             }
+
+                             if (plannedCount > 1) {
+                                 executedCount = Math.min(plannedCount, validExecutionsWithLink);
+                             } else if (plannedCount === 1) {
+                                 executedCount = validExecutionsWithLink > 0 ? 1 : 0;
+                             }
+                        } 
+                        // === LOGIC CŨ: DÀNH CHO CHI PHÍ > 0 ===
+                        else {
+                            if (plannedCount > 1) {
+                                const actualExecutionCount = node.executions ? Object.keys(node.executions).length : 0;
+                                executedCount = Math.min(plannedCount, actualExecutionCount);
+                            } else if (plannedCount === 1) {
+                                executedCount = node.chiPhiThucHien > 0 ? 1 : 0;
+                            } 
+                        }
+                        // ===============================================
+
                         parentSummary.totalExecutedLeafNodes += executedCount;
 
                         // 3. Xử lý cho cấp độ 1
@@ -5885,45 +5979,32 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
                             parentSummary.totalExecutedLeafNodesCap1 += executedCount;
                         }
                     }
-                    // --- KẾT THÚC LOGIC TÍNH TOÁN MỚI ---
-                } // End check if node && node.tt
+                } 
 
-                // --- Đệ quy xuống các cấp con (Giữ nguyên) ---
+                // --- Đệ quy xuống các cấp con ---
                 if (node.children) {
-                    for (const childId in node.children) {
-                        processNode(node.children[childId], `${path}/children/${childId}`);
-                    }
+                    for (const childId in node.children) processNode(node.children[childId], `${path}/children/${childId}`);
                 }
                 if (node.grandchildren) {
-                    for (const grandchildId in node.grandchildren) {
-                        processNode(node.grandchildren[grandchildId], `${path}/grandchildren/${grandchildId}`);
-                    }
+                    for (const grandchildId in node.grandchildren) processNode(node.grandchildren[grandchildId], `${path}/grandchildren/${grandchildId}`);
                 }
                 if (node.greatGrandchildren) {
-                    for (const greatGrandchildId in node.greatGrandchildren) {
-                        processNode(node.greatGrandchildren[greatGrandchildId], `${path}/greatGrandchildren/${greatGrandchildId}`);
-                    }
+                    for (const greatGrandchildId in node.greatGrandchildren) processNode(node.greatGrandchildren[greatGrandchildId], `${path}/greatGrandchildren/${greatGrandchildId}`);
                 }
                 if (node.greatGreatGrandchildren) {
-                    for (const gggcId in node.greatGreatGrandchildren) {
-                        processNode(node.greatGreatGrandchildren[gggcId], `${path}/greatGreatGrandchildren/${gggcId}`);
-                    }
+                    for (const gggcId in node.greatGreatGrandchildren) processNode(node.greatGreatGrandchildren[gggcId], `${path}/greatGreatGrandchildren/${gggcId}`);
                 }
-                // --- Kết thúc đệ quy ---
             };
             
-            // Chạy processNode bắt đầu từ mỗi Khu vực (cấp 1)
             for (const parentId in parentsData) {
                 processNode(parentsData[parentId], `${getParentCollectionName()}/${parentId}`);
             }
 
-            // Lưu kết quả summary vào Firebase
             const summaryRef = ref(db, `summary_data/${currentYear}`);
             await set(summaryRef, summaryData);
-            statusDiv.innerText = ''; // Xóa thông báo "Đang tính toán..."
+            statusDiv.innerText = ''; 
             
-            // Cập nhật lại giao diện summarySection sau khi tính toán xong
-            fetchData(); // Gọi lại fetchData để cập nhật cả bảng và summary section
+            fetchData(); 
 
         } catch (error) {
             console.error("Lỗi khi tính toán dữ liệu tổng hợp:", error);
@@ -6024,12 +6105,13 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
         document.getElementById('planningModeModal').style.display = 'none';
     }
 
-    // XỬ LÝ AUTH STATE
-    onAuthStateChanged(auth, user => {
+   // XỬ LÝ AUTH STATE
+    onAuthStateChanged(auth, async (user) => {
         const authButton = document.getElementById('authButton');
         const logoutButton = document.getElementById('logoutButton');
 
         if (user) {
+            // --- TRƯỜNG HỢP ĐÃ ĐĂNG NHẬP ---
             isAuthenticated = true;
             if (authButton) authButton.style.display = 'none';
             if (logoutButton) logoutButton.style.display = 'inline-block';
@@ -6037,6 +6119,7 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
             loginContainer.style.display = 'none';
             mainContainer.style.display = 'block';
 
+            // Logic lắng nghe trạng thái khóa/mở (Giữ nguyên)
             const settingsRef = ref(db, 'settings/global');
             onValue(settingsRef, (snapshot) => {
                 if (snapshot.exists()) {
@@ -6044,17 +6127,40 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
                 } else {
                     editModeStatusByYear = {};
                 }
+                
+                const modal = document.getElementById('dataManagementModal');
+                if (modal.style.display === 'block') {
+                     const isUnlocked = editModeStatusByYear[currentYear] === true;
+                     if (isUnlocked) {
+                         document.getElementById('unlockButton').style.display = 'none';
+                         document.getElementById('editModeToggle').style.display = 'block';
+                         document.getElementById('editModeCheckbox').checked = true;
+                     }
+                }
                 updateButtonStates();
             });
-            fetchData();
+
+            // === CẬP NHẬT QUAN TRỌNG TẠI ĐÂY ===
+            // Thay vì gọi fetchData(), ta gọi recalculateAllCostsAndReload(false)
+            // Tham số 'false' nghĩa là chạy ngay lập tức KHÔNG hiện bảng hỏi "Confirm"
+            // Hàm này đã bao gồm bước fetchData() ở cuối cùng nên không cần gọi lại.
+            
+            // Hiển thị thông báo đang xử lý để người dùng biết
+            statusDiv.className = 'success';
+            statusDiv.innerText = 'Đăng nhập thành công. Đang rà soát và tính toán lại dữ liệu...';
+            
+            await recalculateAllCostsAndReload(false); 
+            // ====================================
+
         } else {
+            // --- TRƯỜNG HỢP CHƯA ĐĂNG NHẬP / ĐĂNG XUẤT ---
             isAuthenticated = false;
             if (authButton) authButton.style.display = 'inline-block';
             if (logoutButton) logoutButton.style.display = 'none';
-
             mainContainer.style.display = 'block';
             loginContainer.style.display = 'none';
-            updateButtonStates();
+            
+            // Người xem bình thường chỉ cần tải dữ liệu hiển thị (nhanh hơn)
             fetchData();
         }
     });
