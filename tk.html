@@ -130,11 +130,24 @@
         .task-justification { display: none; }
         .task-justification td { background-color: #fffbe6; color: red; }
         .task-justification td:nth-child(3) { padding-left: 30px !important; font-style: italic; }
-        .task-justification td:nth-child(2) { padding-left: 25px !important; font-style: italic; }
-        .task-justification td.col-tt {
-            text-align: right;
-            padding-right: 1px;
+        /* --- SỬA ĐỔI: Căn lề cho dòng Giải trình --- */
+        
+        /* Cột Nội dung (Cột 3): Giữ nguyên thụt đầu dòng và in nghiêng */
+        .task-justification td:nth-child(3) { 
+            padding-left: 30px !important; 
+            font-style: italic; 
         }
+
+        /* Cột TT (Cột 2): Bắt buộc căn sát lề phải, xóa padding trái để không bị đẩy */
+        .task-justification td.col-tt {
+            text-align: left !important;   /* Bắt buộc căn phải */
+            padding-right: 0px !important;  
+            padding-left: 1px !important;   
+            font-style: italic;             /* Chữ nghiêng cho đồng bộ */
+        }
+
+        /* Xóa bỏ rule cũ gây xung đột (đã được thay thế bởi rule .col-tt ở trên) */
+        /* .task-justification td:nth-child(2) { ... } -> ĐÃ XÓA */
 
         #taskList th.text-right, #taskList td.text-right { text-align: right; padding-right: 4px; }
         #taskList th.col-donvi, #taskList td.col-donvi,
@@ -416,8 +429,11 @@
             font-style: italic; 
             padding-left: 40px !important; 
         }
+        /* SỬA ĐỔI: Ép buộc giải trình con cũng căn phải như cha */
         .task-justification-child td:nth-child(2) { 
-            padding-left: 15px !important; 
+            text-align: left !important;
+            padding-right: 0px !important;
+            padding-left: 1px !important; 
         }
     
 /* CSS cho modal Kế hoạch đã duyệt */
@@ -565,7 +581,7 @@
         <div id="status"></div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-            <h2>CÁC TỔNG KHO MIỀN BẮC, HẢI PHÒNG</h2>
+            <h2>CÁC TỔNG KHO MIỀN BẮC, HẢI PHÒNG</h2>
              <div> <label for="yearSelect" style="margin-right: 10px; font-weight: bold;">Năm:</label>
                 <select id="yearSelect" onchange="changeYear(this.value)"></select>
                 
@@ -1032,13 +1048,15 @@ function normalizeTT(rawTT) {
 /**
  * Hàm xác định cấp độ của TT dựa trên Regex - PHIÊN BẢN STRICT CASE (Phân biệt Hoa/Thường)
  */
+/**
+ * Hàm xác định cấp độ của TT - PHIÊN BẢN MỚI (Định dạng Giải trình có dấu "-")
+ */
 function detectLevel(tt) {
-    // 1. Cấp 1 (Parent): A, B, C... (BẮT BUỘC CHỮ CÁI IN HOA)
+    // 1. Cấp 1 (Parent): A, B, C... (CHỮ CÁI IN HOA)
     const isLevel1_Alpha = /^[A-Z]$/;
 
-    // 2. Cấp 2 (Child - Roman): I, II, III... (BẮT BUỘC CHỮ IN HOA)
-    // Đã xóa flag 'i' để đảm bảo chỉ nhận 'I', không nhận 'i'
-    const isLevel2_Roman = /^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|XIX|XX|XXI|XXII|XXIII|XXIV|XXV|XXVI|XXVII|XXVIII|XXIX|XXX|XXXI|XXXII|XXXIII|XXXIV|XXXV|XXXVI|XXXVII|XXXVIII|XXXIX)$/;
+    // 2. Cấp 2 (Child - Roman): I, II, III... (CHỮ IN HOA)
+    const isLevel2_Roman = /^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|XIX|XX)$/;
 
     // 3. Cấp 3 (Grandchild - Integer): 1, 2, 3...
     const isLevel3_Integer = /^\d+$/;
@@ -1046,26 +1064,23 @@ function detectLevel(tt) {
     // 4. Cấp 4 (GreatGrandchild - x.x): 1.1, 2.3... (Nút Lá)
     const isLevel4_Decimal = /^\d+\.\d+$/;
 
-    // 5. Giải trình (Justification): a, b, c, i... (CHỮ THƯỜNG)
-    // Regex này bắt các trường hợp: (a), a), a., hoặc a đứng một mình
-    const isJustification = /^(\(?[a-z]\)?|[a-z]\.?)$/; 
+    // 5. Giải trình (Justification): Bắt đầu bằng "-", kết thúc bằng số.
+    // Ví dụ: -5.1, -4.1.1, -A.1
+    // Regex: Dấu trừ, theo sau là bất kỳ ký tự nào (số, chữ, chấm), kết thúc là số.
+    const isJustification = /^-.+\d$/; 
 
-    // 6. Giải trình con: a1, b2...
-    const isSubJustification = /^[a-z]\d+$/;
+    // 6. Giải trình con: Bắt đầu bằng "-", kết thúc bằng chữ cái thường.
+    // Ví dụ: -5.1a, -4.1.1b
+    const isSubJustification = /^-.+[a-z]$/;
 
     // --- LOGIC PHÂN LOẠI ---
     
-    // Kiểm tra La Mã IN HOA trước (I, V, X...) -> Cấp 2
     if (isLevel2_Roman.test(tt)) return 'child';
-    
-    // Kiểm tra Chữ cái IN HOA (A, B, C...) -> Cấp 1
     if (isLevel1_Alpha.test(tt)) return 'parent';
     
-    // Các cấp số
     if (isLevel4_Decimal.test(tt)) return 'greatGrandchild';
     if (isLevel3_Integer.test(tt)) return 'grandchild';
     
-    // Giải trình (Chữ thường sẽ lọt vào đây, bao gồm cả "i")
     if (isSubJustification.test(tt)) return 'subJustification';
     if (isJustification.test(tt)) return 'justification';
 
@@ -1074,7 +1089,7 @@ function detectLevel(tt) {
 
 
 function buildImportUpdates_Merge(jsonData, headers) {
-    console.log('=== START Smart Import Logic (4 Levels - Strict Case) ===');
+    console.log('=== START Smart Import Logic (4 Levels - New TT Format) ===');
     const updates = {};
     const rootPath = getParentCollectionName();
     const headersSet = new Set(headers.map(h => String(h).toLowerCase().trim()));
@@ -1108,22 +1123,20 @@ function buildImportUpdates_Merge(jsonData, headers) {
 
     jsonData.forEach((row, index) => {
         const rawTT = String(row.TT || '');
-        const tt = normalizeTT(rawTT); // normalizeTT vẫn giữ nguyên hoa thường
+        const tt = normalizeTT(rawTT); 
         if (!tt) return;
 
         let level = detectLevel(tt);
         
-        // Xử lý ngoại lệ cho chữ "I" (IN HOA)
-        // Chỉ can thiệp nếu đúng là "I" hoa. Nếu là "i" thường thì detectLevel đã trả về 'justification'
         if (tt === 'I') {
-            if (state.parent) level = 'child'; // Đã có cha (A), I là con
-            else level = 'parent'; // Chưa có cha, I là cha
+            if (state.parent) level = 'child'; 
+            else level = 'parent'; 
         }
         
-        // Chuẩn hóa key cho Firebase (xóa dấu chấm, ngoặc nếu là giải trình)
-        const storageTT = (level === 'justification' || level === 'subJustification') 
-            ? tt.replace(/[\(\)\.]/g, '') 
-            : convertTTForStorage(tt);
+        // Chuẩn hóa cho Storage (Thay dấu chấm bằng phẩy)
+        // Logic mới: Giải trình (-5.1) -> Storage (-5,1).
+        // Không xóa dấu chấm/phẩy như logic cũ nữa, chỉ thay thế.
+        const storageTT = convertTTForStorage(tt);
 
         let currentPath = '';
         let isTask = false;
@@ -1131,7 +1144,7 @@ function buildImportUpdates_Merge(jsonData, headers) {
 
         try {
             switch (level) {
-                case 'parent': // A, B (Hoa)
+                case 'parent': // A, B
                     currentPath = `${rootPath}/${storageTT}`;
                     state.parent = currentPath;
                     state.child = null; state.grandchild = null; state.greatGrandchild = null;
@@ -1139,7 +1152,7 @@ function buildImportUpdates_Merge(jsonData, headers) {
                     isTask = true;
                     break;
 
-                case 'child': // I, II (Hoa)
+                case 'child': // I, II
                     if (!state.parent) throw new Error(`Mục "${tt}" thiếu cấp cha (A, B...).`);
                     currentPath = `${state.parent}/children/${storageTT}`;
                     state.child = currentPath;
@@ -1174,22 +1187,54 @@ function buildImportUpdates_Merge(jsonData, headers) {
                     }
                     break;
 
-                case 'justification': // a, b, i (Thường)
-                    if (!state.lastLeaf) throw new Error(`Giải trình "${tt}" không có công việc cha.`);
+                case 'justification': // -5.1, -4.1.1
+                    // Logic tìm cha: Xóa phần cuối (ví dụ -5.1 -> 5; -4.1.1 -> 4.1)
+                    // Bỏ dấu "-" ở đầu, bỏ phần đuôi sau dấu phẩy cuối cùng (trong storageTT)
+                    // storageTT ví dụ: -5,1
+                    
+                    // 1. Bỏ dấu "-" đầu tiên
+                    let tempStr = storageTT.substring(1); // "5,1"
+                    // 2. Tìm dấu phẩy cuối cùng
+                    const lastCommaIdx = tempStr.lastIndexOf(',');
+                    let parentTaskTT = '';
+                    
+                    if (lastCommaIdx !== -1) {
+                        parentTaskTT = tempStr.substring(0, lastCommaIdx); // "5"
+                    } else {
+                         // Trường hợp lạ, có thể lỗi định dạng
+                         throw new Error(`Định dạng giải trình "${tt}" không xác định được cha.`);
+                    }
+                    
+                    // Logic kiểm tra: Cha này có khớp với lastLeaf hiện tại không?
+                    // lastLeaf path: .../grandchildren/5 hoặc .../greatGrandchildren/4,1
+                    if (!state.lastLeaf || !state.lastLeaf.endsWith(`/${parentTaskTT}`)) {
+                        // Nếu không khớp lastLeaf hiện tại, đây là lỗi logic Excel (nhập nhảy cóc)
+                        // Hoặc người dùng nhập sai quy tắc.
+                        // Tuy nhiên để mềm dẻo, ta vẫn dùng state.lastLeaf nếu nó có vẻ hợp lý, 
+                        // hoặc throw error để người dùng sửa.
+                        // Ở đây ta strict theo quy tắc mới:
+                         throw new Error(`Giải trình "${tt}" (Cha là ${parentTaskTT}) không khớp với công việc liền trước.`);
+                    }
+                    
                     currentPath = `${state.lastLeaf}/justifications/${storageTT}`;
                     state.lastJustification = currentPath;
                     break;
 
-                case 'subJustification': // a1, i1
-                    if (!state.lastJustification) throw new Error(`Giải trình con "${tt}" thiếu giải trình cha.`);
+                case 'subJustification': // -5.1a
+                    // Cha là bỏ đi ký tự cuối cùng: -5.1a -> -5.1
+                    // storageTT: -5,1a
+                    const parentJustTT = storageTT.slice(0, -1); // "-5,1"
+                    
+                    if (!state.lastJustification || !state.lastJustification.endsWith(`/${parentJustTT}`)) {
+                        throw new Error(`Giải trình con "${tt}" (Cha là ${parentJustTT}) không khớp với giải trình liền trước.`);
+                    }
+
                     currentPath = `${state.lastJustification}/subJustifications/${storageTT}`;
                     updates[`${state.lastJustification}/hasSubJustifications`] = true;
                     updates[`${state.lastJustification}/chiPhi`] = 0; 
                     break;
 
                 default:
-                    // Nếu không nhận diện được (VD: chữ lạ, ký tự đặc biệt), bỏ qua hoặc log
-                    // console.warn(`Bỏ qua dòng có TT không hợp lệ: ${tt}`);
                     return;
             }
 
@@ -5254,6 +5299,7 @@ const createInputRow = (path, data, level, context = {}) => {
         const parentRef = ref(db, parentPath);
         const parentSnap = await get(parentRef);
 
+        // Xử lý trường hợp tạo mới Cấp 1 (A, B...)
         if (!parentSnap.exists()) {
             if (level === 'parent') {
                 const rootSnapshot = await get(ref(db, getParentCollectionName()));
@@ -5273,21 +5319,62 @@ const createInputRow = (path, data, level, context = {}) => {
             }
         }
 
-        let maxNumPart = 0;
         const data = parentSnap.val();
-        const parentTT = data.tt || ''; 
+        // Lấy TT của cha để làm tiền tố (Ví dụ: "5" hoặc "4,1")
+        // Lưu ý: Trong DB lưu là dấu phẩy, cần convert về display (dấu chấm) để xử lý string, sau đó convert ngược lại
+        const parentTTStorage = data.tt || ''; 
+        const parentTTDisplay = convertTTForDisplay(parentTTStorage);
 
         let subCollectionName;
         if (level === 'child') subCollectionName = 'children';
         else if (level === 'grandchild') subCollectionName = 'grandchildren';
         else if (level === 'greatGrandchild') subCollectionName = 'greatGrandchildren';
-        // BỎ greatGreatGrandchild
         else if (level === 'justification') subCollectionName = 'justifications';
         else if (level === 'subJustification') subCollectionName = 'subJustifications';
         else return 'error';
 
         const subCollection = data[subCollectionName] || {};
+        let maxNumPart = 0; // Dùng để tìm số lớn nhất
 
+        // --- LOGIC SINH MÃ CHO GIẢI TRÌNH (MỚI) ---
+        if (level === 'justification') {
+            // Định dạng mong muốn: -[ParentTT].[Num] (Ví dụ: -5.1, -4.1.1)
+            // Tiền tố cần tìm: -[ParentTT].
+            const prefix = `-${parentTTDisplay}.`;
+            
+            for (const key in subCollection) {
+                const itemTT = convertTTForDisplay(subCollection[key].tt);
+                if (itemTT.startsWith(prefix)) {
+                    // Lấy phần số đuôi: -5.1 -> lấy 1
+                    const suffix = itemTT.substring(prefix.length);
+                    const num = parseInt(suffix, 10);
+                    if (!isNaN(num) && num > maxNumPart) maxNumPart = num;
+                }
+            }
+            // Kết quả: -[ParentTT].[Max+1] (Lưu ý convert sang storage: dấu chấm -> phẩy)
+            return `-${parentTTDisplay}.${maxNumPart + 1}`; 
+        }
+
+        // --- LOGIC SINH MÃ CHO GIẢI TRÌNH CON (MỚI) ---
+        if (level === 'subJustification') {
+            // Định dạng mong muốn: [ParentJustTT][char] (Ví dụ: -5.1a)
+            // Tiền tố là chính ParentJustTT (Ví dụ: -5.1)
+            const prefix = parentTTDisplay;
+            
+            for (const key in subCollection) {
+                const itemTT = convertTTForDisplay(subCollection[key].tt);
+                if (itemTT.startsWith(prefix) && itemTT.length === prefix.length + 1) {
+                    // Lấy ký tự cuối
+                    const charCode = itemTT.charCodeAt(itemTT.length - 1);
+                    if (charCode > maxNumPart) maxNumPart = charCode;
+                }
+            }
+            
+            const nextCharCode = (maxNumPart === 0) ? 97 : maxNumPart + 1; // 97 là 'a'
+            return `${parentTTDisplay}${String.fromCharCode(nextCharCode)}`;
+        }
+
+        // --- LOGIC CŨ CHO CÁC TASK (GIỮ NGUYÊN) ---
         for (const key in subCollection) {
             const currentItem = subCollection[key];
             if (!currentItem?.tt) continue;
@@ -5297,59 +5384,40 @@ const createInputRow = (path, data, level, context = {}) => {
                 let currentNum = NaN;
                 let updateMax = false;
 
-                if (level === 'justification') {
-                    const charCode = tt.charCodeAt(0);
-                    currentNum = charCode;
-                    if (maxNumPart === 0) maxNumPart = 96; 
-                    updateMax = currentNum > maxNumPart;
-                } else if (level === 'subJustification') {
-                    if (tt.startsWith(parentTT)) {
-                        const numPartStr = tt.substring(parentTT.length);
-                        currentNum = parseInt(numPartStr, 10);
-                        updateMax = !isNaN(currentNum) && currentNum > maxNumPart;
-                    }
-                } else if (level === 'child') {
+                if (level === 'child') {
                     currentNum = romanToNumber(tt); 
                     updateMax = !isNaN(currentNum) && currentNum > 0 && currentNum > maxNumPart;
                 } else if (level === 'grandchild') {
                     currentNum = parseInt(tt, 10); 
                     updateMax = !isNaN(currentNum) && currentNum > maxNumPart;
                 } else if (level === 'greatGrandchild') {
-                    // Logic tách số cuối cùng: "1,1" lấy số 1
                     let prefixFound = false;
                     let numPartStr = null;
-                    if (tt.startsWith(parentTT + ',')) {
-                         prefixFound = true; numPartStr = tt.substring(parentTT.length + 1);
-                    } else if (tt.startsWith(parentTT + '.')) {
-                         prefixFound = true; numPartStr = tt.substring(parentTT.length + 1);
+                    // Kiểm tra tiền tố cha (lưu ý dấu phẩy trong DB)
+                    if (tt.startsWith(parentTTStorage + ',')) {
+                         prefixFound = true; numPartStr = tt.substring(parentTTStorage.length + 1);
                     }
-
                     if (prefixFound && numPartStr !== null) {
-                        const parts = numPartStr.split(/[,\.]/);
+                        const parts = numPartStr.split(','); // Trong DB dùng phẩy
                         if (parts.length > 0) {
                             currentNum = parseInt(parts[0], 10);
                             updateMax = !isNaN(currentNum) && currentNum > maxNumPart;
                         }
                     }
                 }
-
                 if (updateMax) maxNumPart = currentNum;
             } catch (e) {}
         } 
 
         let nextTT = 'error';
-        if (level === 'justification') {
-            const nextCharCode = (maxNumPart === 0 || maxNumPart === 96) ? 97 : maxNumPart + 1; 
-            nextTT = String.fromCharCode(nextCharCode);
-        } else if (level === 'subJustification') {
-             nextTT = `${parentTT}${maxNumPart + 1}`; 
-        } else if (level === 'child') {
+        if (level === 'child') {
             nextTT = numberToRoman(maxNumPart + 1); 
         } else if (level === 'grandchild') {
             nextTT = String(maxNumPart + 1); 
         } else if (level === 'greatGrandchild') {
-            nextTT = `${parentTT},${maxNumPart + 1}`; 
+            nextTT = `${parentTTStorage},${maxNumPart + 1}`; // Dùng parentTTStorage (có dấu phẩy)
         }
+        
         return nextTT;
     };
 
