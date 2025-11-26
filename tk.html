@@ -2232,10 +2232,11 @@ function getCleanupFieldsForParentNode(path) {
     };
 
     window.exportToExcel = function(type) {
-    // Gán giá trị 'simplified' cho Excel 1 và 'full' cho Excel 2
-    activeExportType = type === 1 ? 'simplified' : 'full';
-    document.getElementById('exportOptionsModal').style.display = 'block';
-};
+        // type 1: simplified (Excel 1 - Không giải trình)
+        // type 2: full (Excel 2 - Có giải trình)
+        activeExportType = type === 1 ? 'simplified' : 'full';
+        document.getElementById('exportOptionsModal').style.display = 'block';
+    };
 
     window.openMultiExecutionModal = function() {
         if (!isAuthenticated) return showAuthError();
@@ -4057,11 +4058,10 @@ function processNodeForExcel(node, path, level, ctx) {
     let childRows = [];
     let justificationRows = [];
     
-    const hasL5Children = node.greatGreatGrandchildren && Object.keys(node.greatGreatGrandchildren).length > 0;
     const hasL4Children = node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0;
     const hasL3Children = node.grandchildren && Object.keys(node.grandchildren).length > 0;
     const hasL2Children = node.children && Object.keys(node.children).length > 0;
-    let isContainer = (node.hasChildren === true) || hasL2Children || hasL3Children || hasL4Children || hasL5Children;
+    let isContainer = (node.hasChildren === true) || hasL2Children || hasL3Children || hasL4Children;
 
     // Đệ quy xử lý con
     if (node.children) {
@@ -4085,18 +4085,11 @@ function processNodeForExcel(node, path, level, ctx) {
             childRows.push(...processNodeForExcel(greatGrandchildData, `${path}/greatGrandchildren/${greatGrandchildData.id}`, level + 3, ctx));
         }
     }
-    if (node.greatGreatGrandchildren) {
-        const greatGreatGrandchildren = Object.keys(node.greatGreatGrandchildren).map(id => ({ id, ...node.greatGreatGrandchildren[id]})).sort(numericSort);
-        for (const gggcData of greatGreatGrandchildren) {
-            ctx.currentRow++;
-            childRows.push(...processNodeForExcel(gggcData, `${path}/greatGreatGrandchildren/${gggcData.id}`, level + 4, ctx));
-        }
-    }
     
-    if (!isContainer && node.justifications && activeExportType === 'full') {
+    if (!isContainer && node.justifications && ctx.includeJustifications) {
          const justifications = Object.keys(node.justifications)
             .map(id => ({ id, ...node.justifications[id] }))
-            .sort((a,b) => a.id.localeCompare(b.id));
+            .sort((a,b) => (a.tt || '').localeCompare((b.tt || ''), 'en', { numeric: true }));
             
         for (const justData of justifications) {
             ctx.currentRow++;
@@ -4104,28 +4097,23 @@ function processNodeForExcel(node, path, level, ctx) {
         }
     }
 
-    // --- GHI DỮ LIỆU CƠ BẢN ---
+    // --- GHI DỮ LIỆU (ĐÃ SỬA STYLE CHO CỘT TT) ---
     
-    ctx.ws[ctx.COLS.TT + r] = { t: 's', v: convertTTForDisplay(node.tt) };
+    // Thêm s: { numFmt: '@' } để ép kiểu Text trong file XLSX
+    ctx.ws[ctx.COLS.TT + r] = { t: 's', v: convertTTForDisplay(node.tt), s: { numFmt: '@' }, z: '@' };
+    
     ctx.ws[ctx.COLS.NOI_DUNG + r] = { t: 's', v: node.noiDung || '' };
     ctx.ws[ctx.COLS.DV_THUCHIEN + r] = { t: 's', v: node.dvThucHien || '' };
     ctx.ws[ctx.COLS.DON_VI + r] = { t: 's', v: node.donVi || '' };
     ctx.ws[ctx.COLS.TAN_SUAT + r] = { t: 'n', v: node.tanSuatTH === undefined || node.tanSuatTH === null ? '' : node.tanSuatTH };
     
-    // Ghi Năm Phân Bổ (Chỉ ghi giá trị, không cần công thức)
     ctx.ws[ctx.COLS.NAM_PHAN_BO + r] = { t: 'n', v: node.namPhanBo || '' };
-    
-    // Ghi Cấp độ
     ctx.ws[ctx.COLS.CAP_DO + r] = { t: 's', v: node.capDo || '' };
 
-    // Ghi các cột bổ sung (Full mode)
-    if (activeExportType === 'full') {
-        ctx.ws[ctx.COLS.TG_BATDAU + r] = { t: 's', v: node.tgBatDau || '' };
-        ctx.ws[ctx.COLS.TG_HOANTHANH + r] = { t: 's', v: node.tgHoanThanh || '' };
-        ctx.ws[ctx.COLS.GHI_CHU + r] = { t: 's', v: node.ghiChu || '' };
-    }
+    ctx.ws[ctx.COLS.TG_BATDAU + r] = { t: 's', v: node.tgBatDau || '' };
+    ctx.ws[ctx.COLS.TG_HOANTHANH + r] = { t: 's', v: node.tgHoanThanh || '' };
+    ctx.ws[ctx.COLS.GHI_CHU + r] = { t: 's', v: node.ghiChu || '' };
 
-    // Xử lý Số lượng (Lấy từ Summary nếu là Cấp 1)
     if (level === 0 && ctx.summaryData && ctx.summaryData[node.id]) {
         const totalLeafNodesCap1 = ctx.summaryData[node.id].totalLeafNodesCap1 || 0;
         ctx.ws[ctx.COLS.SO_LUONG + r] = { t: 'n', v: totalLeafNodesCap1, s: { numFmt: ctx.moneyFormat } };
@@ -4135,67 +4123,43 @@ function processNodeForExcel(node, path, level, ctx) {
         ctx.ws[ctx.COLS.SO_LUONG + r] = { t: 'n', v: 0, s: { numFmt: ctx.moneyFormat } };
     }
     
-    // Ghi Đơn giá
-    if (activeExportType === 'full' && ctx.COLS.DON_GIA) {
-        ctx.ws[ctx.COLS.DON_GIA + r] = { t: 'n', v: !isContainer ? (node.donGia || 0) : 0, s: { numFmt: ctx.moneyFormat } };
-    }
+    ctx.ws[ctx.COLS.DON_GIA + r] = { t: 'n', v: !isContainer ? (node.donGia || 0) : 0, s: { numFmt: ctx.moneyFormat } };
 
-    // --- XỬ LÝ CÁC CỘT TÍNH TOÁN (SUM/FORMULA) ---
-    
     const sumFields = [
         { key: 'chiPhi', col: ctx.COLS.CHI_PHI },
         { key: 'chiPhiThucHien', col: ctx.COLS.CHI_PHI_THUCHIEN },
-        // === THÊM CP_PHAN_BO VÀO DANH SÁCH TÍNH TOÁN ===
         { key: 'chiPhiPhanBo', col: ctx.COLS.CP_PHAN_BO } 
-        // ================================================
     ];
     
-    if (activeExportType === 'full') {
-        sumFields.unshift({ key: 'khNamTruoc', col: ctx.COLS.KH_NAM_TRUOC });
-        sumFields.unshift({ key: 'thucHienNamTruoc', col: ctx.COLS.TH_NAM_TRUOC });
-    }
+    sumFields.unshift({ key: 'khNamTruoc', col: ctx.COLS.KH_NAM_TRUOC });
+    sumFields.unshift({ key: 'thucHienNamTruoc', col: ctx.COLS.TH_NAM_TRUOC });
 
     for (const field of sumFields) {
         const cellAddress = field.col + r;
-        const cellValue = node[field.key] || 0; // Giá trị đã tính sẵn trong DB
+        const cellValue = node[field.key] || 0; 
 
         if (isContainer && childRows.length > 0) {
-            // TRƯỜNG HỢP 1: NÚT CHA (Parent)
-            // Dùng công thức SUM để cộng tổng các con
-            // Điều này áp dụng cho cả Chi Phí, Thực Hiện và CP Phân Bổ
             const sumCells = childRows.map(childR => field.col + childR).join(',');
             ctx.ws[cellAddress] = { t: 'n', v: cellValue, f: `SUM(${sumCells})`, s: { numFmt: ctx.moneyFormat } };
         
         } else if (!isContainer && field.key === 'chiPhiPhanBo') {
-            // TRƯỜNG HỢP 2: NÚT LÁ - CP PHÂN BỔ
-            // Dùng công thức chia: Chi phí / Năm phân bổ
             const chiPhiAddr = ctx.COLS.CHI_PHI + r;
             const namPbAddr = ctx.COLS.NAM_PHAN_BO + r;
-            
             if (node.namPhanBo && node.namPhanBo > 0) {
-                 ctx.ws[cellAddress] = { 
-                    t: 'n', 
-                    v: cellValue, 
-                    f: `IF(${namPbAddr}>0, ${chiPhiAddr}/${namPbAddr}, 0)`, 
-                    s: { numFmt: ctx.moneyFormat } 
-                };
+                 ctx.ws[cellAddress] = { t: 'n', v: cellValue, f: `IF(${namPbAddr}>0, ${chiPhiAddr}/${namPbAddr}, 0)`, s: { numFmt: ctx.moneyFormat } };
             } else {
                 ctx.ws[cellAddress] = { t: 'n', v: 0, s: { numFmt: ctx.moneyFormat } };
             }
 
         } else if (!isContainer && field.key === 'chiPhi' && justificationRows.length > 0) {
-            // TRƯỜNG HỢP 3: NÚT LÁ - CHI PHÍ (Có giải trình)
-            // Dùng công thức SUM giải trình
             const sumCells = justificationRows.map(justR => ctx.COLS.CHI_PHI + justR).join(',');
             ctx.ws[cellAddress] = { t: 'n', v: cellValue, f: `SUM(${sumCells})`, s: { numFmt: ctx.moneyFormat } };
 
         } else {
-            // TRƯỜNG HỢP 4: CÁC TRƯỜNG HỢP KHÁC (Giá trị thường)
             ctx.ws[cellAddress] = { t: 'n', v: cellValue, s: { numFmt: ctx.moneyFormat } };
         }
     }
     
-    // Ghi Kế Hoạch Còn Lại
     const chiPhiAddr = ctx.COLS.CHI_PHI + r;
     const chiPhiThucHienAddr = ctx.COLS.CHI_PHI_THUCHIEN + r;
     const keHoachConLaiValue = (node.chiPhi || 0) - (node.chiPhiThucHien || 0);
@@ -4207,7 +4171,6 @@ function processNodeForExcel(node, path, level, ctx) {
         s: { numFmt: ctx.moneyFormat } 
     };
 
-    // Ghi Thực hiện (Executions)
     if (node.executions && !isContainer) {
         for (const execId in node.executions) {
             const exec = node.executions[execId];
@@ -4229,7 +4192,6 @@ function processNodeForExcel(node, path, level, ctx) {
         }
     }
     
-    // Trả về row index hiện tại để cha sử dụng cho hàm SUM
     return [r];
 }
 
@@ -4238,7 +4200,7 @@ function processNodeForExcel(node, path, level, ctx) {
  * Tách logic tạo worksheet ra khỏi hàm export
  * Hàm này sẽ được cả exportPlainDataExcel và exportToClipboard sử dụng
  */
-async function generateWorksheetWithFormulas() {
+async function generateWorksheetWithFormulas(includeJustifications) {
     const parentQuery = ref(db, getParentCollectionName());
     const parentSnapshot = await get(parentQuery);
     if (!parentSnapshot.exists()) {
@@ -4246,15 +4208,14 @@ async function generateWorksheetWithFormulas() {
     }
     const parentsData = parentSnapshot.val();
 
-    // === LẤY DỮ LIỆU SUMMARY ===
     const summaryRef = ref(db, `summary_data/${currentYear}`);
     const summarySnap = await get(summaryRef);
     const summaryData = summarySnap.exists() ? summarySnap.val() : {};
-    // ==========================
 
     const maxLanThucHien = findMaxExecutions(parentsData);
 
-    const baseHeadersFull = [
+    // --- QUAN TRỌNG: LUÔN DÙNG BỘ TIÊU ĐỀ ĐẦY ĐỦ CHO CẢ 2 TRƯỜNG HỢP ---
+    const baseHeaders = [
         'TT', 'Đầu việc/Dự án', 'ĐV th.hiện', 'KH năm trước', 'Thực hiện năm trước', 
         'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Đơn giá (GT)', 'Chi phí KH', 
         'Chi phí thực hiện', 'Kế hoạch còn lại', 
@@ -4262,13 +4223,9 @@ async function generateWorksheetWithFormulas() {
         'Cấp độ', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú'
     ];
     
-    const baseHeadersSimplified = baseHeadersFull.filter(h => !['Đơn giá (GT)', 'KH năm trước', 'Thực hiện năm trước', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú'].includes(h));
-    
-    const headersToUse = activeExportType === 'full' ? baseHeadersFull : baseHeadersSimplified;
-    
     const executionHeaders = [];
     const execHeaderMap = {};
-    let currentColIndex = headersToUse.length; 
+    let currentColIndex = baseHeaders.length; 
     
     for (let i = 1; i <= maxLanThucHien; i++) {
         const colMap = {};
@@ -4276,14 +4233,14 @@ async function generateWorksheetWithFormulas() {
         colMap.soLuong = XLSX.utils.encode_col(currentColIndex); executionHeaders.push(`Số lượng (${i})`); currentColIndex++;
         colMap.donGia = XLSX.utils.encode_col(currentColIndex); executionHeaders.push(`Đơn giá (${i})`); currentColIndex++;
         colMap.thanhTien = XLSX.utils.encode_col(currentColIndex); executionHeaders.push(`Thành tiền (${i})`); currentColIndex++;
-        if (activeExportType === 'full') {
-            colMap.timestamp = XLSX.utils.encode_col(currentColIndex); executionHeaders.push(`Timestamp (${i})`); currentColIndex++;
-            colMap.hoSoLink = XLSX.utils.encode_col(currentColIndex); executionHeaders.push(`Hồ sơ Link (${i})`); currentColIndex++;
-        }
+        // Luôn thêm Timestamp và Link
+        colMap.timestamp = XLSX.utils.encode_col(currentColIndex); executionHeaders.push(`Timestamp (${i})`); currentColIndex++;
+        colMap.hoSoLink = XLSX.utils.encode_col(currentColIndex); executionHeaders.push(`Hồ sơ Link (${i})`); currentColIndex++;
+        
         execHeaderMap[i] = colMap;
     }
 
-    const finalHeaders = [...headersToUse, ...executionHeaders];
+    const finalHeaders = [...baseHeaders, ...executionHeaders];
     const COLS = {};
     const colNameMap = {
         'TT': 'TT', 'Đầu việc/Dự án': 'NOI_DUNG', 'ĐV th.hiện': 'DV_THUCHIEN',
@@ -4313,7 +4270,8 @@ async function generateWorksheetWithFormulas() {
         COLS: COLS,
         execHeaderMap: execHeaderMap,
         moneyFormat: moneyFormat,
-        summaryData: summaryData // TRUYỀN SUMMARY DATA VÀO CONTEXT
+        summaryData: summaryData,
+        includeJustifications: includeJustifications // Truyền cờ này để processNode sử dụng
     };
 
     finalHeaders.forEach((h, i) => {
@@ -4347,17 +4305,25 @@ window.exportPlainDataExcel = async function() {
         statusDiv.innerText = 'Đang chuẩn bị dữ liệu file Excel...';
         closeAllModals();
 
-        // 1. Gọi hàm lõi để lấy dữ liệu
-        const { wb, ws, finalHeaders } = await generateWorksheetWithFormulas();
+        // QUAN TRỌNG: Quyết định có xuất giải trình hay không dựa trên nút bấm ban đầu
+        // Nút 1 (Simplified) -> false. Nút 2 (Full) -> true.
+        const includeJustifications = (activeExportType === 'full');
+
+        // Gọi hàm tạo dữ liệu (Hàm này đã được cấu hình để luôn xuất FULL CỘT)
+        const { wb, ws } = await generateWorksheetWithFormulas(includeJustifications);
         
-        // 2. Tạo file và tải về
+        // Đặt tên file khác nhau để dễ phân biệt
+        const fileName = includeJustifications ? 
+            `AT-CL-MT_${currentYear}_Full.xlsx` : 
+            `AT-CL-MT_${currentYear}_NoJustification.xlsx`;
+
         XLSX.utils.book_append_sheet(wb, ws, 'Data');
-        XLSX.writeFile(wb, `AT-CL-MT_${currentYear}_withFormulas.xlsx`);
+        XLSX.writeFile(wb, fileName);
         
-        statusDiv.innerText = 'Xuất file Excel (có công thức) thành công!';
+        statusDiv.innerText = 'Xuất file Excel (.xlsx) thành công!';
 
     } catch (error) {
-        console.error("Lỗi khi xuất Excel (có công thức):", error);
+        console.error("Lỗi khi xuất Excel:", error);
         statusDiv.className = 'error';
         statusDiv.innerText = `Lỗi khi xuất file: ${error.message}`;
     }
@@ -4373,14 +4339,14 @@ window.exportToClipboard = async function() {
         statusDiv.innerText = 'Đang chuẩn bị dữ liệu cho clipboard...';
         closeAllModals();
 
-        // 1. Gọi hàm lõi để lấy dữ liệu (hàm này vẫn đúng)
-        // ws là đối tượng worksheet chứa cả giá trị 'v:' và công thức 'f:'
-        const { ws } = await generateWorksheetWithFormulas();
+        // Kiểm tra nút bấm ban đầu để quyết định có xuất giải trình không
+        // Nút 1 (Simplified) -> false. Nút 2 (Full) -> true.
+        const includeJustifications = (activeExportType === 'full');
+
+        const { ws } = await generateWorksheetWithFormulas(includeJustifications);
 
         statusDiv.innerText = 'Đang chuyển đổi dữ liệu...';
 
-        // 2. Tự xây dựng chuỗi TSV (thay vì dùng sheet_to_txt)
-        // Đây là cách duy nhất để fix encoding VÀ giữ công thức
         const tsvData = [];
         const range = XLSX.utils.decode_range(ws['!ref']);
         
@@ -4391,56 +4357,55 @@ window.exportToClipboard = async function() {
                 const cell = ws[cellAddress];
 
                 if (!cell) {
-                    row.push(""); // Ô trống
+                    row.push(""); 
                     continue;
                 }
 
-                // === LOGIC MỚI: Ưu tiên CÔNG THỨC (f) trước ===
+                // Ưu tiên công thức
                 if (cell.f) {
-                    // Excel hiểu định dạng TSV này: =FORMULA
-                    // Chúng ta không cần dấu "=" ở đầu chuỗi (ví dụ: ="=SUM(A1:A2)")
-                    // Chỉ cần =SUM(A1:A2) là đủ
                     row.push(`=${cell.f}`);
                 }
-                // Sau đó mới đến GIÁ TRỊ (v)
                 else if (cell.v !== undefined && cell.v !== null) {
                     let value = cell.v;
                     
-                    // Nếu là chuỗi, chúng ta cần "escape" nó
+                    // --- SỬA LỖI HIỂN THỊ CLIPBOARD ---
+                    // Nếu là cột TT (C=0) và giá trị bắt đầu bằng dấu trừ (VD: -1.10)
+                    // Dùng công thức ="giá_trị" để Excel hiểu là text mà không cần dấu '
+                    if (C === 0 && String(value).trim().startsWith('-')) {
+                         value = `="${value}"`;
+                    }
+                    // ----------------------------------
+
                     if (cell.t === 's' || typeof value === 'string') {
                         let str = String(value);
-                        // Nếu chuỗi chứa dấu " (quote), tab, hoặc newline,
-                        // chúng ta cần bọc nó trong dấu " và gấp đôi các dấu " bên trong.
+                        // Xử lý ký tự đặc biệt trong TSV (Tab, Quote, Newline)
                         if (str.includes('"') || str.includes('\t') || str.includes('\n')) {
                             str = `"${str.replace(/"/g, '""')}"`;
                         }
                         row.push(str);
                     } else {
-                        // Nếu là số hoặc boolean, cứ đẩy thẳng vào
                         row.push(String(value));
                     }
                 } 
                 else {
-                    row.push(""); // Ô có tồn tại nhưng không có giá trị
+                    row.push(""); 
                 }
             }
-            tsvData.push(row.join('\t')); // Nối các cột bằng TAB
+            tsvData.push(row.join('\t')); 
         }
         
-        const clipboardString = tsvData.join('\n'); // Nối các hàng bằng NEWLINE
-        // === KẾT THÚC LOGIC MỚI ===
+        const clipboardString = tsvData.join('\n'); 
 
-
-        // 3. Sử dụng Clipboard API (đang chạy trên https)
         if (!navigator.clipboard) {
             throw new Error('Trình duyệt không hỗ trợ Clipboard API.');
         }
 
-        // 4. Ghi chuỗi TSV đã được xây dựng chuẩn vào clipboard
         await navigator.clipboard.writeText(clipboardString); 
         
         statusDiv.className = 'success';
-        statusDiv.innerText = 'Đã sao chép dữ liệu vào Clipboard! Bạn có thể dán (Paste) vào Excel.';
+        statusDiv.innerText = includeJustifications 
+            ? 'Đã sao chép dữ liệu (Kèm giải trình) vào Clipboard!'
+            : 'Đã sao chép dữ liệu (Không giải trình) vào Clipboard!';
 
     } catch (error) {
         console.error("Lỗi khi sao chép vào Clipboard:", error);
@@ -4451,11 +4416,15 @@ window.exportToClipboard = async function() {
 
 // === HÀM exportFormattedExcel_HTML ĐẦY ĐỦ (ĐÃ SỬA LỖI MÀU & TIMESTAMP) ===
 // === HÀM exportFormattedExcel_HTML ĐẦY ĐỦ (ĐÃ SỬA THỨ TỰ CỘT) ===
-window.exportFormattedExcel_HTML = async function() {
+
+// === HÀM XUẤT EXCEL (CẬP NHẬT: EXCEL 1 ĐỦ CỘT NHƯNG KHÔNG GIẢI TRÌNH) ===
+ window.exportFormattedExcel_HTML = async function() {
     try {
         statusDiv.className = 'success';
         statusDiv.innerText = 'Đang chuẩn bị dữ liệu...';
         closeAllModals();
+
+        activeExportType = 'full'; 
 
         const parentQuery = ref(db, getParentCollectionName());
         const parentSnapshot = await get(parentQuery);
@@ -4466,18 +4435,15 @@ window.exportFormattedExcel_HTML = async function() {
         }
         const parentsData = parentSnapshot.val();
         
-        // === LẤY DỮ LIỆU SUMMARY ===
         const summaryRef = ref(db, `summary_data/${currentYear}`);
         const summarySnap = await get(summaryRef);
         const summaryData = summarySnap.exists() ? summarySnap.val() : {};
-        // ==========================
 
         const allRows = [];
         let maxLanThucHien = 0;
 
         const processNode = (node, path, parentTT = '', level = 0) => {
             if (node.tt) {
-                // Xử lý số lượng cấp 1
                 let soLuongVal = node.soLuong;
                 if (level === 0 && summaryData[node.id]) {
                     soLuongVal = summaryData[node.id].totalLeafNodesCap1 || 0;
@@ -4491,10 +4457,7 @@ window.exportFormattedExcel_HTML = async function() {
                     'Thực hiện năm trước': node.thucHienNamTruoc === 0 ? 0 : (node.thucHienNamTruoc || ''),
                     'Tần suất TH': node.tanSuatTH === undefined || node.tanSuatTH === null || node.tanSuatTH === '' ? '' : node.tanSuatTH,
                     'Đ.vị tính': node.donVi || '',
-                    
-                    // Sử dụng biến soLuongVal đã xử lý
                     'Số lượng': soLuongVal === 0 ? 0 : (soLuongVal || ''),
-                    
                     'Đơn giá (GT)': node.donGia === 0 ? 0 : (node.donGia || ''),
                     'Chi phí KH': node.chiPhi === 0 ? 0 : (node.chiPhi || ''),
                     'Chi phí thực hiện': node.chiPhiThucHien === 0 ? 0 : (node.chiPhiThucHien || ''),
@@ -4508,7 +4471,7 @@ window.exportFormattedExcel_HTML = async function() {
                     level: level,
                     isJustification: false
                 };
-                // ... (phần xử lý executions và đệ quy con giữ nguyên) ...
+
                 if (node.executions) {
                     for (const execId in node.executions) {
                         const exec = node.executions[execId];
@@ -4518,13 +4481,9 @@ window.exportFormattedExcel_HTML = async function() {
                              row[`Số lượng (${lanThucHien})`] = exec.dvt === 0 ? 0 : (exec.dvt || '');
                              row[`Đơn giá (${lanThucHien})`] = exec.donGia === 0 ? 0 : (exec.donGia || '');
                              row[`Thành tiền (${lanThucHien})`] = exec.thanhTien === 0 ? 0 : (exec.thanhTien || '');
-                             if (activeExportType === 'full') {
-                                 row[`Timestamp (${lanThucHien})`] = String(exec.timestamp || '');
-                                 row[`Hồ sơ Link (${lanThucHien})`] = exec.hoSoLink || '';
-                             }
-                             if (lanThucHien > maxLanThucHien) {
-                                 maxLanThucHien = lanThucHien;
-                             }
+                             row[`Timestamp (${lanThucHien})`] = String(exec.timestamp || '');
+                             row[`Hồ sơ Link (${lanThucHien})`] = exec.hoSoLink || '';
+                             if (lanThucHien > maxLanThucHien) maxLanThucHien = lanThucHien;
                         }
                     }
                 }
@@ -4532,55 +4491,57 @@ window.exportFormattedExcel_HTML = async function() {
             }
 
             if (node.children) {
-                const children = Object.keys(node.children).map(id => ({ id, ...node.children[id] })).sort(childSort);
-                children.forEach(child => processNode(child, `${path}/children/${child.id}`, node.tt, level + 1));
+                Object.keys(node.children).map(id => ({ id, ...node.children[id] })).sort(childSort).forEach(child => processNode(child, `${path}/children/${child.id}`, node.tt, level + 1));
             }
             if (node.grandchildren) {
-                const grandchildren = Object.keys(node.grandchildren).map(id => ({ id, ...node.grandchildren[id] })).sort((a,b)=>parseInt(a.id,10)-parseInt(b.id,10));
-                grandchildren.forEach(gc => processNode(gc, `${path}/grandchildren/${gc.id}`, node.tt, level + 2));
+                Object.keys(node.grandchildren).map(id => ({ id, ...node.grandchildren[id] })).sort((a,b)=>parseInt(a.id,10)-parseInt(b.id,10)).forEach(gc => processNode(gc, `${path}/grandchildren/${gc.id}`, node.tt, level + 2));
             }
             if (node.greatGrandchildren) {
-                const greatGrandchildren = Object.keys(node.greatGrandchildren).map(id => ({ id, ...node.greatGrandchildren[id] })).sort(numericSort);
-                greatGrandchildren.forEach(ggc => processNode(ggc, `${path}/greatGrandchildren/${ggc.id}`, node.tt, level + 3));
+                Object.keys(node.greatGrandchildren).map(id => ({ id, ...node.greatGrandchildren[id] })).sort(numericSort).forEach(ggc => processNode(ggc, `${path}/greatGrandchildren/${ggc.id}`, node.tt, level + 3));
             }
             if (node.greatGreatGrandchildren) {
-                const greatGreatGrandchildren = Object.keys(node.greatGreatGrandchildren).map(id => ({ id, ...node.greatGreatGrandchildren[id] })).sort(numericSort);
-                greatGreatGrandchildren.forEach(gggc => processNode(gggc, `${path}/greatGreatGrandchildren/${gggc.id}`, node.tt, level + 4));
+                Object.keys(node.greatGreatGrandchildren).map(id => ({ id, ...node.greatGreatGrandchildren[id] })).sort(numericSort).forEach(gggc => processNode(gggc, `${path}/greatGreatGrandchildren/${gggc.id}`, node.tt, level + 4));
             }
 
-            if (activeExportType === 'full' && node.justifications) {
-                const justifications = Object.keys(node.justifications).map(id => ({ id, ...node.justifications[id] })).sort((a,b) => a.id.localeCompare(b.id));
-                justifications.forEach(just => {
-                    const justRow = {
-                        'TT': convertTTForDisplay(just.tt),
-                        'Đầu việc/Dự án': just.noiDung || '',
-                        'ĐV th.hiện': '', 'KH năm trước': '', 'Thực hiện năm trước': '', 'Tần suất TH': '',
-                        'Đ.vị tính': just.donVi || '',
-                        'Số lượng': just.soLuong === 0 ? 0 : (just.soLuong || ''),
-                        'Đơn giá (GT)': just.donGia === 0 ? 0 : (just.donGia || ''),
-                        'Chi phí KH': just.chiPhi === 0 ? 0 : (just.chiPhi || ''),
-                        'Chi phí thực hiện': '', 'Kế hoạch còn lại': '', 
-                        'Năm phân bổ': '', 'CP phân bổ': '',
-                        'Cấp độ': '', 'TG bắt đầu': '', 'TG hoàn thành': '', 'Ghi chú': '',
-                        level: level + 5, isJustification: true
-                    };
-                    allRows.push(justRow);
-                    if (just.hasSubJustifications && just.subJustifications) {
-                        const subJustifications = Object.keys(just.subJustifications).map(subId => ({ id: subId, ...just.subJustifications[subId] })).sort((a,b) => { const numA = parseInt(a.tt.substring(1), 10); const numB = parseInt(b.tt.substring(1), 10); return numA - numB; });
-                        subJustifications.forEach(subJust => {
-                            const subJustRow = {
-                                'TT': convertTTForDisplay(subJust.tt), 'Đầu việc/Dự án': subJust.noiDung || '',
-                                'ĐV th.hiện': '', 'KH năm trước': '', 'Thực hiện năm trước': '', 'Tần suất TH': '',
-                                'Đ.vị tính': subJust.donVi || '', 'Số lượng': subJust.soLuong === 0 ? 0 : (subJust.soLuong || ''),
-                                'Đơn giá (GT)': subJust.donGia === 0 ? 0 : (subJust.donGia || ''), 'Chi phí KH': subJust.chiPhi === 0 ? 0 : (subJust.chiPhi || ''),
-                                'Chi phí thực hiện': '', 'Kế hoạch còn lại': '', 'Năm phân bổ': '', 'CP phân bổ': '',
-                                'Cấp độ': '', 'TG bắt đầu': '', 'TG hoàn thành': '', 'Ghi chú': '',
-                                level: level + 6, isJustification: true
-                            };
-                            allRows.push(subJustRow);
-                        });
-                    }
-                });
+            if (node.justifications) {
+                Object.keys(node.justifications)
+                    .map(id => ({ id, ...node.justifications[id] }))
+                    .sort((a, b) => (a.tt || '').localeCompare((b.tt || ''), 'en', { numeric: true }))
+                    .forEach(just => {
+                        const justRow = {
+                            'TT': convertTTForDisplay(just.tt),
+                            'Đầu việc/Dự án': just.noiDung || '',
+                            'Đ.vị tính': just.donVi || '',
+                            'Số lượng': just.soLuong === 0 ? 0 : (just.soLuong || ''),
+                            'Đơn giá (GT)': just.donGia === 0 ? 0 : (just.donGia || ''),
+                            'Chi phí KH': just.chiPhi === 0 ? 0 : (just.chiPhi || ''),
+                            'Chi phí thực hiện': '', 'Kế hoạch còn lại': '', 
+                            'Năm phân bổ': '', 'CP phân bổ': '',
+                            'Cấp độ': '', 'TG bắt đầu': '', 'TG hoàn thành': '', 'Ghi chú': '',
+                            level: level + 5, isJustification: true
+                        };
+                        allRows.push(justRow);
+                        
+                        if (just.hasSubJustifications && just.subJustifications) {
+                             Object.keys(just.subJustifications)
+                                .map(subId => ({ id: subId, ...just.subJustifications[subId] }))
+                                .sort((a, b) => (a.tt || '').localeCompare((b.tt || ''), 'en', { numeric: true }))
+                                .forEach(subJust => {
+                                    const subJustRow = {
+                                        'TT': convertTTForDisplay(subJust.tt),
+                                        'Đầu việc/Dự án': subJust.noiDung || '',
+                                        'Đ.vị tính': subJust.donVi || '',
+                                        'Số lượng': subJust.soLuong === 0 ? 0 : (subJust.soLuong || ''),
+                                        'Đơn giá (GT)': subJust.donGia === 0 ? 0 : (subJust.donGia || ''),
+                                        'Chi phí KH': subJust.chiPhi === 0 ? 0 : (subJust.chiPhi || ''),
+                                        'Chi phí thực hiện': '', 'Kế hoạch còn lại': '', 'Năm phân bổ': '', 'CP phân bổ': '',
+                                        'Cấp độ': '', 'TG bắt đầu': '', 'TG hoàn thành': '', 'Ghi chú': '',
+                                        level: level + 6, isJustification: true
+                                    };
+                                    allRows.push(subJustRow);
+                                });
+                        }
+                    });
             }
         };
 
@@ -4590,19 +4551,17 @@ window.exportFormattedExcel_HTML = async function() {
         statusDiv.innerText = 'Đang tạo bảng HTML để xuất...';
 
         const baseHeadersFull = ['TT', 'Đầu việc/Dự án', 'ĐV th.hiện', 'KH năm trước', 'Thực hiện năm trước', 'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Đơn giá (GT)', 'Chi phí KH', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'Năm phân bổ', 'CP phân bổ', 'Cấp độ', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú'];
-        const baseHeadersSimplified = baseHeadersFull.filter(h => !['Đơn giá (GT)', 'KH năm trước', 'Thực hiện năm trước', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú'].includes(h));
+        
         const executionHeadersOrdered = [];
         for (let i = 1; i <= maxLanThucHien; i++) {
             executionHeadersOrdered.push(`Ngày TH (${i})`);
             executionHeadersOrdered.push(`Số lượng (${i})`);
             executionHeadersOrdered.push(`Đơn giá (${i})`);
             executionHeadersOrdered.push(`Thành tiền (${i})`);
-            if (activeExportType === 'full') {
-                 executionHeadersOrdered.push(`Timestamp (${i})`);
-                 executionHeadersOrdered.push(`Hồ sơ Link (${i})`);
-            }
+            executionHeadersOrdered.push(`Timestamp (${i})`);
+            executionHeadersOrdered.push(`Hồ sơ Link (${i})`);
         }
-        const headersToUse = activeExportType === 'full' ? [...baseHeadersFull, ...executionHeadersOrdered] : [...baseHeadersSimplified, ...executionHeadersOrdered];
+        const headersToUse = [...baseHeadersFull, ...executionHeadersOrdered];
 
         let tableHtml = `<table border="1"><thead><tr>${headersToUse.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
 
@@ -4617,14 +4576,16 @@ window.exportFormattedExcel_HTML = async function() {
                  if (row.level === 0) baseStyle = 'font-weight: bold; background-color: #e2e6ea;';
                  else if (row.level === 1) baseStyle = 'font-weight: bold; background-color: #e9ecef;';
                  else if (row.level === 2) baseStyle = 'font-weight: bold; background-color: #f2f4f6;';
-                 else if (row.level === 3) baseStyle = 'font-weight: bold; background-color: #f8f9fa;';
+                 else if (row.level === 3) baseStyle = 'font-weight: normal; background-color: #f8f9fa;';
             }
 
             tableHtml += '<tr>';
             headersToUse.forEach(h => {
                 let currentStyle = baseStyle;
-                if (h.startsWith('Ngày TH') || h.startsWith('Timestamp')) {
-                    currentStyle += " mso-number-format:'\\@';";
+                
+                // --- SỬA LỖI Ở ĐÂY: Thêm h === 'TT' vào điều kiện ép kiểu Text ---
+                if (h === 'TT' || h.startsWith('Ngày TH') || h.startsWith('Timestamp')) {
+                    currentStyle += " mso-number-format:'\\@';"; // Ép buộc Text
                 } else if (['Chi phí KH', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'KH năm trước', 'Thực hiện năm trước', 'Thành tiền', 'Đơn giá', 'Đơn giá (GT)', 'Số lượng', 'CP phân bổ', 'Năm phân bổ'].some(numCol => h.startsWith(numCol))) {
                      currentStyle += " mso-number-format:'#,##0'; text-align: right;";
                 }
@@ -4641,7 +4602,7 @@ window.exportFormattedExcel_HTML = async function() {
         const blob = new Blob([excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `AT-CL-MT_${currentYear}_formatted.xls`;
+        link.download = `AT-CL-MT_${currentYear}_Formatted.xls`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -6514,16 +6475,15 @@ async function saveInlineEdit(event) {
 
                                 // --- RENDER GIẢI TRÌNH CHO CẤP 3 (GRANDCHILD) ---
                                 if (grandchildData.justifications) {
+                                    // SỬA LỖI SORT Ở ĐÂY: Dùng { numeric: true }
                                     const justifications = Object.keys(grandchildData.justifications).map(id => ({ 
                                         id, 
                                         path: `${grandchildPath}/justifications/${id}`, 
                                         ...grandchildData.justifications[id] 
-                                    })).sort((a, b) => a.id.localeCompare(b.id));
+                                    })).sort((a, b) => (a.tt || '').localeCompare((b.tt || ''), 'en', { numeric: true }));
                                     
                                     for (const justData of justifications) {
                                          const displayCost = getDisplayChiPhiForJustification(justData);
-                                         
-                                         // SỬA: Style Đậm Nghiêng cho chi phí nếu là giải trình cha
                                          const chiPhiStyle = justData.hasSubJustifications ? 'font-weight: bold; font-style: italic;' : '';
 
                                          html += `<tr class="task-justification task-justification-parent" data-main-parent="${mainParentId}" data-path="${justData.path}">
@@ -6544,7 +6504,8 @@ async function saveInlineEdit(event) {
                                         </tr>`;
                                         
                                         if (justData.hasSubJustifications && justData.subJustifications) {
-                                             const subJustifications = Object.keys(justData.subJustifications).map(subId => ({ id: subId, path: `${justData.path}/subJustifications/${subId}`, ...justData.subJustifications[subId] })).sort((a, b) => a.tt.localeCompare(b.tt));
+                                             // SỬA LỖI SORT CON Ở ĐÂY
+                                             const subJustifications = Object.keys(justData.subJustifications).map(subId => ({ id: subId, path: `${justData.path}/subJustifications/${subId}`, ...justData.subJustifications[subId] })).sort((a, b) => (a.tt || '').localeCompare((b.tt || ''), 'en', { numeric: true }));
                                              for (const subJust of subJustifications) {
                                                  html += `<tr class="task-justification task-justification-child" data-main-parent="${mainParentId}" data-path="${subJust.path}">
                                                     <td><input type="checkbox" class="justification-checkbox" data-path="${subJust.path}" data-parent-path="${justData.path}" onchange="toggleSelection(this)"></td>
@@ -6578,16 +6539,15 @@ async function saveInlineEdit(event) {
 
                                         // --- RENDER GIẢI TRÌNH CHO CẤP 4 (GREAT GRANDCHILD) ---
                                         if (greatGrandchildData.justifications) {
+                                            // SỬA LỖI SORT Ở ĐÂY
                                             const justifications = Object.keys(greatGrandchildData.justifications).map(id => ({ 
                                                 id, 
                                                 path: `${greatGrandchildPath}/justifications/${id}`, 
                                                 ...greatGrandchildData.justifications[id] 
-                                            })).sort((a, b) => a.id.localeCompare(b.id));
+                                            })).sort((a, b) => (a.tt || '').localeCompare((b.tt || ''), 'en', { numeric: true }));
                                             
                                             for (const justData of justifications) {
                                                  const displayCost = getDisplayChiPhiForJustification(justData);
-                                                 
-                                                 // SỬA: Style Đậm Nghiêng cho chi phí nếu là giải trình cha
                                                  const chiPhiStyle = justData.hasSubJustifications ? 'font-weight: bold; font-style: italic;' : '';
 
                                                  html += `<tr class="task-justification task-justification-parent" data-main-parent="${mainParentId}" data-path="${justData.path}">
@@ -6608,7 +6568,8 @@ async function saveInlineEdit(event) {
                                                 </tr>`;
                                                 
                                                 if (justData.hasSubJustifications && justData.subJustifications) {
-                                                     const subJustifications = Object.keys(justData.subJustifications).map(subId => ({ id: subId, path: `${justData.path}/subJustifications/${subId}`, ...justData.subJustifications[subId] })).sort((a, b) => a.tt.localeCompare(b.tt));
+                                                     // SỬA LỖI SORT CON Ở ĐÂY
+                                                     const subJustifications = Object.keys(justData.subJustifications).map(subId => ({ id: subId, path: `${justData.path}/subJustifications/${subId}`, ...justData.subJustifications[subId] })).sort((a, b) => (a.tt || '').localeCompare((b.tt || ''), 'en', { numeric: true }));
                                                      for (const subJust of subJustifications) {
                                                          html += `<tr class="task-justification task-justification-child" data-main-parent="${mainParentId}" data-path="${subJust.path}">
                                                             <td><input type="checkbox" class="justification-checkbox" data-path="${subJust.path}" data-parent-path="${justData.path}" onchange="toggleSelection(this)"></td>
@@ -6640,7 +6601,7 @@ async function saveInlineEdit(event) {
             
             tableBody.innerHTML = html || `<tr><td colspan="17" style="text-align: center;">Không có dữ liệu cho năm ${currentYear}.</td></tr>`;
 
-            // Đồng bộ Class Planning Mode
+            // Đồng bộ Class Planning Mode để hiển thị giải trình
             const taskList = document.getElementById('taskList');
             if (planningModeByYear[currentYear] === true) {
                 taskList.classList.add('planning-mode');
