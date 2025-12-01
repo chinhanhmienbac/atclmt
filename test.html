@@ -1619,12 +1619,7 @@ const deleteBtnHtml = canEdit ?
         });
     }
 	
-	// === BỔ SUNG HÀM BỊ THIẾU ===
-    window.openExecutionProfile = async function(timestampKey) {
-        // Gọi hàm uploadPdfForExecution để xử lý
-        await window.uploadPdfForExecution(timestampKey);
-    };
-
+	
 
     // ĐỊNH NGHĨA TẤT CẢ CÁC HÀM CẦN THIẾT
     window.initializeYearDropdown = function() {
@@ -2609,7 +2604,7 @@ window.openSearchModal = async function() {
                     <td>${firstExec.dvThucHien}</td>
                     <td class="text-right">${formatNumber(totalThanhTien)}</td>
                     <td>
-                        <button class="${hoSoButtonClass} btn-action btn-profile-exec" onclick="openExecutionProfile('${timestampKey}')">${hoSoButtonText}</button>
+                        <button class="${hoSoButtonClass} btn-action btn-profile-exec" onclick="uploadPdfForExecution('${timestampKey}')">${hoSoButtonText}</button>
                         <button class="btn-warning btn-action btn-edit-exec" onclick="openExecutionEdit('${timestampKey}')">Sửa</button>
                     </td>
                 </tr>`;
