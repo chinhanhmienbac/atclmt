@@ -1573,6 +1573,7 @@ const deleteBtnHtml = canEdit ?
     }
 
     // Hàm xử lý việc yêu cầu xác thực
+   // Hàm xử lý việc yêu cầu xác thực
     async function requestGoogleAuth() {
         return new Promise((resolve, reject) => {
              if (!gapiReady || !gisInited || !tokenClient) {
@@ -1595,20 +1596,28 @@ const deleteBtnHtml = canEdit ?
              tokenClient.callback = (resp) => { // Gán callback tạm thời
                  if (resp.error) {
                      statusDiv.className = 'error';
-                     statusDiv.innerText = `Lỗi cấp quyền: ${resp.error_description || resp.error}`; // Hiển thị mô tả lỗi nếu có
+                     statusDiv.innerText = `Lỗi cấp quyền: ${resp.error_description || resp.error}`; 
                      console.error('Lỗi cấp quyền Google:', resp);
-                     tokenClient.callback = tokenResponseCallback; // *** Khôi phục callback mặc định ***
+                     tokenClient.callback = tokenResponseCallback; // Khôi phục callback mặc định
                      return reject(resp.error);
                  }
-                 // Xác thực thành công -> tokenResponseCallback mặc định đã chạy và setToken
+
+                 // === [FIX QUAN TRỌNG]: LƯU TOKEN VÀO GAPI CLIENT ===
+                 if (resp.access_token) {
+                     gapi.client.setToken(resp);
+                 }
+                 // ===================================================
+
+                 // Xác thực thành công
                  statusDiv.className = 'success';
                  statusDiv.innerText = 'Đã cấp quyền thành công. Bạn có thể tải tệp lên.';
                  console.log('Cấp quyền thành công (Promise resolved).');
-                 tokenClient.callback = tokenResponseCallback; // *** Khôi phục callback mặc định ***
+                 
+                 tokenClient.callback = tokenResponseCallback; // Khôi phục callback mặc định
                  resolve(true);
              };
              // *** Gọi requestAccessToken SAU KHI gán callback ***
-             tokenClient.requestAccessToken({ prompt: 'consent' }); // Hiển thị popup yêu cầu quyền
+             tokenClient.requestAccessToken({ prompt: 'consent' }); 
         });
     }
 
@@ -3904,7 +3913,22 @@ window.saveExecutionEdits = async function() {
 };
 // === KẾT THÚC hàm cho nút sửa ===
 
-    window.uploadPdfForExecution = function(timestampKey) {
+    window.uploadPdfForExecution = async function(timestampKey) { // Thêm từ khóa async
+        if (!isAuthenticated) return showAuthError();
+
+        // === [FIX]: Kiểm tra và yêu cầu đăng nhập Google trước khi mở modal ===
+        try {
+            statusDiv.className = '';
+            statusDiv.innerText = 'Đang kiểm tra kết nối Google Drive...';
+            await requestGoogleAuth();
+            statusDiv.innerText = ''; // Xóa thông báo nếu thành công
+        } catch (error) {
+            console.error("Lỗi xác thực Google:", error);
+            // Lỗi đã được hiển thị trong requestGoogleAuth, không cần alert thêm để tránh spam
+            return; 
+        }
+        // =====================================================================
+
         document.getElementById('uploadPdfModalTitle').textContent = 'Tải lên Hồ sơ PDF';
         document.getElementById('uploadPdfButton').onclick = () => performPdfUpload(timestampKey);
         document.getElementById('pdf_file_input').value = '';
