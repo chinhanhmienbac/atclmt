@@ -1586,14 +1586,13 @@ const deleteBtnHtml = canEdit ?
              const currentToken = gapi.client.getToken();
              if (currentToken && currentToken.access_token) {
                  console.log('Đã có token Google hợp lệ.');
-                 return resolve(true); // Đã đăng nhập
+                 return resolve(true); 
              }
 
-             // Nếu chưa có token, yêu cầu người dùng cấp quyền
              console.log('Yêu cầu cấp quyền Google Drive...');
 
              // *** Đảm bảo callback được gán TRƯỚC khi gọi requestAccessToken ***
-             tokenClient.callback = (resp) => { // Gán callback tạm thời
+             tokenClient.callback = (resp) => { 
                  if (resp.error) {
                      statusDiv.className = 'error';
                      statusDiv.innerText = `Lỗi cấp quyền: ${resp.error_description || resp.error}`; 
@@ -1608,18 +1607,23 @@ const deleteBtnHtml = canEdit ?
                  }
                  // ===================================================
 
-                 // Xác thực thành công
                  statusDiv.className = 'success';
                  statusDiv.innerText = 'Đã cấp quyền thành công. Bạn có thể tải tệp lên.';
                  console.log('Cấp quyền thành công (Promise resolved).');
                  
-                 tokenClient.callback = tokenResponseCallback; // Khôi phục callback mặc định
+                 tokenClient.callback = tokenResponseCallback; 
                  resolve(true);
              };
-             // *** Gọi requestAccessToken SAU KHI gán callback ***
+             
              tokenClient.requestAccessToken({ prompt: 'consent' }); 
         });
     }
+	
+	// === BỔ SUNG HÀM BỊ THIẾU ===
+    window.openExecutionProfile = async function(timestampKey) {
+        // Gọi hàm uploadPdfForExecution để xử lý
+        await window.uploadPdfForExecution(timestampKey);
+    };
 
 
     // ĐỊNH NGHĨA TẤT CẢ CÁC HÀM CẦN THIẾT
@@ -3913,24 +3917,28 @@ window.saveExecutionEdits = async function() {
 };
 // === KẾT THÚC hàm cho nút sửa ===
 
-    window.uploadPdfForExecution = async function(timestampKey) { // Thêm từ khóa async
+   window.uploadPdfForExecution = async function(timestampKey) { // Thêm async
         if (!isAuthenticated) return showAuthError();
 
-        // === [FIX]: Kiểm tra và yêu cầu đăng nhập Google trước khi mở modal ===
+        // === [FIX QUAN TRỌNG]: Kiểm tra và yêu cầu đăng nhập Google trước ===
         try {
             statusDiv.className = '';
             statusDiv.innerText = 'Đang kiểm tra kết nối Google Drive...';
+            // Gọi hàm requestGoogleAuth để đảm bảo đã có token
             await requestGoogleAuth();
-            statusDiv.innerText = ''; // Xóa thông báo nếu thành công
+            statusDiv.innerText = ''; 
         } catch (error) {
             console.error("Lỗi xác thực Google:", error);
-            // Lỗi đã được hiển thị trong requestGoogleAuth, không cần alert thêm để tránh spam
+            // Lỗi đã được hiển thị trong requestGoogleAuth
             return; 
         }
         // =====================================================================
 
         document.getElementById('uploadPdfModalTitle').textContent = 'Tải lên Hồ sơ PDF';
+        
+        // Gán sự kiện cho nút "Tải Lên" trong modal, truyền timestampKey vào
         document.getElementById('uploadPdfButton').onclick = () => performPdfUpload(timestampKey);
+        
         document.getElementById('pdf_file_input').value = '';
         document.getElementById('uploadPdfModal').style.display = 'block';
     };
