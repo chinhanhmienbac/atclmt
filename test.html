@@ -3630,8 +3630,7 @@ window.saveExecutionEdits = async function() {
         }
     };
 
-    // === THAY THẾ HÀM NÀY ===
-  window.performPdfUpload = async function(timestampKey) {
+ window.performPdfUpload = async function(timestampKey) {
         if (!isAuthenticated) return showAuthError(); 
         
         const googleToken = gapi.client.getToken();
@@ -3677,21 +3676,21 @@ window.saveExecutionEdits = async function() {
             
             statusDiv.innerText = 'Đang cập nhật link hồ sơ vào cơ sở dữ liệu...';
 
-            // --- BẮT ĐẦU SỬA ĐỔI: Cập nhật cho cấu trúc 3 cấp ---
-            const timestampGroup = executionGroups.get(timestampKey); // Map<grandchildPath, Map<leafPath, exec[]>>
+            // --- BẮT ĐẦU SỬA ĐỔI: Cập nhật logic duyệt theo cấu trúc MỚI (2 cấp) ---
+            // Cấu trúc mới: Map<timestamp, Object<directParentPath, Array<exec>>>
+            const timestampGroup = executionGroups.get(timestampKey); 
             const updates = {};
             let updatedCount = 0;
 
             if (timestampGroup) {
-                // Duyệt qua từng nhóm Cấp 3 (grandchildPath)
-                for (const grandchildPath in timestampGroup) {
-                    const grandchildGroup = timestampGroup[grandchildPath]; // Map<leafPath, exec[]>
-                    // Duyệt qua từng nhóm Cấp lá (leafPath)
-                    for (const leafPath in grandchildGroup) {
-                        const executions = grandchildGroup[leafPath]; // exec[]
-                        // Duyệt qua từng lần thực hiện (exec)
+                // Duyệt qua các nhóm cha trực tiếp (DirectParentPath)
+                for (const parentPath in timestampGroup) {
+                    // Lấy trực tiếp mảng executions (không cần duyệt qua leafPath nữa)
+                    const executions = timestampGroup[parentPath]; 
+                    
+                    if (Array.isArray(executions)) {
                         executions.forEach(exec => {
-                            // timestampKey vẫn là key của nhóm, nên logic này đúng
+                            // Kiểm tra timestamp để chắc chắn (dù đã filter theo key rồi)
                             if (String(exec.timestamp || exec.ngayThucHien) === String(timestampKey)) { 
                                 updates[`${exec.path}/hoSoLink`] = fileLink; 
                                 updatedCount++;
