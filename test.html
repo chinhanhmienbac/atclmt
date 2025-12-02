@@ -2394,232 +2394,198 @@ function getCleanupFieldsForParentNode(path) {
 };
 
 window.openSearchModal = async function() {
-        const modal = document.getElementById('dataModal');
-        const title = 'Tra cứu thực hiện công việc';
-        document.getElementById('modalTitle').innerHTML = `<h2>${title}</h2>`;
+    const modal = document.getElementById('dataModal');
+    const title = 'Tra cứu thực hiện công việc';
+    document.getElementById('modalTitle').innerHTML = `<h2>${title}</h2>`;
 
-        // Giữ nguyên headers
-        const headers = [
-            {text: 'Ngày thực hiện', width: '10%'},
-            {text: 'Nội dung công việc', width: '50%'},
-            {text: 'ĐV thực hiện', width: '10%'},
-            {text: 'Thành tiền', width: '15%'},
-            {text: 'Hành động', width: '15%'}
-        ];
-        let table = createModalTable(headers);
-        table += '</tbody></table>';
-        document.getElementById('modalBody').innerHTML = table;
-        document.getElementById('modalSaveButton').style.display = 'none';
-        document.getElementById('modalDeleteButton').style.display = 'none';
-        document.getElementById('modal-footer-left').innerHTML = '<button class="btn-success" onclick="exportExecutionSearchExcel()">Xuất Excel</button>';
-        modal.style.display = 'block';
+    const headers = [
+        {text: 'Ngày thực hiện', width: '10%'},
+        {text: 'Nội dung công việc', width: '50%'},
+        {text: 'ĐV thực hiện', width: '10%'},
+        {text: 'Thành tiền', width: '15%'},
+        {text: 'Hành động', width: '15%'}
+    ];
+    let table = createModalTable(headers);
+    table += '</tbody></table>';
+    document.getElementById('modalBody').innerHTML = table;
+    document.getElementById('modalSaveButton').style.display = 'none';
+    document.getElementById('modalDeleteButton').style.display = 'none';
+    document.getElementById('modal-footer-left').innerHTML = '<button class="btn-success" onclick="exportExecutionSearchExcel()">Xuất Excel</button>';
+    modal.style.display = 'block';
 
-        try {
-            statusDiv.className = 'success';
-            statusDiv.innerText = 'Đang tải dữ liệu thực hiện...';
-            executionGroups.clear(); // Xóa dữ liệu cũ
+    try {
+        statusDiv.className = 'success';
+        statusDiv.innerText = 'Đang tải dữ liệu thực hiện...';
+        executionGroups.clear(); // Xóa dữ liệu cũ
 
-            const parentQuery = ref(db, getParentCollectionName());
-            const parentSnapshot = await get(parentQuery);
-            if (!parentSnapshot.exists()) {
-                document.getElementById('modalBody').innerHTML = '<p>Không có dữ liệu thực hiện.</p>';
-                statusDiv.innerText = '';
-                document.getElementById('modal-footer-left').innerHTML = '';
-                return;
+        const parentQuery = ref(db, getParentCollectionName());
+        const parentSnapshot = await get(parentQuery);
+        if (!parentSnapshot.exists()) {
+            document.getElementById('modalBody').innerHTML = '<p>Không có dữ liệu thực hiện.</p>';
+            statusDiv.innerText = '';
+            document.getElementById('modal-footer-left').innerHTML = '';
+            return;
+        }
+
+        const parentsData = parentSnapshot.val();
+        const allExecutions = [];
+
+        // Hàm đệ quy lấy dữ liệu thực hiện phẳng
+        const processNodeForExecutions = (node, path) => {
+            if (node.executions) {
+                for (const execId in node.executions) {
+                    const exec = node.executions[execId];
+                    const executionWithPath = {
+                        ...exec,
+                        path: `${path}/executions/${execId}`,
+                        parentLeafNodePath: path, // Đường dẫn Task Lá
+                        noiDung: node.noiDung || 'Không có tên',
+                        dvThucHien: node.dvThucHien || ''
+                    };
+                    allExecutions.push(executionWithPath);
+                }
+            }
+            if (node.children) for (const k in node.children) processNodeForExecutions(node.children[k], `${path}/children/${k}`);
+            if (node.grandchildren) for (const k in node.grandchildren) processNodeForExecutions(node.grandchildren[k], `${path}/grandchildren/${k}`);
+            if (node.greatGrandchildren) for (const k in node.greatGrandchildren) processNodeForExecutions(node.greatGrandchildren[k], `${path}/greatGrandchildren/${k}`);
+            if (node.greatGreatGrandchildren) for (const k in node.greatGreatGrandchildren) processNodeForExecutions(node.greatGreatGrandchildren[k], `${path}/greatGreatGrandchildren/${k}`);
+        };
+
+        for (const parentId in parentsData) {
+            processNodeForExecutions(parentsData[parentId], `${getParentCollectionName()}/${parentId}`);
+        }
+
+        // Sắp xếp theo ngày
+        allExecutions.sort((a, b) => {
+            const dateA = new Date(a.ngayThucHien || 0);
+            const dateB = new Date(b.ngayThucHien || 0);
+            if (dateB - dateA !== 0) return dateB - dateA;
+            return (b.timestamp || 0) - (a.timestamp || 0);
+        });
+
+        // === LOGIC GOM NHÓM MỚI (Theo Cha trực tiếp của Task Lá) ===
+        // Map<timestamp, Map<directParentPath, exec[]>>
+        allExecutions.forEach(exec => {
+            const timestampKey = String(exec.timestamp || exec.ngayThucHien);
+            
+            // Tìm đường dẫn Task Cha (Cắt bỏ 2 phần cuối: collection/id)
+            // Ví dụ Lá: .../grandchildren/1 -> Cha: .../children/I
+            // Ví dụ Lá: .../greatGrandchildren/1,1 -> Cha: .../grandchildren/1
+            const pathParts = exec.parentLeafNodePath.split('/');
+            const directParentPath = pathParts.slice(0, pathParts.length - 2).join('/');
+
+            if (!executionGroups.has(timestampKey)) {
+                executionGroups.set(timestampKey, {});
+            }
+            const timestampGroup = executionGroups.get(timestampKey);
+
+            if (!timestampGroup[directParentPath]) {
+                timestampGroup[directParentPath] = [];
+            }
+            timestampGroup[directParentPath].push(exec);
+        });
+
+        let tbody = '';
+        const sortedTimestamps = Array.from(executionGroups.keys()).sort((a, b) => {
+            const firstExecA = Object.values(executionGroups.get(a))[0][0];
+            const firstExecB = Object.values(executionGroups.get(b))[0][0];
+            const dateA = new Date(firstExecA?.ngayThucHien || 0);
+            const dateB = new Date(firstExecB?.ngayThucHien || 0);
+            if (dateB - dateA !== 0) return dateB - dateA;
+            return (firstExecB?.timestamp || 0) - (firstExecA?.timestamp || 0);
+        });
+
+        for (const timestampKey of sortedTimestamps) {
+            const timestampGroup = executionGroups.get(timestampKey); // Map<directParentPath, exec[]>
+            
+            // Tính tổng tiền cho cả ngày
+            const allExecsInTimestamp = Object.values(timestampGroup).flat();
+            if (allExecsInTimestamp.length === 0) continue;
+            
+            const firstExec = allExecsInTimestamp[0];
+            const totalThanhTien = allExecsInTimestamp.reduce((sum, exec) => sum + (exec.thanhTien || 0), 0);
+
+            // 1. Lấy Tên Cấp 1 (Khu vực)
+            let khuVuc = 'Không xác định';
+            const pathParts = firstExec.parentLeafNodePath.split('/');
+            if (pathParts.length > 1) {
+                const parentId = pathParts[1];
+                khuVuc = parentNoiDungMap.get(parentId) || parentId;
             }
 
-            const parentsData = parentSnapshot.val();
-            const allExecutions = [];
+            // Bắt đầu tạo HTML
+            let noiDungCellHtml = `<strong style="color: #0056b3;">${khuVuc}</strong><br>`;
 
-            // === THAY ĐỔI 1: Cập nhật processNodeForExecutions ===
-            // Thêm logic để lấy grandchildPath (Đường dẫn Cấp 3)
-            const processNodeForExecutions = (node, path) => {
-                if (node.executions) {
-                    // Bổ sung logic lấy đường dẫn Cấp 3
-                    const pathParts = path.split('/');
-                    let grandchildPath = '';
-                    if (pathParts.length >= 6) { // Phải là Cấp 3 (grandchildren) hoặc sâu hơn
-                        grandchildPath = pathParts.slice(0, 6).join('/'); // Lấy path đến .../grandchildren/ID
-                    }
-
-                    for (const execId in node.executions) {
-                        const exec = node.executions[execId];
-                        const executionWithPath = {
-                            ...exec,
-                            path: `${path}/executions/${execId}`,
-                            parentLeafNodePath: path,
-                            parentChildPath: path.split('/').slice(0, 4).join('/'),
-                            grandchildPath: grandchildPath, // <-- THÊM MỚI: Đường dẫn Cấp 3
-                            noiDung: node.noiDung || 'Không có tên',
-                            dvThucHien: node.dvThucHien || ''
-                        };
-                        allExecutions.push(executionWithPath);
-                    }
-                }
-                // Các hàm đệ quy giữ nguyên
-                 if (node.children) {
-                    for (const childId in node.children) {
-                        processNodeForExecutions(node.children[childId], `${path}/children/${childId}`);
-                    }
-                }
-                if (node.grandchildren) {
-                    for (const grandchildId in node.grandchildren) {
-                        processNodeForExecutions(node.grandchildren[grandchildId], `${path}/grandchildren/${grandchildId}`);
-                    }
-                }
-                if (node.greatGrandchildren) {
-                    for (const greatGrandchildId in node.greatGrandchildren) {
-                        processNodeForExecutions(node.greatGrandchildren[greatGrandchildId], `${path}/greatGrandchildren/${greatGrandchildId}`);
-                    }
-                }
-                if (node.greatGreatGrandchildren) {
-                    for (const greatGreatGrandchildId in node.greatGreatGrandchildren) {
-                        processNodeForExecutions(node.greatGreatGrandchildren[greatGreatGrandchildId], `${path}/greatGreatGrandchildren/${greatGreatGrandchildId}`);
-                    }
-                }
-            };
-            // === KẾT THÚC THAY ĐỔI 1 ===
-
-            for (const parentId in parentsData) {
-                processNodeForExecutions(parentsData[parentId], `${getParentCollectionName()}/${parentId}`);
-            }
-
-            allExecutions.sort((a, b) => {
-                const dateA = new Date(a.ngayThucHien || 0);
-                const dateB = new Date(b.ngayThucHien || 0);
-                 if (dateB - dateA !== 0) return dateB - dateA;
-                 return (b.timestamp || 0) - (a.timestamp || 0);
-             });
-
-            // === THAY ĐỔI 2: Cập nhật logic gom nhóm ===
-            // Cấu trúc mới: Map<timestamp, Map<grandchildPath, Map<leafPath, exec[]>>>
-            allExecutions.forEach(exec => {
-                const timestampKey = String(exec.timestamp || exec.ngayThucHien);
-                if (!executionGroups.has(timestampKey)) {
-                    executionGroups.set(timestampKey, {}); // Map các nhóm Cấp 3
-                }
-                const timestampGroup = executionGroups.get(timestampKey);
-                
-                const grandchildPath = exec.grandchildPath; // Lấy đường dẫn Cấp 3
-                if (!grandchildPath) return; // Bỏ qua nếu không có Cấp 3
-
-                if (!timestampGroup[grandchildPath]) {
-                    timestampGroup[grandchildPath] = {}; // Map các nhóm Cấp 4/5 (lá)
-                }
-                const grandchildGroup = timestampGroup[grandchildPath];
-
-                const parentLeafNodePath = exec.parentLeafNodePath;
-                if (!grandchildGroup[parentLeafNodePath]) {
-                    grandchildGroup[parentLeafNodePath] = [];
-                }
-                grandchildGroup[parentLeafNodePath].push(exec);
+            // Sắp xếp các nhóm Cha theo thứ tự TT (dùng numericSort)
+            const sortedParentPaths = Object.keys(timestampGroup).sort((a, b) => {
+                const idA = a.split('/').pop();
+                const idB = b.split('/').pop();
+                // Dùng logic sort cũ hoặc so sánh chuỗi đơn giản
+                return idA.localeCompare(idB, undefined, { numeric: true });
             });
-            // === KẾT THÚC THAY ĐỔI 2 ===
 
-
-            let tbody = '';
-             const sortedTimestamps = Array.from(executionGroups.keys()).sort((a, b) => {
-                 // Logic sắp xếp này vẫn đúng vì nó chỉ nhìn vào exec đầu tiên
-                 const firstExecA = Object.values(Object.values(executionGroups.get(a) || {})[0] || {})[0]?.[0];
-                 const firstExecB = Object.values(Object.values(executionGroups.get(b) || {})[0] || {})[0]?.[0];
-                 const dateA = new Date(firstExecA?.ngayThucHien || 0);
-                 const dateB = new Date(firstExecB?.ngayThucHien || 0);
-                 if (dateB - dateA !== 0) return dateB - dateA;
-                 return (firstExecB?.timestamp || 0) - (firstExecA?.timestamp || 0);
-             });
-
-            // === THAY ĐỔI 3: Cập nhật vòng lặp tạo HTML ===
-            for (const timestampKey of sortedTimestamps) {
-                 const timestampGroup = executionGroups.get(timestampKey); // Map<grandchildPath, Map<leafPath, exec[]>>
-
-                 // Lấy TẤT CẢ các exec trong nhóm timestamp này
-                 const allExecsInTimestamp = Object.values(timestampGroup).flatMap(grandchildGroup => 
-                    Object.values(grandchildGroup).flat()
-                 );
-                 if (allExecsInTimestamp.length === 0) continue;
-
-                const firstExec = allExecsInTimestamp[0];
-                const totalThanhTien = allExecsInTimestamp.reduce((sum, exec) => sum + (exec.thanhTien || 0), 0);
-
-                // Lấy Cấp 1 (Khu vực) - Logic giữ nguyên
-                let khuVuc = 'Không xác định';
-                const pathParts = firstExec.parentLeafNodePath.split('/');
-                if (pathParts.length > 1) {
-                    const parentId = pathParts[1];
-                    khuVuc = parentNoiDungMap.get(parentId) || parentId;
+            sortedParentPaths.forEach((parentPath, pIndex) => {
+                const executions = timestampGroup[parentPath];
+                
+                // 2. Lấy Tên Task Cha (Direct Parent)
+                let parentName = 'Không xác định';
+                let parentTT = '';
+                const parentData = docDataMap.get(parentPath);
+                
+                if (parentData) {
+                    parentName = parentData.noiDung || 'Không có tên';
+                    parentTT = parentData.tt ? convertTTForDisplay(parentData.tt) : '';
+                } else {
+                    // Fallback nếu docDataMap chưa có (hiếm khi xảy ra nếu đã fetchData)
+                    parentName = parentPath.split('/').pop(); 
                 }
 
-                // Bắt đầu xây dựng ô nội dung
-                let noiDungCellHtml = `<strong style="color: #0056b3;">${khuVuc}</strong><br>`;
+                // Hiển thị dòng Task Cha
+                noiDungCellHtml += `<strong style="color: #333; padding-left: 10px;">${parentTT ? parentTT + '. ' : ''}${parentName}</strong><br>`;
 
-                // --- Vòng lặp lồng BỔ SUNG cho Cấp 3 ---
-                // Sắp xếp các nhóm Cấp 3 (ví dụ: '1', '2', '10') theo đúng thứ tự số
-                const sortedGrandchildPaths = Object.keys(timestampGroup).sort((a, b) => {
-                    const idA = parseInt(a.split('/').pop(), 10) || 0;
-                    const idB = parseInt(b.split('/').pop(), 10) || 0;
-                    return idA - idB;
-                });
-                
-                for (const grandchildPath of sortedGrandchildPaths) {
-                    const grandchildGroup = timestampGroup[grandchildPath]; // Map<leafPath, exec[]>
-                    const allExecsInGrandchild = Object.values(grandchildGroup).flat();
-                    if (allExecsInGrandchild.length === 0) continue;
-
-                    // Lấy tên Cấp 3 (Đầu mục) từ docDataMap
-                    let dauMucC3 = 'Không xác định';
-                    const grandchildData = docDataMap.get(grandchildPath);
-                    if (grandchildData && grandchildData.noiDung) {
-                        dauMucC3 = grandchildData.noiDung;
-                    } else {
-                        dauMucC3 = grandchildPath.split('/').pop(); // Fallback
-                    }
-
-                    // Thêm tên Cấp 3 vào HTML
-                    noiDungCellHtml += `<strong style="color: #333; padding-left: 10px;">${dauMucC3}</strong><br>`;
-
-                    // Vòng lặp Cấp 4/5 (logic cũ)
-                    allExecsInGrandchild.forEach((exec, index) => {
-                        noiDungCellHtml += `<span style="padding-left: 20px;">- ${exec.noiDung || 'N/A'}</span>`;
-                        // Thêm <br> nếu không phải là mục cuối cùng CỦA NHÓM CẤP 3 NÀY
-                        if (index < allExecsInGrandchild.length - 1) {
-                            noiDungCellHtml += '<br>';
-                        }
-                    });
+                // 3. Hiển thị các Task Lá (Con của Task Cha trên)
+                executions.forEach((exec, index) => {
+                    const leafName = exec.noiDung || 'N/A';
+                    noiDungCellHtml += `<span style="padding-left: 20px;">- ${leafName}</span>`;
                     
-                    // Thêm <br> nếu không phải là nhóm Cấp 3 cuối cùng
-                    if (sortedGrandchildPaths.indexOf(grandchildPath) < sortedGrandchildPaths.length - 1) {
+                    // Xuống dòng nếu chưa phải lá cuối cùng của nhóm này
+                    if (index < executions.length - 1) {
                         noiDungCellHtml += '<br>';
                     }
+                });
+
+                // Xuống dòng ngăn cách giữa các nhóm Cha (nếu chưa phải nhóm cuối)
+                if (pIndex < sortedParentPaths.length - 1) {
+                    noiDungCellHtml += '<br>';
                 }
-                // --- KẾT THÚC Vòng lặp Cấp 3 ---
+            });
 
-                // Kiểm tra nút Hồ sơ (logic cũ, nhưng dùng allExecsInTimestamp)
-                const hasHoSoLink = allExecsInTimestamp.some(exec => exec.hoSoLink && exec.hoSoLink.trim() !== '');
-                const hoSoButtonClass = hasHoSoLink ? 'btn-danger' : 'btn-info';
-                const hoSoButtonText = hasHoSoLink ? 'Thay HS' : 'Hồ sơ';
+            // Kiểm tra link hồ sơ (dùng danh sách phẳng của ngày)
+            const hasHoSoLink = allExecsInTimestamp.some(exec => exec.hoSoLink && exec.hoSoLink.trim() !== '');
+            const hoSoButtonClass = hasHoSoLink ? 'btn-danger' : 'btn-info';
+            const hoSoButtonText = hasHoSoLink ? 'Thay HS' : 'Hồ sơ';
 
-                tbody += `<tr>
-                    <td>${firstExec.ngayThucHien}</td>
-                    <td>${noiDungCellHtml}</td>
-                    <td>${firstExec.dvThucHien}</td>
-                    <td class="text-right">${formatNumber(totalThanhTien)}</td>
-                    <td>
-                        <button class="${hoSoButtonClass} btn-action btn-profile-exec" onclick="uploadPdfForExecution('${timestampKey}')">${hoSoButtonText}</button>
-                        <button class="btn-warning btn-action btn-edit-exec" onclick="openExecutionEdit('${timestampKey}')">Sửa</button>
-                    </td>
-                </tr>`;
-            }
-            // === KẾT THÚC THAY ĐỔI 3 ===
-
-            document.querySelector('#dataModal .modal-table tbody').innerHTML = tbody;
-            statusDiv.innerText = '';
-        } catch (error) {
-            console.error("Lỗi khi tải dữ liệu thực hiện:", error);
-            statusDiv.className = 'error';
-            statusDiv.innerText = `Lỗi: ${error.message}`;
-             document.getElementById('modal-footer-left').innerHTML = '';
+            tbody += `<tr>
+                <td>${firstExec.ngayThucHien}</td>
+                <td>${noiDungCellHtml}</td>
+                <td>${firstExec.dvThucHien}</td>
+                <td class="text-right">${formatNumber(totalThanhTien)}</td>
+                <td>
+                    <button class="${hoSoButtonClass} btn-action btn-profile-exec" onclick="uploadPdfForExecution('${timestampKey}')">${hoSoButtonText}</button>
+                    <button class="btn-warning btn-action btn-edit-exec" onclick="openExecutionEdit('${timestampKey}')">Sửa</button>
+                </td>
+            </tr>`;
         }
-    };
+
+        document.querySelector('#dataModal .modal-table tbody').innerHTML = tbody;
+        statusDiv.innerText = '';
+    } catch (error) {
+        console.error("Lỗi khi tải dữ liệu thực hiện:", error);
+        statusDiv.className = 'error';
+        statusDiv.innerText = `Lỗi: ${error.message}`;
+         document.getElementById('modal-footer-left').innerHTML = '';
+    }
+};
 
     window.togglePlanningColumns = function(isChecked) {
         if (isChecked) {
@@ -2710,17 +2676,25 @@ window.openSearchModal = async function() {
     };
 
     /**
- * THAY THẾ HÀM importData() HIỆN TẠI BẰNG HÀM NÀY.
- *
- * Điều phối quy trình nhập Excel theo nguyên tắc "Hợp nhất thông minh" (Smart Merge):
+  * Điều phối quy trình nhập Excel theo nguyên tắc "Hợp nhất thông minh" (Smart Merge):
  * 1. Đọc file Excel, lấy cả dữ liệu (jsonData) và danh sách cột (headers).
  * 2. Xây dựng gói dữ liệu "chỉ cập nhật" (buildImportUpdates_Merge).
  * 3. Hợp nhất (update) gói dữ liệu này vào CSDL mà không xóa.
  * 4. Kích hoạt quy trình tính toán & dọn dẹp (recalculateAllCostsAndReload).
  * 5. Tải lại giao diện.
  */
+/**
+ * HÀM CẬP NHẬT: Thêm kiểm tra chế độ Edit Mode
+ */
 window.importData = function() {
+    // 1. Kiểm tra đăng nhập
     if (!isAuthenticated) return showAuthError();
+
+    // 2. [MỚI] Kiểm tra xem chế độ sửa đổi có đang bật không
+    if (editModeStatusByYear[currentYear] !== true) {
+        alert("Chức năng NHẬP DỮ LIỆU đang bị khóa.\n\nVui lòng liên hệ Admin cấp quyền trước khi thực hiện hành động này.");
+        return;
+    }
 
     const fileInput = document.getElementById('excelFile');
     if (!fileInput.files.length) {
@@ -2730,7 +2704,7 @@ window.importData = function() {
     }
 
     // Thông báo về hành động Hợp nhất
-    if (!confirm(`HÀNH ĐỘNG: HỢP NHẤT DỮ LIỆU.\n\nCác tác vụ trong file Excel sẽ được CẬP NHẬT vào CSDL.\nCác tác vụ không có trong file Excel sẽ được GIỮ NGUYÊN.\n\nCẢNH BÁO: Nếu file Excel có cột "Thực hiện" (ví dụ: 'Ngày TH (1)'), dữ liệu thực hiện CŨ của các tác vụ đó sẽ bị GHI ĐÈ.\n\nBạn có muốn tiếp tục không?`)) {
+    if (!confirm(`HÀNH ĐỘNG: HỢP NHẤT DỮ LIỆU.\n\nCác tác vụ trong file Excel sẽ được CẬP NHẬT vào CSDL.\nCác tác vụ không có trong file Excel sẽ được GIỮ NGUYÊN.\n\nCẢNH BÁO: Nếu file Excel có cột dữ liệu nào thì dữ liệu đó trong CSDL sẽ bị GHI ĐÈ.\n\nBạn có muốn tiếp tục không?`)) {
         fileInput.value = ''; // Reset file input nếu hủy
         return;
     }
@@ -2793,47 +2767,127 @@ window.importData = function() {
     reader.readAsArrayBuffer(fileInput.files[0]);
 };
 
-    window.openDeleteAllDataModal = function() {
-        if (!isAuthenticated) return showAuthError();
-        document.getElementById('deleteAllDataModal').style.display = 'block';
-        document.getElementById('deleteConfirmEmail').value = '';
-        document.getElementById('deleteConfirmPassword').value = '';
-    };
+    /**
+ * HÀM CẬP NHẬT: Thêm kiểm tra chế độ Edit Mode
+ */
+window.openDeleteAllDataModal = function() {
+    // 1. Kiểm tra đăng nhập
+    if (!isAuthenticated) return showAuthError();
 
-    window.confirmDeleteAllData = async function() {
-        if (!isAuthenticated) return showAuthError();
-        const email = document.getElementById('deleteConfirmEmail').value;
-        const password = document.getElementById('deleteConfirmPassword').value;
-        if (!email || !password) { alert('Vui lòng nhập đầy đủ email và mật khẩu.'); return; }
-        const deleteButton = document.querySelector('#deleteAllDataModal .btn-danger');
-        try {
-            deleteButton.disabled = true;
-            deleteButton.textContent = 'Đang xác nhận...';
-            const credential = EmailAuthProvider.credential(email, password);
-            await reauthenticateWithCredential(auth.currentUser, credential);
-            statusDiv.className = 'success'; statusDiv.innerText = "Đã xác thực thành công. Đang tiến hành xóa...";
-            
-            await set(ref(db, getParentCollectionName()), null);
-            
-            statusDiv.innerText = "Đã xoá thành công.";
-            closeAllModals();
-            await fetchData();
-        } catch (error) {
-            console.error("Lỗi khi xoá: ", error);
-            if (error.code === 'auth/invalid-credential') {
-                alert('Email hoặc mật khẩu không chính xác. Thao tác xóa đã bị hủy.');
-            } else {
-                statusDiv.className = 'error';
-                statusDiv.innerText = "Lỗi khi xoá: " + error.message;
+    // 2. [MỚI] Kiểm tra xem chế độ sửa đổi có đang bật không
+    if (editModeStatusByYear[currentYear] !== true) {
+        alert("Chức năng XÓA TOÀN BỘ đang bị khóa.\n\nVui lòng đề nghị Admin cấp quyền trước khi thực hiện hành động này.");
+        return;
+    }
+
+    document.getElementById('deleteAllDataModal').style.display = 'block';
+    document.getElementById('deleteConfirmEmail').value = '';
+    document.getElementById('deleteConfirmPassword').value = '';
+};
+
+    /**
+ * HÀM CẬP NHẬT: Xóa toàn bộ dữ liệu (Có hỏi sao lưu Excel trước)
+ */
+/**
+ * HÀM CẬP NHẬT (FIXED): Xóa toàn bộ dữ liệu (Backup đúng bản FULL XLSX)
+ */
+	window.confirmDeleteAllData = async function() {
+    // 1. Kiểm tra điều kiện cơ bản
+    if (!isAuthenticated) return showAuthError();
+    
+    // Kiểm tra Edit Mode
+    if (editModeStatusByYear[currentYear] !== true) {
+        alert("Chức năng XÓA TOÀN BỘ đang bị khóa.\n\nVui lòng tích chọn 'Cho phép sửa đổi, thêm, xóa dữ liệu' (cần quyền Admin) trước khi thực hiện hành động này.");
+        return;
+    }
+
+    const email = document.getElementById('deleteConfirmEmail').value;
+    const password = document.getElementById('deleteConfirmPassword').value;
+    
+    if (!email || !password) { 
+        alert('Vui lòng nhập đầy đủ email và mật khẩu.'); 
+        return; 
+    }
+
+    const deleteButton = document.querySelector('#deleteAllDataModal .btn-danger');
+    
+    try {
+        deleteButton.disabled = true;
+        deleteButton.textContent = 'Đang xác thực...';
+        
+        // 2. Xác thực lại với Firebase
+        const credential = EmailAuthProvider.credential(email, password);
+        await reauthenticateWithCredential(auth.currentUser, credential);
+        
+        statusDiv.className = 'success'; 
+        statusDiv.innerText = "Đã xác thực thành công.";
+
+        // 3. Hỏi người dùng có muốn sao lưu không
+        const wantBackup = confirm("XÁC THỰC THÀNH CÔNG.\n\nTrước khi xóa vĩnh viễn dữ liệu, bạn có muốn xuất file Excel (.xlsx bản Full) để sao lưu không?");
+
+        if (wantBackup) {
+            try {
+                statusDiv.innerText = "Đang tạo file sao lưu bản Full...";
+                
+                // === [FIX QUAN TRỌNG]: Ép buộc chế độ 'full' để lấy đủ cột (Đơn giá, Ghi chú...) ===
+                const originalExportType = activeExportType; // Lưu lại trạng thái cũ
+                activeExportType = 'full'; 
+                // ==================================================================================
+
+                // Gọi hàm tạo dữ liệu (true = có giải trình)
+                const { wb, ws } = await generateWorksheetWithFormulas(true);
+                
+                // Trả lại trạng thái cũ (cho gọn gàng, dù sắp xóa hết)
+                activeExportType = originalExportType;
+
+                // Đặt tên file backup
+                const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,"-");
+                const backupFileName = `FULL_BACKUP_AT-CL-MT_${currentYear}_${timestamp}.xlsx`;
+
+                XLSX.utils.book_append_sheet(wb, ws, 'Data');
+                XLSX.writeFile(wb, backupFileName);
+                
+                // Đợi trình duyệt tải xuống
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+            } catch (exportError) {
+                console.error("Lỗi khi xuất file backup:", exportError);
+                if (!confirm(`CẢNH BÁO: Lỗi khi tạo file sao lưu (${exportError.message}).\n\nBạn có muốn tiếp tục XÓA DỮ LIỆU mà không có bản sao lưu không?`)) {
+                    statusDiv.className = 'error';
+                    statusDiv.innerText = "Đã hủy thao tác xóa do lỗi sao lưu.";
+                    return; 
+                }
             }
-        } finally {
-            deleteButton.disabled = false;
-            deleteButton.textContent = 'Xác nhận xóa toàn bộ';
         }
-    };
+
+        // 4. Tiến hành Xóa dữ liệu
+        statusDiv.innerText = "Đang tiến hành xóa dữ liệu trên hệ thống...";
+        deleteButton.textContent = 'Đang xóa...';
+        
+        await set(ref(db, getParentCollectionName()), null);
+        
+        statusDiv.innerText = "Đã xoá toàn bộ dữ liệu thành công.";
+        closeAllModals();
+        await fetchData();
+
+    } catch (error) {
+        console.error("Lỗi khi xoá: ", error);
+        if (error.code === 'auth/invalid-credential') {
+            alert('Email hoặc mật khẩu không chính xác. Thao tác xóa đã bị hủy.');
+            statusDiv.className = 'error';
+            statusDiv.innerText = "Xác thực thất bại.";
+        } else {
+            statusDiv.className = 'error';
+            statusDiv.innerText = "Lỗi khi xoá: " + error.message;
+        }
+    } finally {
+        deleteButton.disabled = false;
+        deleteButton.textContent = 'Xác nhận xóa toàn bộ';
+    }
+};
 
    // HÀM MỚI: Xác thực bằng tài khoản Admin cố định
-  // HÀM MỚI (CẬP NHẬT): Tự động mở nếu đã là Admin, ngược lại yêu cầu mật khẩu
+
    window.promptForUnlock = async function() {
         const adminEmail = "admin@pvgaslpg.com.vn";
         const unlockBtn = document.getElementById('unlockButton');
