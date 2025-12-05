@@ -187,7 +187,8 @@
         .modal-table input { width: 95%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
         .modal-table input:disabled { background-color: #e9ecef; cursor: not-allowed;}
 
-        .col-noidung { width: 23%; }
+        .col-noidung { width: 20%; }
+		.col-tagname { width: 5%; text-align: center; }
         .col-dv-thuchien { width: 8%; }
         .col-tt, .col-donvi, .col-soluong, .col-tansuat-th, .col-capdo, .col-hoso { width: 3%; }
 		.col-soluong { width: 4%; }
@@ -256,6 +257,7 @@
 
         .planning-mode .col-hoso,
         .planning-mode .col-kehoach-conlai { display: none; }
+		.planning-mode .col-tagname { display: none; }
 		/* --- CSS MỚI CHO 2 CỘT PHÂN BỔ --- */
         /* Mặc định ẩn */
         .col-nam-phanbo, .col-chiphi-phanbo { display: none; }
@@ -608,6 +610,7 @@
                     <th style="width: 2%;"><input type="checkbox" onchange="toggleAllCheckboxes(this)"></th>
                     <th class="col-tt" style="width: 3%;">TT</th>
                     <th class="col-noidung">Đầu việc/ Dự án</th>
+					<th class="col-tagname">Tag Name</th>
                     <th class="col-dv-thuchien" style="width: 5%;">ĐV thực hiện</th>
                     
                     <th class="text-right col-kh-nam-truoc" style="width: 7%;">KH năm trước</th>
@@ -667,13 +670,27 @@
             </div>
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ccc;">
                 <h3>Quyền Admin</h3>
-                <button id="unlockButton" class="btn-warning" onclick="promptForUnlock()">Admin/Cấp phép chỉnh sửa</button>
-                <div id="editModeToggle" style="display: none; margin-top: 10px; text-align: left;">
-                    <input type="checkbox" id="editModeCheckbox" onchange="toggleEditMode(this.checked)" style="width: auto;">
-                    <label for="editModeCheckbox">Cho phép sửa đổi, thêm, xóa dữ liệu</label>
+                <button id="unlockButton" class="btn-warning" onclick="openAdminAuthModal()">Admin/Cấp phép chỉnh sửa</button>
+                
+                <div id="adminControls" style="display: none; margin-top: 15px; text-align: left;">
+                    
+                    <div style="margin-bottom: 10px;">
+                        <input type="checkbox" id="editModeCheckbox" onchange="toggleEditMode(this.checked)" style="width: auto;">
+                        <label for="editModeCheckbox" style="font-weight: bold; color: #007bff;">Cho phép sửa đổi, thêm, xóa dữ liệu</label>
+                    </div>
+
+                    <div style="margin-bottom: 10px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px;">
+                        <input type="checkbox" id="lockYearCheckbox" onchange="toggleYearLock(this.checked)" style="width: auto;">
+                        <label for="lockYearCheckbox" style="font-weight: bold; color: #dc3545;">KHÓA HOÀN TOÀN DỮ LIỆU NĂM <span id="lockYearLabel"></span></label>
+                        <br>
+                        <small style="margin-left: 20px; color: #856404;">(Khi khóa: Không thể thực hiện công việc, tự động tắt chế độ sửa đổi)</small>
+                    </div>
+
                 </div>
             </div>
-        </div>
+        
+		
+		</div>
     </div>
 
     <div id="deleteAllDataModal" class="modal">
@@ -790,7 +807,19 @@
         </div>
     </div>
 
-      
+      <div id="adminPasswordModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <span class="close-button" onclick="closeAllModals()">&times;</span>
+            <h3>Xác thực quyền Admin</h3>
+            <p>Vui lòng nhập mật khẩu quản trị:</p>
+            <input type="password" id="adminPasswordInput" placeholder="Mật khẩu..." style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
+            <div style="text-align: right;">
+                <button class="btn-secondary" onclick="closeAllModals()">Hủy</button>
+                <button class="btn-primary" onclick="submitAdminPassword()">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+	
 
 <button id="scrollToTopBtn" title="Lên đầu trang" onclick="scrollToTop()">&uarr;</button>
 
@@ -887,11 +916,73 @@ let parentNoiDungMap = new Map();
     let gapiReady = false;
 let gisInited = false;
     let editModeStatusByYear = {};
+	let lockedYears = {};
     let currentYear = new Date().getFullYear();
     let planningModeByYear = {};
     let isAuthenticated = false;
     let activeExportType = 'simplified';
     let activeCharts = [];
+
+let cachedEquipmentList = null; // Khởi tạo là null
+
+async function loadEquipmentList() {
+    // Cơ chế Cache: Nếu đã có dữ liệu trong RAM thì dùng luôn, không tải lại
+    if (cachedEquipmentList !== null) return;
+
+    try {
+        statusDiv.innerText = 'Đang tải danh sách thiết bị từ CSDL...'; 
+        
+        const refDb = ref(db, 'Quanlythietbi');
+        const snapshot = await get(refDb);
+        
+        cachedEquipmentList = []; // Khởi tạo mảng rỗng
+        
+        if (snapshot.exists()) {
+            const rootData = snapshot.val(); // Dữ liệu gốc Quanlythietbi
+            
+            // 1. Vòng lặp cấp 1: Duyệt qua các node La Mã (I, II, III...)
+            for (const romanKey in rootData) {
+                const romanNode = rootData[romanKey];
+                
+                // Kiểm tra an toàn: node La Mã phải là object chứa con
+                if (romanNode && typeof romanNode === 'object') {
+                    
+                    // 2. Vòng lặp cấp 2: Duyệt qua các node Số đếm (1, 2, 3...) bên trong node La Mã
+                    for (const numericKey in romanNode) {
+                        const itemNode = romanNode[numericKey];
+
+                        // Kiểm tra an toàn: node Số đếm phải là object chứa dữ liệu
+                        if (itemNode && typeof itemNode === 'object') {
+                            
+                            // 3. Lấy dữ liệu Tagname và TenThietBi
+                            // Kiểm tra các biến thể viết hoa/thường để đảm bảo không sót
+                            const validTag = itemNode.Tagname || itemNode.TagName || itemNode.tagname;
+                            const deviceName = itemNode.TenThietBi || itemNode.tenThietBi || '';
+
+                            // Chỉ đưa vào danh sách nếu tìm thấy Tagname thực sự (khác rỗng)
+                            if (validTag && String(validTag).trim() !== '') {
+                                 cachedEquipmentList.push({
+                                    tag: String(validTag).trim(), 
+                                    name: String(deviceName).trim()
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 4. Sắp xếp danh sách A-Z theo Tagname để dễ tìm kiếm
+            cachedEquipmentList.sort((a, b) => a.tag.localeCompare(b.tag));
+        }
+        
+        console.log(`Đã tải xong: ${cachedEquipmentList.length} thiết bị chuẩn từ cấu trúc phân cấp.`);
+        statusDiv.innerText = ''; 
+    } catch (error) {
+        console.error("Lỗi tải danh sách thiết bị:", error);
+        cachedEquipmentList = []; 
+        statusDiv.innerText = '';
+    }
+}
 
     // =======================================================
 // === CÁC HÀM HELPER CHO LOGIC NHẬP LIỆU MỚI (V4) =======
@@ -1107,7 +1198,8 @@ function buildImportUpdates_Merge(jsonData, headers) {
 
     const masterDataFieldMapping = {
          noiDung: ['đầu việc/dự án', 'đầu việc/ dự án', 'đầu việc', 'dự án', 'nội dung', 'nội dung công việc'],
-         donVi: ['đơn vị tính', 'đ.vị tính', 'đơn vị', 'đvt'],
+         //tagName: ['tagname', 'tag name', 'mã tag', 'ký hiệu', 'tag'],
+		 donVi: ['đơn vị tính', 'đ.vị tính', 'đơn vị', 'đvt'],
          soLuong: ['số lượng', 'số lượng vật tư'],
          donGia: ['đơn giá (gt)'],
          chiPhi: ['chi phí', 'chi phi', 'chi phí kế hoạch', 'chi phí kh'],
@@ -1165,7 +1257,15 @@ function buildImportUpdates_Merge(jsonData, headers) {
                     state.lastLeaf = currentPath; 
                     isTask = true;
                     isLeaf = true; 
-                    break;
+                    const tagKeys = ['tag name', 'tagname', 'mã tag', 'tag'];
+                    if (hasHeaderForField(tagKeys, headersSet)) {
+                        const tagVal = findValue(row, tagKeys, headers);
+                        if (tagVal !== undefined && tagVal !== null && String(tagVal).trim() !== '') {
+                            updates[`${currentPath}/tagName`] = String(tagVal).trim();
+                        }
+                    }
+
+					break;
 
                 case 'greatGrandchild': 
                     const parentOfL4 = storageTT.substring(0, storageTT.lastIndexOf(',')); 
@@ -1277,6 +1377,100 @@ function buildImportUpdates_Merge(jsonData, headers) {
     console.log(`=== END Smart Import (Asterisk). Total updates: ${Object.keys(updates).length} ===`);
     return updates;
 }
+
+// 1. Hàm mở Modal nhập mật khẩu (Thay thế prompt)
+    window.openAdminAuthModal = function() {
+        // Nếu đã là Admin thì hiện controls luôn
+        const currentUser = auth.currentUser;
+        if (currentUser && currentUser.email === "admin@pvgaslpg.com.vn") {
+            showAdminControls();
+            return;
+        }
+        
+        // Nếu chưa thì mở modal nhập pass
+        document.getElementById('adminPasswordInput').value = '';
+        document.getElementById('adminPasswordModal').style.display = 'block';
+        document.getElementById('adminPasswordInput').focus();
+    };
+
+    // 2. Hàm xử lý khi bấm xác nhận mật khẩu
+    window.submitAdminPassword = async function() {
+        const password = document.getElementById('adminPasswordInput').value;
+        const adminEmail = "admin@pvgaslpg.com.vn";
+        const confirmBtn = document.querySelector('#adminPasswordModal .btn-primary');
+
+        if (!password) return;
+
+        try {
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = "Đang kiểm tra...";
+            
+            await signInWithEmailAndPassword(auth, adminEmail, password);
+            
+            closeAllModals(); // Đóng modal mật khẩu
+            openDataManagementModal(); // Mở lại modal quản lý (để refresh giao diện)
+            statusDiv.className = 'success';
+            statusDiv.innerText = "Xác thực Admin thành công.";
+            
+        } catch (error) {
+            console.error(error);
+            alert("Mật khẩu không chính xác.");
+        } finally {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = "Xác nhận";
+        }
+    };
+    
+    // Hỗ trợ ấn Enter trong ô mật khẩu
+    document.getElementById('adminPasswordInput').addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            submitAdminPassword();
+        }
+    });
+
+    // 3. Hàm hiển thị giao diện Admin (Controls)
+    function showAdminControls() {
+        document.getElementById('unlockButton').style.display = 'none';
+        document.getElementById('adminControls').style.display = 'block';
+        
+        // Cập nhật trạng thái các checkbox
+        document.getElementById('editModeCheckbox').checked = (editModeStatusByYear[currentYear] === true);
+        document.getElementById('lockYearCheckbox').checked = (lockedYears[currentYear] === true);
+        document.getElementById('lockYearLabel').innerText = currentYear;
+        
+        // Logic ràng buộc: Nếu đang KHÓA thì disable nút Edit Mode
+        document.getElementById('editModeCheckbox').disabled = (lockedYears[currentYear] === true);
+    }
+
+    // 4. [MỚI] Hàm Toggle Khóa Năm
+    window.toggleYearLock = async function(isLocked) {
+        if (!isAuthenticated) return showAuthError();
+
+        try {
+            const updates = {};
+            // Cập nhật trạng thái khóa
+            updates[`settings/global/lockedYears/${currentYear}`] = isLocked;
+
+            // Nếu KHÓA -> Tự động TẮT Edit Mode
+            if (isLocked) {
+                updates[`settings/global/editModeStatus/${currentYear}`] = false;
+                document.getElementById('editModeCheckbox').checked = false;
+                document.getElementById('editModeCheckbox').disabled = true;
+            } else {
+                // Nếu MỞ KHÓA -> Cho phép checkbox Edit hoạt động lại
+                document.getElementById('editModeCheckbox').disabled = false;
+            }
+
+            await update(ref(db), updates);
+            
+        } catch (error) {
+            console.error("Lỗi khi khóa/mở khóa năm:", error);
+            alert("Lỗi hệ thống. Vui lòng thử lại.");
+            // Revert checkbox UI nếu lỗi
+            document.getElementById('lockYearCheckbox').checked = !isLocked;
+        }
+    };
 
     // === BẮT ĐẦU MÃ MỚI ===
 
@@ -1646,34 +1840,18 @@ const deleteBtnHtml = canEdit ?
         modal.style.display = 'block';
 
         const unlockBtn = document.getElementById('unlockButton');
-        const toggleDiv = document.getElementById('editModeToggle');
-        const checkbox = document.getElementById('editModeCheckbox');
+        const adminControls = document.getElementById('adminControls');
         const adminEmail = "admin@pvgaslpg.com.vn";
 
-        // Reset trạng thái nút để tránh bị mờ từ lần trước
-        unlockBtn.disabled = false;
-        unlockBtn.textContent = 'Admin/Cấp phép chỉnh sửa';
+        // Reset
+        unlockBtn.style.display = 'block';
+        adminControls.style.display = 'none';
 
-        // 1. Kiểm tra xem người dùng hiện tại có phải là Admin không
         const currentUser = auth.currentUser;
-        const isAdmin = currentUser && currentUser.email === adminEmail;
-
-        // 2. Lấy trạng thái thực tế từ Database (đang bật hay tắt)
-        const isCurrentlyEnabled = editModeStatusByYear[currentYear] === true;
-
-        if (isAdmin) {
-            // Nếu là Admin: Hiện công tắc, Ẩn nút khóa
-            unlockBtn.style.display = 'none';
-            toggleDiv.style.display = 'block';
-            
-            // QUAN TRỌNG: Checkbox hiển thị đúng theo dữ liệu DB, không ép buộc = true
-            checkbox.checked = isCurrentlyEnabled;
-        } else {
-            // Nếu không phải Admin: Hiện nút khóa
-            unlockBtn.style.display = 'block';
-            toggleDiv.style.display = 'none';
-            checkbox.checked = isCurrentlyEnabled; // Vẫn gán để đồng bộ ngầm
-        }
+        // Nếu đã đăng nhập đúng acc Admin thì hiện controls luôn
+        if (currentUser && currentUser.email === adminEmail) {
+            showAdminControls();
+        } 
     };
 
     window.promptForAuthentication = function() {
@@ -2394,232 +2572,198 @@ function getCleanupFieldsForParentNode(path) {
 };
 
 window.openSearchModal = async function() {
-        const modal = document.getElementById('dataModal');
-        const title = 'Tra cứu thực hiện công việc';
-        document.getElementById('modalTitle').innerHTML = `<h2>${title}</h2>`;
+    const modal = document.getElementById('dataModal');
+    const title = 'Tra cứu thực hiện công việc';
+    document.getElementById('modalTitle').innerHTML = `<h2>${title}</h2>`;
 
-        // Giữ nguyên headers
-        const headers = [
-            {text: 'Ngày thực hiện', width: '10%'},
-            {text: 'Nội dung công việc', width: '50%'},
-            {text: 'ĐV thực hiện', width: '10%'},
-            {text: 'Thành tiền', width: '15%'},
-            {text: 'Hành động', width: '15%'}
-        ];
-        let table = createModalTable(headers);
-        table += '</tbody></table>';
-        document.getElementById('modalBody').innerHTML = table;
-        document.getElementById('modalSaveButton').style.display = 'none';
-        document.getElementById('modalDeleteButton').style.display = 'none';
-        document.getElementById('modal-footer-left').innerHTML = '<button class="btn-success" onclick="exportExecutionSearchExcel()">Xuất Excel</button>';
-        modal.style.display = 'block';
+    const headers = [
+        {text: 'Ngày thực hiện', width: '10%'},
+        {text: 'Nội dung công việc', width: '50%'},
+        {text: 'ĐV thực hiện', width: '10%'},
+        {text: 'Thành tiền', width: '15%'},
+        {text: 'Hành động', width: '15%'}
+    ];
+    let table = createModalTable(headers);
+    table += '</tbody></table>';
+    document.getElementById('modalBody').innerHTML = table;
+    document.getElementById('modalSaveButton').style.display = 'none';
+    document.getElementById('modalDeleteButton').style.display = 'none';
+    document.getElementById('modal-footer-left').innerHTML = '<button class="btn-success" onclick="exportExecutionSearchExcel()">Xuất Excel</button>';
+    modal.style.display = 'block';
 
-        try {
-            statusDiv.className = 'success';
-            statusDiv.innerText = 'Đang tải dữ liệu thực hiện...';
-            executionGroups.clear(); // Xóa dữ liệu cũ
+    try {
+        statusDiv.className = 'success';
+        statusDiv.innerText = 'Đang tải dữ liệu thực hiện...';
+        executionGroups.clear(); // Xóa dữ liệu cũ
 
-            const parentQuery = ref(db, getParentCollectionName());
-            const parentSnapshot = await get(parentQuery);
-            if (!parentSnapshot.exists()) {
-                document.getElementById('modalBody').innerHTML = '<p>Không có dữ liệu thực hiện.</p>';
-                statusDiv.innerText = '';
-                document.getElementById('modal-footer-left').innerHTML = '';
-                return;
+        const parentQuery = ref(db, getParentCollectionName());
+        const parentSnapshot = await get(parentQuery);
+        if (!parentSnapshot.exists()) {
+            document.getElementById('modalBody').innerHTML = '<p>Không có dữ liệu thực hiện.</p>';
+            statusDiv.innerText = '';
+            document.getElementById('modal-footer-left').innerHTML = '';
+            return;
+        }
+
+        const parentsData = parentSnapshot.val();
+        const allExecutions = [];
+
+        // Hàm đệ quy lấy dữ liệu thực hiện phẳng
+        const processNodeForExecutions = (node, path) => {
+            if (node.executions) {
+                for (const execId in node.executions) {
+                    const exec = node.executions[execId];
+                    const executionWithPath = {
+                        ...exec,
+                        path: `${path}/executions/${execId}`,
+                        parentLeafNodePath: path, // Đường dẫn Task Lá
+                        noiDung: node.noiDung || 'Không có tên',
+                        dvThucHien: node.dvThucHien || ''
+                    };
+                    allExecutions.push(executionWithPath);
+                }
+            }
+            if (node.children) for (const k in node.children) processNodeForExecutions(node.children[k], `${path}/children/${k}`);
+            if (node.grandchildren) for (const k in node.grandchildren) processNodeForExecutions(node.grandchildren[k], `${path}/grandchildren/${k}`);
+            if (node.greatGrandchildren) for (const k in node.greatGrandchildren) processNodeForExecutions(node.greatGrandchildren[k], `${path}/greatGrandchildren/${k}`);
+            if (node.greatGreatGrandchildren) for (const k in node.greatGreatGrandchildren) processNodeForExecutions(node.greatGreatGrandchildren[k], `${path}/greatGreatGrandchildren/${k}`);
+        };
+
+        for (const parentId in parentsData) {
+            processNodeForExecutions(parentsData[parentId], `${getParentCollectionName()}/${parentId}`);
+        }
+
+        // Sắp xếp theo ngày
+        allExecutions.sort((a, b) => {
+            const dateA = new Date(a.ngayThucHien || 0);
+            const dateB = new Date(b.ngayThucHien || 0);
+            if (dateB - dateA !== 0) return dateB - dateA;
+            return (b.timestamp || 0) - (a.timestamp || 0);
+        });
+
+        // === LOGIC GOM NHÓM MỚI (Theo Cha trực tiếp của Task Lá) ===
+        // Map<timestamp, Map<directParentPath, exec[]>>
+        allExecutions.forEach(exec => {
+            const timestampKey = String(exec.timestamp || exec.ngayThucHien);
+            
+            // Tìm đường dẫn Task Cha (Cắt bỏ 2 phần cuối: collection/id)
+            // Ví dụ Lá: .../grandchildren/1 -> Cha: .../children/I
+            // Ví dụ Lá: .../greatGrandchildren/1,1 -> Cha: .../grandchildren/1
+            const pathParts = exec.parentLeafNodePath.split('/');
+            const directParentPath = pathParts.slice(0, pathParts.length - 2).join('/');
+
+            if (!executionGroups.has(timestampKey)) {
+                executionGroups.set(timestampKey, {});
+            }
+            const timestampGroup = executionGroups.get(timestampKey);
+
+            if (!timestampGroup[directParentPath]) {
+                timestampGroup[directParentPath] = [];
+            }
+            timestampGroup[directParentPath].push(exec);
+        });
+
+        let tbody = '';
+        const sortedTimestamps = Array.from(executionGroups.keys()).sort((a, b) => {
+            const firstExecA = Object.values(executionGroups.get(a))[0][0];
+            const firstExecB = Object.values(executionGroups.get(b))[0][0];
+            const dateA = new Date(firstExecA?.ngayThucHien || 0);
+            const dateB = new Date(firstExecB?.ngayThucHien || 0);
+            if (dateB - dateA !== 0) return dateB - dateA;
+            return (firstExecB?.timestamp || 0) - (firstExecA?.timestamp || 0);
+        });
+
+        for (const timestampKey of sortedTimestamps) {
+            const timestampGroup = executionGroups.get(timestampKey); // Map<directParentPath, exec[]>
+            
+            // Tính tổng tiền cho cả ngày
+            const allExecsInTimestamp = Object.values(timestampGroup).flat();
+            if (allExecsInTimestamp.length === 0) continue;
+            
+            const firstExec = allExecsInTimestamp[0];
+            const totalThanhTien = allExecsInTimestamp.reduce((sum, exec) => sum + (exec.thanhTien || 0), 0);
+
+            // 1. Lấy Tên Cấp 1 (Khu vực)
+            let khuVuc = 'Không xác định';
+            const pathParts = firstExec.parentLeafNodePath.split('/');
+            if (pathParts.length > 1) {
+                const parentId = pathParts[1];
+                khuVuc = parentNoiDungMap.get(parentId) || parentId;
             }
 
-            const parentsData = parentSnapshot.val();
-            const allExecutions = [];
+            // Bắt đầu tạo HTML
+            let noiDungCellHtml = `<strong style="color: #0056b3;">${khuVuc}</strong><br>`;
 
-            // === THAY ĐỔI 1: Cập nhật processNodeForExecutions ===
-            // Thêm logic để lấy grandchildPath (Đường dẫn Cấp 3)
-            const processNodeForExecutions = (node, path) => {
-                if (node.executions) {
-                    // Bổ sung logic lấy đường dẫn Cấp 3
-                    const pathParts = path.split('/');
-                    let grandchildPath = '';
-                    if (pathParts.length >= 6) { // Phải là Cấp 3 (grandchildren) hoặc sâu hơn
-                        grandchildPath = pathParts.slice(0, 6).join('/'); // Lấy path đến .../grandchildren/ID
-                    }
-
-                    for (const execId in node.executions) {
-                        const exec = node.executions[execId];
-                        const executionWithPath = {
-                            ...exec,
-                            path: `${path}/executions/${execId}`,
-                            parentLeafNodePath: path,
-                            parentChildPath: path.split('/').slice(0, 4).join('/'),
-                            grandchildPath: grandchildPath, // <-- THÊM MỚI: Đường dẫn Cấp 3
-                            noiDung: node.noiDung || 'Không có tên',
-                            dvThucHien: node.dvThucHien || ''
-                        };
-                        allExecutions.push(executionWithPath);
-                    }
-                }
-                // Các hàm đệ quy giữ nguyên
-                 if (node.children) {
-                    for (const childId in node.children) {
-                        processNodeForExecutions(node.children[childId], `${path}/children/${childId}`);
-                    }
-                }
-                if (node.grandchildren) {
-                    for (const grandchildId in node.grandchildren) {
-                        processNodeForExecutions(node.grandchildren[grandchildId], `${path}/grandchildren/${grandchildId}`);
-                    }
-                }
-                if (node.greatGrandchildren) {
-                    for (const greatGrandchildId in node.greatGrandchildren) {
-                        processNodeForExecutions(node.greatGrandchildren[greatGrandchildId], `${path}/greatGrandchildren/${greatGrandchildId}`);
-                    }
-                }
-                if (node.greatGreatGrandchildren) {
-                    for (const greatGreatGrandchildId in node.greatGreatGrandchildren) {
-                        processNodeForExecutions(node.greatGreatGrandchildren[greatGreatGrandchildId], `${path}/greatGreatGrandchildren/${greatGreatGrandchildId}`);
-                    }
-                }
-            };
-            // === KẾT THÚC THAY ĐỔI 1 ===
-
-            for (const parentId in parentsData) {
-                processNodeForExecutions(parentsData[parentId], `${getParentCollectionName()}/${parentId}`);
-            }
-
-            allExecutions.sort((a, b) => {
-                const dateA = new Date(a.ngayThucHien || 0);
-                const dateB = new Date(b.ngayThucHien || 0);
-                 if (dateB - dateA !== 0) return dateB - dateA;
-                 return (b.timestamp || 0) - (a.timestamp || 0);
-             });
-
-            // === THAY ĐỔI 2: Cập nhật logic gom nhóm ===
-            // Cấu trúc mới: Map<timestamp, Map<grandchildPath, Map<leafPath, exec[]>>>
-            allExecutions.forEach(exec => {
-                const timestampKey = String(exec.timestamp || exec.ngayThucHien);
-                if (!executionGroups.has(timestampKey)) {
-                    executionGroups.set(timestampKey, {}); // Map các nhóm Cấp 3
-                }
-                const timestampGroup = executionGroups.get(timestampKey);
-                
-                const grandchildPath = exec.grandchildPath; // Lấy đường dẫn Cấp 3
-                if (!grandchildPath) return; // Bỏ qua nếu không có Cấp 3
-
-                if (!timestampGroup[grandchildPath]) {
-                    timestampGroup[grandchildPath] = {}; // Map các nhóm Cấp 4/5 (lá)
-                }
-                const grandchildGroup = timestampGroup[grandchildPath];
-
-                const parentLeafNodePath = exec.parentLeafNodePath;
-                if (!grandchildGroup[parentLeafNodePath]) {
-                    grandchildGroup[parentLeafNodePath] = [];
-                }
-                grandchildGroup[parentLeafNodePath].push(exec);
+            // Sắp xếp các nhóm Cha theo thứ tự TT (dùng numericSort)
+            const sortedParentPaths = Object.keys(timestampGroup).sort((a, b) => {
+                const idA = a.split('/').pop();
+                const idB = b.split('/').pop();
+                // Dùng logic sort cũ hoặc so sánh chuỗi đơn giản
+                return idA.localeCompare(idB, undefined, { numeric: true });
             });
-            // === KẾT THÚC THAY ĐỔI 2 ===
 
-
-            let tbody = '';
-             const sortedTimestamps = Array.from(executionGroups.keys()).sort((a, b) => {
-                 // Logic sắp xếp này vẫn đúng vì nó chỉ nhìn vào exec đầu tiên
-                 const firstExecA = Object.values(Object.values(executionGroups.get(a) || {})[0] || {})[0]?.[0];
-                 const firstExecB = Object.values(Object.values(executionGroups.get(b) || {})[0] || {})[0]?.[0];
-                 const dateA = new Date(firstExecA?.ngayThucHien || 0);
-                 const dateB = new Date(firstExecB?.ngayThucHien || 0);
-                 if (dateB - dateA !== 0) return dateB - dateA;
-                 return (firstExecB?.timestamp || 0) - (firstExecA?.timestamp || 0);
-             });
-
-            // === THAY ĐỔI 3: Cập nhật vòng lặp tạo HTML ===
-            for (const timestampKey of sortedTimestamps) {
-                 const timestampGroup = executionGroups.get(timestampKey); // Map<grandchildPath, Map<leafPath, exec[]>>
-
-                 // Lấy TẤT CẢ các exec trong nhóm timestamp này
-                 const allExecsInTimestamp = Object.values(timestampGroup).flatMap(grandchildGroup => 
-                    Object.values(grandchildGroup).flat()
-                 );
-                 if (allExecsInTimestamp.length === 0) continue;
-
-                const firstExec = allExecsInTimestamp[0];
-                const totalThanhTien = allExecsInTimestamp.reduce((sum, exec) => sum + (exec.thanhTien || 0), 0);
-
-                // Lấy Cấp 1 (Khu vực) - Logic giữ nguyên
-                let khuVuc = 'Không xác định';
-                const pathParts = firstExec.parentLeafNodePath.split('/');
-                if (pathParts.length > 1) {
-                    const parentId = pathParts[1];
-                    khuVuc = parentNoiDungMap.get(parentId) || parentId;
+            sortedParentPaths.forEach((parentPath, pIndex) => {
+                const executions = timestampGroup[parentPath];
+                
+                // 2. Lấy Tên Task Cha (Direct Parent)
+                let parentName = 'Không xác định';
+                let parentTT = '';
+                const parentData = docDataMap.get(parentPath);
+                
+                if (parentData) {
+                    parentName = parentData.noiDung || 'Không có tên';
+                    parentTT = parentData.tt ? convertTTForDisplay(parentData.tt) : '';
+                } else {
+                    // Fallback nếu docDataMap chưa có (hiếm khi xảy ra nếu đã fetchData)
+                    parentName = parentPath.split('/').pop(); 
                 }
 
-                // Bắt đầu xây dựng ô nội dung
-                let noiDungCellHtml = `<strong style="color: #0056b3;">${khuVuc}</strong><br>`;
+                // Hiển thị dòng Task Cha
+                noiDungCellHtml += `<strong style="color: #333; padding-left: 10px;">${parentTT ? parentTT + '. ' : ''}${parentName}</strong><br>`;
 
-                // --- Vòng lặp lồng BỔ SUNG cho Cấp 3 ---
-                // Sắp xếp các nhóm Cấp 3 (ví dụ: '1', '2', '10') theo đúng thứ tự số
-                const sortedGrandchildPaths = Object.keys(timestampGroup).sort((a, b) => {
-                    const idA = parseInt(a.split('/').pop(), 10) || 0;
-                    const idB = parseInt(b.split('/').pop(), 10) || 0;
-                    return idA - idB;
-                });
-                
-                for (const grandchildPath of sortedGrandchildPaths) {
-                    const grandchildGroup = timestampGroup[grandchildPath]; // Map<leafPath, exec[]>
-                    const allExecsInGrandchild = Object.values(grandchildGroup).flat();
-                    if (allExecsInGrandchild.length === 0) continue;
-
-                    // Lấy tên Cấp 3 (Đầu mục) từ docDataMap
-                    let dauMucC3 = 'Không xác định';
-                    const grandchildData = docDataMap.get(grandchildPath);
-                    if (grandchildData && grandchildData.noiDung) {
-                        dauMucC3 = grandchildData.noiDung;
-                    } else {
-                        dauMucC3 = grandchildPath.split('/').pop(); // Fallback
-                    }
-
-                    // Thêm tên Cấp 3 vào HTML
-                    noiDungCellHtml += `<strong style="color: #333; padding-left: 10px;">${dauMucC3}</strong><br>`;
-
-                    // Vòng lặp Cấp 4/5 (logic cũ)
-                    allExecsInGrandchild.forEach((exec, index) => {
-                        noiDungCellHtml += `<span style="padding-left: 20px;">- ${exec.noiDung || 'N/A'}</span>`;
-                        // Thêm <br> nếu không phải là mục cuối cùng CỦA NHÓM CẤP 3 NÀY
-                        if (index < allExecsInGrandchild.length - 1) {
-                            noiDungCellHtml += '<br>';
-                        }
-                    });
+                // 3. Hiển thị các Task Lá (Con của Task Cha trên)
+                executions.forEach((exec, index) => {
+                    const leafName = exec.noiDung || 'N/A';
+                    noiDungCellHtml += `<span style="padding-left: 20px;">- ${leafName}</span>`;
                     
-                    // Thêm <br> nếu không phải là nhóm Cấp 3 cuối cùng
-                    if (sortedGrandchildPaths.indexOf(grandchildPath) < sortedGrandchildPaths.length - 1) {
+                    // Xuống dòng nếu chưa phải lá cuối cùng của nhóm này
+                    if (index < executions.length - 1) {
                         noiDungCellHtml += '<br>';
                     }
+                });
+
+                // Xuống dòng ngăn cách giữa các nhóm Cha (nếu chưa phải nhóm cuối)
+                if (pIndex < sortedParentPaths.length - 1) {
+                    noiDungCellHtml += '<br>';
                 }
-                // --- KẾT THÚC Vòng lặp Cấp 3 ---
+            });
 
-                // Kiểm tra nút Hồ sơ (logic cũ, nhưng dùng allExecsInTimestamp)
-                const hasHoSoLink = allExecsInTimestamp.some(exec => exec.hoSoLink && exec.hoSoLink.trim() !== '');
-                const hoSoButtonClass = hasHoSoLink ? 'btn-danger' : 'btn-info';
-                const hoSoButtonText = hasHoSoLink ? 'Thay HS' : 'Hồ sơ';
+            // Kiểm tra link hồ sơ (dùng danh sách phẳng của ngày)
+            const hasHoSoLink = allExecsInTimestamp.some(exec => exec.hoSoLink && exec.hoSoLink.trim() !== '');
+            const hoSoButtonClass = hasHoSoLink ? 'btn-danger' : 'btn-info';
+            const hoSoButtonText = hasHoSoLink ? 'Thay HS' : 'Hồ sơ';
 
-                tbody += `<tr>
-                    <td>${firstExec.ngayThucHien}</td>
-                    <td>${noiDungCellHtml}</td>
-                    <td>${firstExec.dvThucHien}</td>
-                    <td class="text-right">${formatNumber(totalThanhTien)}</td>
-                    <td>
-                        <button class="${hoSoButtonClass} btn-action btn-profile-exec" onclick="uploadPdfForExecution('${timestampKey}')">${hoSoButtonText}</button>
-                        <button class="btn-warning btn-action btn-edit-exec" onclick="openExecutionEdit('${timestampKey}')">Sửa</button>
-                    </td>
-                </tr>`;
-            }
-            // === KẾT THÚC THAY ĐỔI 3 ===
-
-            document.querySelector('#dataModal .modal-table tbody').innerHTML = tbody;
-            statusDiv.innerText = '';
-        } catch (error) {
-            console.error("Lỗi khi tải dữ liệu thực hiện:", error);
-            statusDiv.className = 'error';
-            statusDiv.innerText = `Lỗi: ${error.message}`;
-             document.getElementById('modal-footer-left').innerHTML = '';
+            tbody += `<tr>
+                <td>${firstExec.ngayThucHien}</td>
+                <td>${noiDungCellHtml}</td>
+                <td>${firstExec.dvThucHien}</td>
+                <td class="text-right">${formatNumber(totalThanhTien)}</td>
+                <td>
+                    <button class="${hoSoButtonClass} btn-action btn-profile-exec" onclick="uploadPdfForExecution('${timestampKey}')">${hoSoButtonText}</button>
+                    <button class="btn-warning btn-action btn-edit-exec" onclick="openExecutionEdit('${timestampKey}')">Sửa</button>
+                </td>
+            </tr>`;
         }
-    };
+
+        document.querySelector('#dataModal .modal-table tbody').innerHTML = tbody;
+        statusDiv.innerText = '';
+    } catch (error) {
+        console.error("Lỗi khi tải dữ liệu thực hiện:", error);
+        statusDiv.className = 'error';
+        statusDiv.innerText = `Lỗi: ${error.message}`;
+         document.getElementById('modal-footer-left').innerHTML = '';
+    }
+};
 
     window.togglePlanningColumns = function(isChecked) {
         if (isChecked) {
@@ -2710,17 +2854,25 @@ window.openSearchModal = async function() {
     };
 
     /**
- * THAY THẾ HÀM importData() HIỆN TẠI BẰNG HÀM NÀY.
- *
- * Điều phối quy trình nhập Excel theo nguyên tắc "Hợp nhất thông minh" (Smart Merge):
+  * Điều phối quy trình nhập Excel theo nguyên tắc "Hợp nhất thông minh" (Smart Merge):
  * 1. Đọc file Excel, lấy cả dữ liệu (jsonData) và danh sách cột (headers).
  * 2. Xây dựng gói dữ liệu "chỉ cập nhật" (buildImportUpdates_Merge).
  * 3. Hợp nhất (update) gói dữ liệu này vào CSDL mà không xóa.
  * 4. Kích hoạt quy trình tính toán & dọn dẹp (recalculateAllCostsAndReload).
  * 5. Tải lại giao diện.
  */
+/**
+ * HÀM CẬP NHẬT: Thêm kiểm tra chế độ Edit Mode
+ */
 window.importData = function() {
+    // 1. Kiểm tra đăng nhập
     if (!isAuthenticated) return showAuthError();
+
+    // 2. [MỚI] Kiểm tra xem chế độ sửa đổi có đang bật không
+    if (editModeStatusByYear[currentYear] !== true) {
+        alert("Chức năng NHẬP DỮ LIỆU đang bị khóa.\n\nVui lòng liên hệ Admin cấp quyền trước khi thực hiện hành động này.");
+        return;
+    }
 
     const fileInput = document.getElementById('excelFile');
     if (!fileInput.files.length) {
@@ -2730,7 +2882,7 @@ window.importData = function() {
     }
 
     // Thông báo về hành động Hợp nhất
-    if (!confirm(`HÀNH ĐỘNG: HỢP NHẤT DỮ LIỆU.\n\nCác tác vụ trong file Excel sẽ được CẬP NHẬT vào CSDL.\nCác tác vụ không có trong file Excel sẽ được GIỮ NGUYÊN.\n\nCẢNH BÁO: Nếu file Excel có cột "Thực hiện" (ví dụ: 'Ngày TH (1)'), dữ liệu thực hiện CŨ của các tác vụ đó sẽ bị GHI ĐÈ.\n\nBạn có muốn tiếp tục không?`)) {
+    if (!confirm(`HÀNH ĐỘNG: HỢP NHẤT DỮ LIỆU.\n\nCác tác vụ trong file Excel sẽ được CẬP NHẬT vào CSDL.\nCác tác vụ không có trong file Excel sẽ được GIỮ NGUYÊN.\n\nCẢNH BÁO: Nếu file Excel có cột dữ liệu nào thì dữ liệu đó trong CSDL sẽ bị GHI ĐÈ.\n\nBạn có muốn tiếp tục không?`)) {
         fileInput.value = ''; // Reset file input nếu hủy
         return;
     }
@@ -2793,47 +2945,127 @@ window.importData = function() {
     reader.readAsArrayBuffer(fileInput.files[0]);
 };
 
-    window.openDeleteAllDataModal = function() {
-        if (!isAuthenticated) return showAuthError();
-        document.getElementById('deleteAllDataModal').style.display = 'block';
-        document.getElementById('deleteConfirmEmail').value = '';
-        document.getElementById('deleteConfirmPassword').value = '';
-    };
+    /**
+ * HÀM CẬP NHẬT: Thêm kiểm tra chế độ Edit Mode
+ */
+window.openDeleteAllDataModal = function() {
+    // 1. Kiểm tra đăng nhập
+    if (!isAuthenticated) return showAuthError();
 
-    window.confirmDeleteAllData = async function() {
-        if (!isAuthenticated) return showAuthError();
-        const email = document.getElementById('deleteConfirmEmail').value;
-        const password = document.getElementById('deleteConfirmPassword').value;
-        if (!email || !password) { alert('Vui lòng nhập đầy đủ email và mật khẩu.'); return; }
-        const deleteButton = document.querySelector('#deleteAllDataModal .btn-danger');
-        try {
-            deleteButton.disabled = true;
-            deleteButton.textContent = 'Đang xác nhận...';
-            const credential = EmailAuthProvider.credential(email, password);
-            await reauthenticateWithCredential(auth.currentUser, credential);
-            statusDiv.className = 'success'; statusDiv.innerText = "Đã xác thực thành công. Đang tiến hành xóa...";
-            
-            await set(ref(db, getParentCollectionName()), null);
-            
-            statusDiv.innerText = "Đã xoá thành công.";
-            closeAllModals();
-            await fetchData();
-        } catch (error) {
-            console.error("Lỗi khi xoá: ", error);
-            if (error.code === 'auth/invalid-credential') {
-                alert('Email hoặc mật khẩu không chính xác. Thao tác xóa đã bị hủy.');
-            } else {
-                statusDiv.className = 'error';
-                statusDiv.innerText = "Lỗi khi xoá: " + error.message;
+    // 2. [MỚI] Kiểm tra xem chế độ sửa đổi có đang bật không
+    if (editModeStatusByYear[currentYear] !== true) {
+        alert("Chức năng XÓA TOÀN BỘ đang bị khóa.\n\nVui lòng đề nghị Admin cấp quyền trước khi thực hiện hành động này.");
+        return;
+    }
+
+    document.getElementById('deleteAllDataModal').style.display = 'block';
+    document.getElementById('deleteConfirmEmail').value = '';
+    document.getElementById('deleteConfirmPassword').value = '';
+};
+
+    /**
+ * HÀM CẬP NHẬT: Xóa toàn bộ dữ liệu (Có hỏi sao lưu Excel trước)
+ */
+/**
+ * HÀM CẬP NHẬT (FIXED): Xóa toàn bộ dữ liệu (Backup đúng bản FULL XLSX)
+ */
+	window.confirmDeleteAllData = async function() {
+    // 1. Kiểm tra điều kiện cơ bản
+    if (!isAuthenticated) return showAuthError();
+    
+    // Kiểm tra Edit Mode
+    if (editModeStatusByYear[currentYear] !== true) {
+        alert("Chức năng XÓA TOÀN BỘ đang bị khóa.\n\nVui lòng tích chọn 'Cho phép sửa đổi, thêm, xóa dữ liệu' (cần quyền Admin) trước khi thực hiện hành động này.");
+        return;
+    }
+
+    const email = document.getElementById('deleteConfirmEmail').value;
+    const password = document.getElementById('deleteConfirmPassword').value;
+    
+    if (!email || !password) { 
+        alert('Vui lòng nhập đầy đủ email và mật khẩu.'); 
+        return; 
+    }
+
+    const deleteButton = document.querySelector('#deleteAllDataModal .btn-danger');
+    
+    try {
+        deleteButton.disabled = true;
+        deleteButton.textContent = 'Đang xác thực...';
+        
+        // 2. Xác thực lại với Firebase
+        const credential = EmailAuthProvider.credential(email, password);
+        await reauthenticateWithCredential(auth.currentUser, credential);
+        
+        statusDiv.className = 'success'; 
+        statusDiv.innerText = "Đã xác thực thành công.";
+
+        // 3. Hỏi người dùng có muốn sao lưu không
+        const wantBackup = confirm("XÁC THỰC THÀNH CÔNG.\n\nTrước khi xóa vĩnh viễn dữ liệu, bạn có muốn xuất file Excel (.xlsx bản Full) để sao lưu không?");
+
+        if (wantBackup) {
+            try {
+                statusDiv.innerText = "Đang tạo file sao lưu bản Full...";
+                
+                // === [FIX QUAN TRỌNG]: Ép buộc chế độ 'full' để lấy đủ cột (Đơn giá, Ghi chú...) ===
+                const originalExportType = activeExportType; // Lưu lại trạng thái cũ
+                activeExportType = 'full'; 
+                // ==================================================================================
+
+                // Gọi hàm tạo dữ liệu (true = có giải trình)
+                const { wb, ws } = await generateWorksheetWithFormulas(true);
+                
+                // Trả lại trạng thái cũ (cho gọn gàng, dù sắp xóa hết)
+                activeExportType = originalExportType;
+
+                // Đặt tên file backup
+                const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,"-");
+                const backupFileName = `FULL_BACKUP_AT-CL-MT_${currentYear}_${timestamp}.xlsx`;
+
+                XLSX.utils.book_append_sheet(wb, ws, 'Data');
+                XLSX.writeFile(wb, backupFileName);
+                
+                // Đợi trình duyệt tải xuống
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+            } catch (exportError) {
+                console.error("Lỗi khi xuất file backup:", exportError);
+                if (!confirm(`CẢNH BÁO: Lỗi khi tạo file sao lưu (${exportError.message}).\n\nBạn có muốn tiếp tục XÓA DỮ LIỆU mà không có bản sao lưu không?`)) {
+                    statusDiv.className = 'error';
+                    statusDiv.innerText = "Đã hủy thao tác xóa do lỗi sao lưu.";
+                    return; 
+                }
             }
-        } finally {
-            deleteButton.disabled = false;
-            deleteButton.textContent = 'Xác nhận xóa toàn bộ';
         }
-    };
+
+        // 4. Tiến hành Xóa dữ liệu
+        statusDiv.innerText = "Đang tiến hành xóa dữ liệu trên hệ thống...";
+        deleteButton.textContent = 'Đang xóa...';
+        
+        await set(ref(db, getParentCollectionName()), null);
+        
+        statusDiv.innerText = "Đã xoá toàn bộ dữ liệu thành công.";
+        closeAllModals();
+        await fetchData();
+
+    } catch (error) {
+        console.error("Lỗi khi xoá: ", error);
+        if (error.code === 'auth/invalid-credential') {
+            alert('Email hoặc mật khẩu không chính xác. Thao tác xóa đã bị hủy.');
+            statusDiv.className = 'error';
+            statusDiv.innerText = "Xác thực thất bại.";
+        } else {
+            statusDiv.className = 'error';
+            statusDiv.innerText = "Lỗi khi xoá: " + error.message;
+        }
+    } finally {
+        deleteButton.disabled = false;
+        deleteButton.textContent = 'Xác nhận xóa toàn bộ';
+    }
+};
 
    // HÀM MỚI: Xác thực bằng tài khoản Admin cố định
-  // HÀM MỚI (CẬP NHẬT): Tự động mở nếu đã là Admin, ngược lại yêu cầu mật khẩu
+
    window.promptForUnlock = async function() {
         const adminEmail = "admin@pvgaslpg.com.vn";
         const unlockBtn = document.getElementById('unlockButton');
@@ -2922,7 +3154,7 @@ window.saveTasks = async function() {
                 const isLeafNode = row.dataset.isLeaf === 'true'; 
                 const isJustification = path.includes('/justifications/') || path.includes('/subJustifications/');
 
-                row.querySelectorAll('input[data-field]').forEach(input => {
+                row.querySelectorAll('input[data-field], select[data-field]').forEach(input => {
                     const field = input.dataset.field;
                     const fieldPath = `${path}/${field}`; 
 
@@ -3077,7 +3309,7 @@ window.saveTasks = async function() {
                 
                 const newTT = convertTTForStorage(ttInput.value);
 
-                row.querySelectorAll('input[data-field]').forEach(input => {
+                row.querySelectorAll('input[data-field], select[data-field]').forEach(input => {
                     const field = input.dataset.field;
                     if (field === 'tt') return; 
 
@@ -3576,8 +3808,7 @@ window.saveExecutionEdits = async function() {
         }
     };
 
-    // === THAY THẾ HÀM NÀY ===
-  window.performPdfUpload = async function(timestampKey) {
+ window.performPdfUpload = async function(timestampKey) {
         if (!isAuthenticated) return showAuthError(); 
         
         const googleToken = gapi.client.getToken();
@@ -3623,21 +3854,21 @@ window.saveExecutionEdits = async function() {
             
             statusDiv.innerText = 'Đang cập nhật link hồ sơ vào cơ sở dữ liệu...';
 
-            // --- BẮT ĐẦU SỬA ĐỔI: Cập nhật cho cấu trúc 3 cấp ---
-            const timestampGroup = executionGroups.get(timestampKey); // Map<grandchildPath, Map<leafPath, exec[]>>
+            // --- BẮT ĐẦU SỬA ĐỔI: Cập nhật logic duyệt theo cấu trúc MỚI (2 cấp) ---
+            // Cấu trúc mới: Map<timestamp, Object<directParentPath, Array<exec>>>
+            const timestampGroup = executionGroups.get(timestampKey); 
             const updates = {};
             let updatedCount = 0;
 
             if (timestampGroup) {
-                // Duyệt qua từng nhóm Cấp 3 (grandchildPath)
-                for (const grandchildPath in timestampGroup) {
-                    const grandchildGroup = timestampGroup[grandchildPath]; // Map<leafPath, exec[]>
-                    // Duyệt qua từng nhóm Cấp lá (leafPath)
-                    for (const leafPath in grandchildGroup) {
-                        const executions = grandchildGroup[leafPath]; // exec[]
-                        // Duyệt qua từng lần thực hiện (exec)
+                // Duyệt qua các nhóm cha trực tiếp (DirectParentPath)
+                for (const parentPath in timestampGroup) {
+                    // Lấy trực tiếp mảng executions (không cần duyệt qua leafPath nữa)
+                    const executions = timestampGroup[parentPath]; 
+                    
+                    if (Array.isArray(executions)) {
                         executions.forEach(exec => {
-                            // timestampKey vẫn là key của nhóm, nên logic này đúng
+                            // Kiểm tra timestamp để chắc chắn (dù đã filter theo key rồi)
                             if (String(exec.timestamp || exec.ngayThucHien) === String(timestampKey)) { 
                                 updates[`${exec.path}/hoSoLink`] = fileLink; 
                                 updatedCount++;
@@ -3680,6 +3911,7 @@ window.saveExecutionEdits = async function() {
 
    window.handleEditClick = async function(docPath, level) {
         if (!isAuthenticated) return showAuthError();
+		await loadEquipmentList();
         const allSelected = [...selectedTasks, ...selectedJustifications];
         const isMultiSelect = allSelected.some(p => p === docPath) && allSelected.length > 1;
 
@@ -3701,8 +3933,9 @@ window.saveExecutionEdits = async function() {
                 {text: 'Ghi chú', width: '20%'} // <-- Cột mới
             ]
             : [ 
-                {text: 'TT', width: '4%'}, 
+                {text: 'TT', width: '2%'}, 
                 {text: 'Nội dung', width: '20%'}, 
+				{text: 'Tagname', width: '5%'},
                 {text: 'ĐV th.hiện', width: '5%'}, 
                 {text: 'KH năm trước', width: '6%'}, 
                 {text: 'Thực hiện năm trước', width: '6%'}, 
@@ -3711,10 +3944,10 @@ window.saveExecutionEdits = async function() {
                 {text: 'Tần suất', width: '3%'}, 
                 {text: 'Chi phí', width: '7%'}, 
                 {text: 'Năm PB', width: '3%'},     
-                {text: 'CP phân bổ', width: '3%'}, 
+                {text: 'CP p.bổ', width: '3%'}, 
                 {text: 'Cấp độ', width: '3%'}, 
                 {text: 'TG bắt đầu', width: '5%'}, 
-                {text: 'TG hoàn thành', width: '5%'}, 
+                {text: 'TG hoàn thành', width: '3%'}, 
                 {text: 'Ghi chú', width: '15%'} 
             ];
 
@@ -3797,7 +4030,7 @@ window.saveExecutionEdits = async function() {
   
   window.openAddModal = async function(parentPath, level) {
         if (!isAuthenticated) return showAuthError();
-
+    await loadEquipmentList();
         let title;
         if (level === 'justification') title = 'Thêm giải trình';
         else if (level === 'subJustification') title = 'Thêm giải trình con';
@@ -3823,8 +4056,9 @@ window.saveExecutionEdits = async function() {
                 {text: 'Ghi chú', width: '20%'} // <-- Cột mới
             ]
             : [ 
-                {text: 'TT', width: '4%'}, 
+                {text: 'TT', width: '2%'}, 
                 {text: 'Nội dung', width: '20%'}, 
+				{text: 'Tagname', width: '5%'},
                 {text: 'ĐV th.hiện', width: '5%'}, 
                 {text: 'KH năm trước', width: '6%'}, 
                 {text: 'Thực hiện năm trước', width: '6%'}, 
@@ -3833,10 +4067,10 @@ window.saveExecutionEdits = async function() {
                 {text: 'Tần suất', width: '3%'}, 
                 {text: 'Chi phí', width: '7%'}, 
                 {text: 'Năm PB', width: '3%'},     
-                {text: 'CP phân bổ', width: '3%'}, 
+                {text: 'CP p.bổ', width: '3%'}, 
                 {text: 'Cấp độ', width: '3%'}, 
                 {text: 'TG bắt đầu', width: '5%'}, 
-                {text: 'TG hoàn thành', width: '5%'}, 
+                {text: 'TG hoàn thành', width: '3%'}, 
                 {text: 'Ghi chú', width: '15%'} 
             ];
 
@@ -4140,6 +4374,7 @@ function processJustificationForExcel(justificationNode, parentTT, level, ctx) {
     // Ghi dữ liệu giải trình
     ctx.ws[ctx.COLS.TT + r] = { t: 's', v: convertTTForDisplay(justificationNode.tt) };
     ctx.ws[ctx.COLS.NOI_DUNG + r] = { t: 's', v: justificationNode.noiDung || '' };
+	ctx.ws[ctx.COLS.TAG_NAME + r] = { t: 's', v: '', s: justStyle };
     
     const justStyle = { 
         font: { color: { rgb: "FF0000" }, italic: true },
@@ -4251,6 +4486,7 @@ function processNodeForExcel(node, path, level, ctx) {
     // --- GHI DỮ LIỆU CƠ BẢN ---
     ctx.ws[ctx.COLS.TT + r] = { t: 's', v: convertTTForDisplay(node.tt), z: '@' };
     ctx.ws[ctx.COLS.NOI_DUNG + r] = { t: 's', v: node.noiDung || '' };
+	ctx.ws[ctx.COLS.TAG_NAME + r] = { t: 's', v: node.tagName || '' };
     ctx.ws[ctx.COLS.DV_THUCHIEN + r] = { t: 's', v: node.dvThucHien || '' };
     ctx.ws[ctx.COLS.DON_VI + r] = { t: 's', v: node.donVi || '' };
     ctx.ws[ctx.COLS.TAN_SUAT + r] = { t: 'n', v: node.tanSuatTH === undefined || node.tanSuatTH === null ? '' : node.tanSuatTH };
@@ -4262,7 +4498,17 @@ function processNodeForExcel(node, path, level, ctx) {
     ctx.ws[ctx.COLS.CP_CAP_1 + r] = { t: 'n', v: node.cpCap1 || 0, s: { numFmt: ctx.moneyFormat } }; 
     // ------------------------------------------------------------------------------
 
-    ctx.ws[ctx.COLS.TG_BATDAU + r] = { t: 's', v: node.tgBatDau || '' };
+    let tgBatDauValue = node.tgBatDau || '';
+let tgBatDauType = 's'; // Mặc định là string
+
+if (level === 0 && ctx.summaryData && ctx.summaryData[node.id]) {
+    // Nếu là cấp 1, lấy từ summary và ép kiểu số
+    tgBatDauValue = ctx.summaryData[node.id].totalExecutedLeafNodesCap1 || 0;
+    tgBatDauType = 'n';
+}
+
+ctx.ws[ctx.COLS.TG_BATDAU + r] = { t: tgBatDauType, v: tgBatDauValue };
+
     ctx.ws[ctx.COLS.TG_HOANTHANH + r] = { t: 's', v: node.tgHoanThanh || '' };
     ctx.ws[ctx.COLS.GHI_CHU + r] = { t: 's', v: node.ghiChu || '' };
 
@@ -4385,7 +4631,7 @@ async function generateWorksheetWithFormulas(includeJustifications) {
 
     // --- THÊM CỘT 'CP Cấp 1' ---
     const baseHeaders = [
-        'TT', 'Đầu việc/Dự án', 'ĐV th.hiện', 'KH năm trước', 'Thực hiện năm trước', 
+        'TT', 'Đầu việc/Dự án', 'Tag Name', 'ĐV th.hiện', 'KH năm trước', 'Thực hiện năm trước', 
         'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Đơn giá (GT)', 'Chi phí KH', 
         'Chi phí thực hiện', 'Kế hoạch còn lại', 
         'Năm phân bổ', 'CP phân bổ', 
@@ -4414,7 +4660,9 @@ async function generateWorksheetWithFormulas(includeJustifications) {
     
     // --- THÊM MAPPING CHO CỘT MỚI ---
     const colNameMap = {
-        'TT': 'TT', 'Đầu việc/Dự án': 'NOI_DUNG', 'ĐV th.hiện': 'DV_THUCHIEN',
+        'TT': 'TT', 'Đầu việc/Dự án': 'NOI_DUNG',
+		'Tag Name': 'TAG_NAME',
+		'ĐV th.hiện': 'DV_THUCHIEN',
         'KH năm trước': 'KH_NAM_TRUOC', 'Thực hiện năm trước': 'TH_NAM_TRUOC',
         'Tần suất TH': 'TAN_SUAT', 'Đ.vị tính': 'DON_VI', 'Số lượng': 'SO_LUONG',
         'Đơn giá (GT)': 'DON_GIA', 'Chi phí KH': 'CHI_PHI',
@@ -4611,13 +4859,16 @@ window.exportFormattedExcel_HTML = async function() {
             if (node.tt) {
                 // Xử lý số lượng cấp 1
                 let soLuongVal = node.soLuong;
+			let tgBatDauVal = node.tgBatDau;	
                 if (level === 0 && summaryData[node.id]) {
                     soLuongVal = summaryData[node.id].totalLeafNodesCap1 || 0;
+					tgBatDauVal = summaryData[node.id].totalExecutedLeafNodesCap1 || 0;
                 }
 
                 const row = {
                     'TT': convertTTForDisplay(node.tt),
                     'Đầu việc/Dự án': node.noiDung || '',
+					'Tag Name': node.tagName || '',
                     'ĐV th.hiện': node.dvThucHien || '',
                     'KH năm trước': node.khNamTruoc === 0 ? 0 : (node.khNamTruoc || ''),
                     'Thực hiện năm trước': node.thucHienNamTruoc === 0 ? 0 : (node.thucHienNamTruoc || ''),
@@ -4635,7 +4886,7 @@ window.exportFormattedExcel_HTML = async function() {
                     'CP phân bổ': node.chiPhiPhanBo === 0 ? 0 : (node.chiPhiPhanBo || ''),
                     'Cấp độ': node.capDo || '',
                     'CP Cấp 1': node.cpCap1 === 0 ? 0 : (node.cpCap1 || ''), // Đã có từ yêu cầu trước
-                    'TG bắt đầu': node.tgBatDau || '',
+                    'TG bắt đầu': tgBatDauVal || '',
                     'TG hoàn thành': node.tgHoanThanh || '',
                     'Ghi chú': node.ghiChu || '',
                     level: level,
@@ -4693,6 +4944,7 @@ window.exportFormattedExcel_HTML = async function() {
                     const justRow = {
                         'TT': convertTTForDisplay(just.tt),
                         'Đầu việc/Dự án': just.noiDung || '',
+						'Tag Name': '',
                         'ĐV th.hiện': '', 'KH năm trước': '', 'Thực hiện năm trước': '', 'Tần suất TH': '',
                         'Đ.vị tính': just.donVi || '',
                         'Số lượng': just.soLuong === 0 ? 0 : (just.soLuong || ''),
@@ -4741,7 +4993,7 @@ window.exportFormattedExcel_HTML = async function() {
 
         statusDiv.innerText = 'Đang tạo bảng HTML để xuất...';
 
-        const baseHeadersFull = ['TT', 'Đầu việc/Dự án', 'ĐV th.hiện', 'KH năm trước', 'Thực hiện năm trước', 'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Đơn giá (GT)', 'Chi phí KH', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'Năm phân bổ', 'CP phân bổ', 'Cấp độ', 'CP Cấp 1', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú'];
+        const baseHeadersFull = ['TT', 'Đầu việc/Dự án', 'Tag Name', 'ĐV th.hiện', 'KH năm trước', 'Thực hiện năm trước', 'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Đơn giá (GT)', 'Chi phí KH', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'Năm phân bổ', 'CP phân bổ', 'Cấp độ', 'CP Cấp 1', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú'];
         const baseHeadersSimplified = baseHeadersFull.filter(h => !['Đơn giá (GT)', 'KH năm trước', 'Thực hiện năm trước', 'TG bắt đầu', 'TG hoàn thành', 'Ghi chú'].includes(h));
         const executionHeadersOrdered = [];
         for (let i = 1; i <= maxLanThucHien; i++) {
@@ -5023,43 +5275,45 @@ window.exportFormattedExcel_HTML = async function() {
     }
 
     function updateButtonStates() {
-        // --- 1. ĐỊNH NGHĨA QUYỀN HẠN ---
+      
+       // 1. Kiểm tra xem năm hiện tại có bị KHÓA không
+        const isYearLocked = lockedYears[currentYear] === true;
 
-        // Quyền Sửa đổi cấu trúc (Thêm, Sửa, Xóa task, Sửa inline):
-        // Giữ nguyên logic cũ: Phải đăng nhập VÀ Phải bật checkbox "Cho phép sửa đổi"
+        // 2. Quyền Sửa đổi:
+        // Phải đăng nhập + Checkbox bật + Năm KHÔNG bị khóa
         const isCurrentYearEditable = editModeStatusByYear[currentYear] === true;
-        const canEditStructure = isAuthenticated && isCurrentYearEditable;
+        const canEditStructure = isAuthenticated && isCurrentYearEditable && !isYearLocked;
 
-        // Quyền Thực hiện công việc:
-        // Logic MỚI: Chỉ cần Đăng nhập là được phép thực hiện
-        const canExecute = isAuthenticated;
+        // 3. Quyền Thực hiện công việc:
+        // Logic cũ: Chỉ cần isAuthenticated.
+        // Logic MỚI: Phải đăng nhập + Năm KHÔNG bị khóa.
+        const canExecute = isAuthenticated && !isYearLocked;
 
         const planningToggle = document.getElementById('planningModeToggle');
         if (planningToggle) planningToggle.disabled = false;
 
-        // --- 2. CẬP NHẬT TRẠNG THÁI NÚT THỰC HIỆN ---
-
+        // --- CẬP NHẬT NÚT THỰC HIỆN ---
         const multiExecuteButton = document.getElementById('multiExecuteBtn');
         if (multiExecuteButton) {
-            // Nút này bây giờ chỉ phụ thuộc vào việc đã chọn task và đã đăng nhập (canExecute)
-            // Không còn bị khóa bởi checkbox sửa đổi nữa.
             multiExecuteButton.disabled = selectedTasks.size === 0 || !canExecute;
+            // Thêm visual clue (nếu muốn): làm mờ đi nếu bị lock
+            if (isYearLocked) {
+                multiExecuteButton.title = "Dữ liệu năm nay đã bị khóa hoàn toàn.";
+            } else {
+                multiExecuteButton.title = "";
+            }
         }
 
-        // --- 3. GIỮ NGUYÊN GIỚI HẠN CHO CÁC NÚT KHÁC (Dùng canEditStructure) ---
-
+        // --- GIỮ NGUYÊN CÁC NÚT KHÁC (Dùng canEditStructure) ---
         const deleteSelectedButton = document.getElementById('deleteSelectedBtn');
         if (deleteSelectedButton) {
-            // Nút Xóa vẫn phải tuân thủ quy tắc nghiêm ngặt cũ
             deleteSelectedButton.disabled = !canEditStructure || (selectedTasks.size === 0 && selectedJustifications.size === 0);
         }
 
         const actionButtons = document.querySelectorAll('#taskList .dropbtn, #taskList .btn-edit-leaf');
         actionButtons.forEach(btn => {
-            // Các nút Thêm/Sửa nhỏ trong bảng vẫn tuân thủ quy tắc nghiêm ngặt cũ
             btn.disabled = !canEditStructure;
         });
-
         // Logic tắt Planning Mode khi mất quyền sửa đổi (giữ nguyên để đảm bảo an toàn giao diện)
         if (!canEditStructure) {
             if (planningToggle && planningToggle.checked && isAuthenticated) {
@@ -5400,7 +5654,8 @@ window.exportFormattedExcel_HTML = async function() {
     };
 
 const createInputRow = (path, data, level, context = {}) => {
-        const isJustification = level === 'justification';
+        const isGrandchild = level === 'grandchild';
+		const isJustification = level === 'justification';
         const isSubJustification = level === 'subJustification';
         
         // Biến cờ để đánh dấu dòng này là giải trình (Dùng cho calculateModalChiPhi)
@@ -5423,6 +5678,32 @@ const createInputRow = (path, data, level, context = {}) => {
                 <td><input type="text" value="${data.ghiChu || ''}" data-field="ghiChu"></td>
             </tr>`;
         }
+    let tagNameHtml = '';
+    if (isGrandchild) {
+        let optionsHtml = '<option value="">-- Chọn Tag --</option>';
+        
+        // Lúc này cachedEquipmentList ĐẢM BẢO đã có dữ liệu (do đã await ở bước 3, 4)
+        if (cachedEquipmentList && cachedEquipmentList.length > 0) {
+            const currentTag = (data.tagName || '').trim();
+            let found = false;
+
+            cachedEquipmentList.forEach(item => {
+                const isSelected = currentTag === item.tag;
+                if (isSelected) found = true;
+                optionsHtml += `<option value="${item.tag}" ${isSelected ? 'selected' : ''}>${item.tag} - ${item.name}</option>`;
+            });
+            
+            // Giữ lại giá trị cũ nếu không nằm trong danh sách (để không bị mất dữ liệu nhập tay từ Excel)
+            if (currentTag && !found) {
+                 optionsHtml = `<option value="${currentTag}" selected style="color:red">${currentTag} (Chưa chuẩn hóa)</option>` + optionsHtml;
+            }
+        }
+        
+        tagNameHtml = `<select data-field="tagName" style="width: 100%; padding: 5px;">${optionsHtml}</select>`;
+    } else {
+        tagNameHtml = `<input type="text" disabled style="background-color: #f9f9f9; border: none;">`;
+    }
+
 
         const isParent = ['parent', 'child'].includes(level) || (level === 'grandchild' && data.hasChildren === true);
         const isEditableLeaf = ['greatGrandchild', 'greatGreatGrandchild'].includes(level) || (level === 'grandchild' && !data.hasChildren);
@@ -5445,9 +5726,11 @@ const createInputRow = (path, data, level, context = {}) => {
             displayTanSuatModal = data.tanSuatTH;
         }
 
-        return `<tr data-path="${path}" data-is-leaf="${isEditableLeaf}">
+                return `<tr data-path="${path}" data-is-leaf="${isEditableLeaf}">
             <td><input type="text" value="${displayTT}" data-field="tt" disabled></td>
             <td><input type="text" value="${data.noiDung || ''}" data-field="noiDung" ${isDisabled('noiDung') ? 'disabled' : ''}></td>
+            
+            <td>${tagNameHtml}</td> 
             <td><input type="text" value="${data.dvThucHien || ''}" data-field="dvThucHien" ${isDisabled('dvThucHien') ? 'disabled' : ''}></td>
             
             <td><input type="text" value="${formatNumber(data.khNamTruoc || 0)}" data-field="khNamTruoc" oninput="this.value=formatNumber(parseNumber(this.value))" ${chiPhiEvent} ${isDisabled('khNamTruoc') ? 'disabled' : ''}></td>
@@ -5470,6 +5753,7 @@ const createInputRow = (path, data, level, context = {}) => {
 
             <td><input type="text" value="${data.ghiChu || ''}" data-field="ghiChu" ${isDisabled('ghiChu') ? 'disabled' : ''}></td>
         </tr>`;
+
     };
 
   const generateNextTT = async (parentPath, level) => {
@@ -5934,114 +6218,123 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
      }; // <-- Đóng hàm checkAndUpdateDaThucHien ở đây
 
   const calculateSummaryData = async () => {
-        try {
-            statusDiv.className = 'success';
-            statusDiv.innerText = 'Đang tính toán dữ liệu tổng hợp...';
-            const parentQuery = ref(db, getParentCollectionName());
-            const parentSnapshot = await get(parentQuery);
-            if (!parentSnapshot.exists()) {
-                const summaryRef = ref(db, `summary_data/${currentYear}`);
-                await set(summaryRef, null); 
-                statusDiv.innerText = ''; 
-                document.getElementById('summarySection').innerHTML = '<p>Không có dữ liệu tổng hợp cho năm này.</p>';
-                return; 
-            }
-
-            const parentsData = parentSnapshot.val();
-            const summaryData = {};
-
-            for (const parentId in parentsData) {
-                 summaryData[parentId] = {
-                     totalLeafNodes: 0,
-                     totalExecutedLeafNodes: 0,
-                     totalLeafNodesCap1: 0,
-                     totalExecutedLeafNodesCap1: 0,
-                     totalPlannedCost: parentsData[parentId].chiPhi || 0, 
-                     totalExecutedCost: parentsData[parentId].chiPhiThucHien || 0 
-                 };
-            }
-
-            const processNode = (node, path) => {
-                if (node && node.tt) { 
-                    const parentId = path.split('/')[1];
-                    const parentSummary = summaryData[parentId]; 
-                    if (!parentSummary) return;
-
-                    const hasL4Children = node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0;
-                    const hasL3Children = node.grandchildren && Object.keys(node.grandchildren).length > 0;
-                    const hasL2Children = node.children && Object.keys(node.children).length > 0;
-
-                    let isContainer = false;
-                    if (node.hasChildren === true) { isContainer = true; } 
-                    else if (node.hasChildren === false) { isContainer = false; } 
-                    else { isContainer = hasL2Children || hasL3Children || hasL4Children; }
-
-                    const pathLength = path.split('/').length;
-
-                    if (!isContainer && pathLength > 2) { 
-                        let plannedCount;
-                        const tanSuat = node.tanSuatTH;
-                        if (tanSuat === 0) { plannedCount = 0; } 
-                        else {
-                             plannedCount = parseInt(tanSuat, 10);
-                             if (isNaN(plannedCount) || tanSuat === null || tanSuat === undefined || tanSuat === '') {
-                                 plannedCount = 1;
-                             }
-                        }
-                        parentSummary.totalLeafNodes += plannedCount;
-
-                        let executedCount = 0;
-                        const plannedCost = node.chiPhi || 0;
-
-                        if (plannedCost === 0) {
-                            if (node.executions) {
-                                let validLinkCount = 0;
-                                for (const key in node.executions) {
-                                    const exec = node.executions[key];
-                                    if (exec.hoSoLink && String(exec.hoSoLink).trim() !== '') {
-                                        validLinkCount++;
-                                    }
-                                }
-                                executedCount = Math.min(plannedCount, validLinkCount);
-                            }
-                        } else {
-                            if (plannedCount > 1) {
-                                const actualExecutionCount = node.executions ? Object.keys(node.executions).length : 0;
-                                executedCount = Math.min(plannedCount, actualExecutionCount);
-                            } else if (plannedCount === 1) {
-                                executedCount = node.chiPhiThucHien > 0 ? 1 : 0;
-                            } 
-                        }
-
-                        parentSummary.totalExecutedLeafNodes += executedCount;
-                        if (node.capDo == 1) {
-                            parentSummary.totalLeafNodesCap1 += plannedCount;
-                            parentSummary.totalExecutedLeafNodesCap1 += executedCount;
-                        }
-                    }
-                } 
-                if (node.children) for (const k in node.children) processNode(node.children[k], `${path}/children/${k}`);
-                if (node.grandchildren) for (const k in node.grandchildren) processNode(node.grandchildren[k], `${path}/grandchildren/${k}`);
-                if (node.greatGrandchildren) for (const k in node.greatGrandchildren) processNode(node.greatGrandchildren[k], `${path}/greatGrandchildren/${k}`);
-            };
-            
-            for (const parentId in parentsData) {
-                processNode(parentsData[parentId], `${getParentCollectionName()}/${parentId}`);
-            }
-
+    try {
+        statusDiv.className = 'success';
+        statusDiv.innerText = 'Đang tính toán dữ liệu tổng hợp...';
+        const parentQuery = ref(db, getParentCollectionName());
+        const parentSnapshot = await get(parentQuery);
+        
+        if (!parentSnapshot.exists()) {
             const summaryRef = ref(db, `summary_data/${currentYear}`);
-            await set(summaryRef, summaryData);
-            
-            // --- SỬA LỖI QUAN TRỌNG: ĐÃ XÓA DÒNG fetchData() TẠI ĐÂY ---
-            // Việc cập nhật giao diện sẽ do hàm gọi (như saveTasks) đảm nhiệm.
+            await set(summaryRef, null); 
             statusDiv.innerText = ''; 
-
-        } catch (error) {
-            console.error("Lỗi khi tính toán dữ liệu tổng hợp:", error);
-            statusDiv.className = 'error';
-            statusDiv.innerText = `Lỗi khi tính toán summary: ${error.message}`;
+            document.getElementById('summarySection').innerHTML = '<p>Không có dữ liệu tổng hợp cho năm này.</p>';
+            return; 
         }
-    };
+
+        const parentsData = parentSnapshot.val();
+        const summaryData = {};
+
+        for (const parentId in parentsData) {
+             summaryData[parentId] = {
+                 totalLeafNodes: 0,
+                 totalExecutedLeafNodes: 0,
+                 totalLeafNodesCap1: 0,
+                 totalExecutedLeafNodesCap1: 0,
+                 totalPlannedCost: parentsData[parentId].chiPhi || 0, 
+                 totalExecutedCost: parentsData[parentId].chiPhiThucHien || 0 
+             };
+        }
+
+        const processNode = (node, path) => {
+            if (node && node.tt) { 
+                const parentId = path.split('/')[1];
+                const parentSummary = summaryData[parentId]; 
+                if (!parentSummary) return;
+
+                const hasL4Children = node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0;
+                const hasL3Children = node.grandchildren && Object.keys(node.grandchildren).length > 0;
+                const hasL2Children = node.children && Object.keys(node.children).length > 0;
+
+                let isContainer = false;
+                if (node.hasChildren === true) { isContainer = true; } 
+                else if (node.hasChildren === false) { isContainer = false; } 
+                else { isContainer = hasL2Children || hasL3Children || hasL4Children; }
+
+                const pathLength = path.split('/').length;
+
+                if (!isContainer && pathLength > 2) { 
+                    let plannedCount;
+                    const tanSuat = node.tanSuatTH;
+                    if (tanSuat === 0) { plannedCount = 0; } 
+                    else {
+                         plannedCount = parseInt(tanSuat, 10);
+                         if (isNaN(plannedCount) || tanSuat === null || tanSuat === undefined || tanSuat === '') {
+                             plannedCount = 1;
+                         }
+                    }
+                    parentSummary.totalLeafNodes += plannedCount;
+
+                    let executedCount = 0;
+                    const plannedCost = node.chiPhi || 0;
+
+                    if (plannedCost === 0) {
+                        if (node.executions) {
+                            let validLinkCount = 0;
+                            for (const key in node.executions) {
+                                const exec = node.executions[key];
+                                if (exec.hoSoLink && String(exec.hoSoLink).trim() !== '') {
+                                    validLinkCount++;
+                                }
+                            }
+                            executedCount = Math.min(plannedCount, validLinkCount);
+                        }
+                    } else {
+                        if (plannedCount > 1) {
+                            const actualExecutionCount = node.executions ? Object.keys(node.executions).length : 0;
+                            executedCount = Math.min(plannedCount, actualExecutionCount);
+                        } else if (plannedCount === 1) {
+                            executedCount = node.chiPhiThucHien > 0 ? 1 : 0;
+                        } 
+                    }
+
+                    parentSummary.totalExecutedLeafNodes += executedCount;
+                    if (node.capDo == 1) {
+                        parentSummary.totalLeafNodesCap1 += plannedCount;
+                        parentSummary.totalExecutedLeafNodesCap1 += executedCount;
+                    }
+                }
+            } 
+            if (node.children) for (const k in node.children) processNode(node.children[k], `${path}/children/${k}`);
+            if (node.grandchildren) for (const k in node.grandchildren) processNode(node.grandchildren[k], `${path}/grandchildren/${k}`);
+            if (node.greatGrandchildren) for (const k in node.greatGrandchildren) processNode(node.greatGrandchildren[k], `${path}/greatGrandchildren/${k}`);
+        };
+        
+        for (const parentId in parentsData) {
+            processNode(parentsData[parentId], `${getParentCollectionName()}/${parentId}`);
+        }
+
+        // === [CẬP NHẬT MỚI]: Ghi cả Summary và Cập nhật tgBatDau cho Parent ===
+        const updates = {};
+        updates[`summary_data/${currentYear}`] = summaryData;
+        
+        for (const parentId in summaryData) {
+            // Gán totalExecutedLeafNodesCap1 vào tgBatDau của task cha
+            const val = summaryData[parentId].totalExecutedLeafNodesCap1 || 0;
+            updates[`${getParentCollectionName()}/${parentId}/tgBatDau`] = val;
+        }
+
+        await update(ref(db), updates);
+        // =====================================================================
+        
+        statusDiv.innerText = ''; 
+
+    } catch (error) {
+        console.error("Lỗi khi tính toán dữ liệu tổng hợp:", error);
+        statusDiv.className = 'error';
+        statusDiv.innerText = `Lỗi khi tính toán summary: ${error.message}`;
+    }
+};
 
 
     async function ensureYearCollectionExists(year) {
@@ -6180,25 +6473,29 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
             }
 
             // 3. Các logic cài đặt khác (Giữ nguyên)
-            const settingsRef = ref(db, 'settings/global');
-            onValue(settingsRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    editModeStatusByYear = snapshot.val().editModeStatus || {};
-                } else {
-                    editModeStatusByYear = {};
-                }
-                
-                const modal = document.getElementById('dataManagementModal');
-                if (modal.style.display === 'block') {
-                     const isUnlocked = editModeStatusByYear[currentYear] === true;
-                     if (isUnlocked) {
-                         document.getElementById('unlockButton').style.display = 'none';
-                         document.getElementById('editModeToggle').style.display = 'block';
-                         document.getElementById('editModeCheckbox').checked = true;
-                     }
-                }
-                updateButtonStates();
-            });
+            
+    const settingsRef = ref(db, 'settings/global');
+    onValue(settingsRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const val = snapshot.val();
+            editModeStatusByYear = val.editModeStatus || {};
+            lockedYears = val.lockedYears || {}; // [THÊM DÒNG NÀY]
+        } else {
+            editModeStatusByYear = {};
+            lockedYears = {};
+        }
+        
+        // Cập nhật giao diện Modal nếu đang mở
+        const modal = document.getElementById('dataManagementModal');
+        if (modal.style.display === 'block') {
+             // Kiểm tra lại quyền admin để hiển thị
+             const currentUser = auth.currentUser;
+             if (currentUser && currentUser.email === "admin@pvgaslpg.com.vn") {
+                 showAdminControls();
+             }
+        }
+        updateButtonStates(); // Cập nhật lại các nút trên bảng chính
+    });
 
             await recalculateAllCostsAndReload(false);
 
@@ -6384,7 +6681,10 @@ function handleInputKeydown(event) {
     }
 }
 
-function makeCellEditable(event) {
+/**
+ * Hàm sửa nội tuyến nâng cấp: Hỗ trợ Input, Textarea và Select (cho TagName)
+ */
+async function makeCellEditable(event) { // Thêm async để chờ load danh sách
     const td = event.target.closest('.editable-cell');
     if (!td) return;
 
@@ -6403,72 +6703,91 @@ function makeCellEditable(event) {
     
     if (!path || !field) return;
 
-    // Lấy nội dung hiện tại (dùng innerText để lấy cả dấu xuống dòng nếu có)
-    const originalValue = td.innerText;
-    
+    const originalValue = td.innerText.trim();
     let input;
-    // Danh sách các trường cần hiển thị nhiều dòng
-    const multiLineFields = ['ghiChu', 'noiDung'];
 
-    if (multiLineFields.includes(field)) {
-        // Tạo Textarea cho Ghi chú và Nội dung
+    // === [LOGIC MỚI CHO TAG NAME] ===
+    if (field === 'tagName') {
+        // Tải danh sách nếu chưa có (Lazy loading)
+        await loadEquipmentList(); 
+
+        input = document.createElement('select');
+        input.className = 'editable-input';
+        
+        // Tạo option mặc định
+        let optionsHtml = '<option value="">-- Chọn Tag --</option>';
+        
+        if (cachedEquipmentList && cachedEquipmentList.length > 0) {
+            let found = false;
+            cachedEquipmentList.forEach(item => {
+                const isSelected = originalValue === item.tag;
+                if (isSelected) found = true;
+                optionsHtml += `<option value="${item.tag}" ${isSelected ? 'selected' : ''}>${item.tag} - ${item.name}</option>`;
+            });
+            
+            // Nếu giá trị cũ không nằm trong danh sách
+            if (originalValue && !found) {
+                 optionsHtml = `<option value="${originalValue}" selected style="color:red">${originalValue} (Chưa chuẩn hóa)</option>` + optionsHtml;
+            }
+        } else {
+             // Fallback nếu không có danh sách
+             optionsHtml = `<option value="${originalValue}" selected>${originalValue}</option>`;
+        }
+        
+        input.innerHTML = optionsHtml;
+        
+        // CSS riêng cho select để đẹp hơn
+        input.style.width = '100%';
+        input.style.padding = '4px';
+    }
+    // === [KẾT THÚC LOGIC TAG NAME] ===
+
+    else if (['ghiChu', 'noiDung'].includes(field)) {
+        // Logic cũ cho Textarea
         input = document.createElement('textarea');
         input.className = 'editable-input';
         input.value = originalValue;
-        
-        // --- SỬA ĐỔI: Tắt kiểm tra chính tả (gạch chân đỏ) ---
         input.spellcheck = false; 
-        // ----------------------------------------------------
-
-        // CSS để textarea trông đẹp và tự động co giãn
         input.style.width = '98%';
-        input.style.minHeight = '30px'; // Chiều cao tối thiểu
-        input.style.resize = 'vertical'; // Cho phép kéo giãn thủ công nếu muốn
-        input.style.overflowY = 'hidden'; // Ẩn thanh cuộn thừa
+        input.style.minHeight = '30px';
+        input.style.resize = 'vertical';
+        input.style.overflowY = 'hidden';
         input.style.lineHeight = '1.4';
-        input.style.fontFamily = 'inherit';
-        input.style.fontSize = 'inherit';
         
-        // Sự kiện: Tự động giãn chiều cao khi gõ thêm
         input.addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = (this.scrollHeight) + 'px';
         });
-
     } else {
-        // Tạo Input thường cho các trường khác (Số lượng, Đơn giá...)
+        // Logic cũ cho Input thường
         input = document.createElement('input');
         input.type = 'text';
         input.className = 'editable-input';
         input.value = originalValue;
-        
-        // Cũng tắt spellcheck cho input thường cho đồng bộ
         input.spellcheck = false; 
     }
     
-    // Gán dữ liệu để lưu
+    // Gán dữ liệu chung
     input.dataset.path = path;
     input.dataset.field = field;
     input.dataset.originalValue = originalValue;
 
     // Gán sự kiện
-    input.onblur = saveInlineEdit; // Lưu khi click ra ngoài
+    input.onblur = saveInlineEdit; 
     input.onkeydown = handleInputKeydown;
 
-    // Hiển thị lên giao diện
+    // Hiển thị
     td.innerHTML = '';
     td.appendChild(input);
 
-    // Điều chỉnh chiều cao ban đầu cho Textarea khớp với nội dung
     if (input.tagName === 'TEXTAREA') {
         input.style.height = 'auto';
         input.style.height = (input.scrollHeight) + 'px';
     }
 
     input.focus();
-    
-    // Bôi đen nội dung để tiện sửa đè
-    input.select();
+    // Chỉ bôi đen nếu là input text (select không có hàm select())
+    if (input.select) input.select();
 }
 
 
@@ -6659,10 +6978,14 @@ async function saveInlineEdit(event) {
 
             const displayTanSuat = (data.tanSuatTH === 0) ? '-' : (data.tanSuatTH || '');
 
-            return `<tr class="${itemClass}" data-main-parent="${mainParentId}" data-path="${path}">
+                        return `<tr class="${itemClass}" data-main-parent="${mainParentId}" data-path="${path}">
                 <td>${isCheckbox ? `<input type="checkbox" class="${isParentLeaf ? 'parent-checkbox' : 'task-checkbox'}" data-path="${path}" onchange="${isParentLeaf ? 'toggleChildrenCheckboxes(this)' : 'toggleSelection(this)'}">` : ''}</td>
                 <td class="col-tt">${convertTTForDisplay(data.tt)}</td>
                 <td class="col-noidung" ${noiDungStyle}>${data.noiDung}</td>
+                
+                <td class="col-tagname ${itemClass.includes('task-grandchild') ? 'editable-cell' : ''}" ${itemClass.includes('task-grandchild') ? 'data-field="tagName"' : ''}>
+                    ${itemClass.includes('task-grandchild') ? (data.tagName || '') : ''}
+                </td>
                 <td class="col-dv-thuchien editable-cell" data-field="dvThucHien">${data.dvThucHien || ''}</td>
                 <td class="text-right col-kh-nam-truoc">${formatNumber(data.khNamTruoc)}</td>
                 <td class="text-right col-th-nam-truoc editable-cell" data-field="thucHienNamTruoc">${formatNumber(data.thucHienNamTruoc)}</td>
@@ -6689,6 +7012,7 @@ async function saveInlineEdit(event) {
                     </div>
                 </td>
             </tr>`;
+
         };
 
         for (const parentData of parents) {
@@ -6696,7 +7020,7 @@ async function saveInlineEdit(event) {
             var mainParentId = parentData.tt; 
             const parentSummary = summaryData[parentData.id] || {};
             parentData.soLuong = parentSummary.totalLeafNodesCap1 || 0;
-
+parentData.tgBatDau = parentSummary.totalExecutedLeafNodesCap1 || 0;
             totalPlannedCost += parentData.chiPhi || 0;
             totalExecutedCost += parentData.chiPhiThucHien || 0;
             const parentPath = `${getParentCollectionName()}/${parentData.id}`;
