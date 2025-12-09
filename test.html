@@ -109,8 +109,12 @@
             top: 0;
             z-index: 10;
         }
-       /* Cấp 1 (A, B...): Luôn đậm, nền tối nhất */
-        .task-parent td { font-weight: bold; background-color: #e2e6ea; }
+       /* Cấp 1 (A, B...): Luôn đậm, nền tối nhất, CHỮ MÀU XANH NƯỚC BIỂN */
+        .task-parent td { 
+            font-weight: bold; 
+            background-color: #e2e6ea; 
+            color: #0056b3; /* Thêm dòng này để đổi màu chữ */
+        }
         
         /* Cấp 2 (I, II...): Luôn đậm, nền sáng hơn chút */
         .task-child td { font-weight: bold; background-color: #e9ecef; }
@@ -4363,23 +4367,26 @@ function findMaxExecutions(nodes) {
  * Xử lý đệ quy các giải trình (Justifications) và ghi vào worksheet.
  * Trả về mảng các HÀNG (row index) của các giải trình con để SUM.
  */
-/**
- * HÀM PHỤ TRỢ 2: (ĐÃ CẬP NHẬT: XUẤT THÊM GHI CHÚ CHO GIẢI TRÌNH)
- */
+
 function processJustificationForExcel(justificationNode, parentTT, level, ctx) {
     const r = ctx.currentRow;
+    
+    // === [SỬA LỖI]: Đưa khai báo justStyle lên đầu hàm ===
+    const justStyle = { 
+        font: { color: { rgb: "FF0000" }, italic: true },
+        numFmt: ctx.moneyFormat 
+    };
+    // ====================================================
+
     const isParentJustification = justificationNode.hasSubJustifications === true && justificationNode.subJustifications;
     let subJustificationRows = [];
 
     // Ghi dữ liệu giải trình
     ctx.ws[ctx.COLS.TT + r] = { t: 's', v: convertTTForDisplay(justificationNode.tt) };
     ctx.ws[ctx.COLS.NOI_DUNG + r] = { t: 's', v: justificationNode.noiDung || '' };
-	ctx.ws[ctx.COLS.TAG_NAME + r] = { t: 's', v: '', s: justStyle };
     
-    const justStyle = { 
-        font: { color: { rgb: "FF0000" }, italic: true },
-        numFmt: ctx.moneyFormat 
-    };
+    // Bây giờ dòng này sẽ chạy đúng vì justStyle đã được khai báo
+    ctx.ws[ctx.COLS.TAG_NAME + r] = { t: 's', v: '', s: justStyle };
     
     if (isParentJustification) {
         const subJustifications = Object.keys(justificationNode.subJustifications)
@@ -4424,7 +4431,7 @@ function processJustificationForExcel(justificationNode, parentTT, level, ctx) {
     }
     // -------------------------------------------
 
-    // Thêm style
+    // Thêm style cho các cột khác
     ctx.ws[ctx.COLS.TT + r].s = justStyle;
     ctx.ws[ctx.COLS.NOI_DUNG + r].s = justStyle;
     if (ctx.ws[ctx.COLS.SO_LUONG + r]) ctx.ws[ctx.COLS.SO_LUONG + r].s = justStyle;
@@ -4434,6 +4441,7 @@ function processJustificationForExcel(justificationNode, parentTT, level, ctx) {
     
     return [r];
 }
+
 
 
 /**
