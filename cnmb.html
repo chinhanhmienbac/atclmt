@@ -2774,7 +2774,8 @@ window.openSearchModal = async function() {
             if (!isAuthenticated) {
                 activatePlanningModeForSelection('all');
             } else {
-                openPlanningModeModal();
+                 activatePlanningModeForSelection('all');
+				// openPlanningModeModal();
             }
         } else {
             const taskList = document.getElementById('taskList');
