@@ -1,3 +1,4 @@
+﻿
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -113,7 +114,7 @@
         .task-parent td { 
             font-weight: bold; 
             background-color: #e2e6ea; 
-            color: #0056b3; /* Thêm dòng này để đổi màu chữ */
+            color: #d63384; /* Thêm dòng này để đổi màu chữ - màu cũ #0056b3 */
         }
         
         /* Cấp 2 (I, II...): Luôn đậm, nền sáng hơn chút */
@@ -892,7 +893,7 @@
     import { getDatabase, ref, set, get, update, remove, child, push, query, orderByChild, equalTo, onValue, off } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
     const firebaseConfig = {
-        apiKey: "AIzaSyALoxHjymCFFXLDj9Vf9hiX2x8r29Bp_yg",
+    apiKey: "AIzaSyALoxHjymCFFXLDj9Vf9hiX2x8r29Bp_yg",
   authDomain: "khatclmt.firebaseapp.com",
   databaseURL: "https://khatclmt-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "khatclmt",
@@ -2774,7 +2775,8 @@ window.openSearchModal = async function() {
             if (!isAuthenticated) {
                 activatePlanningModeForSelection('all');
             } else {
-                openPlanningModeModal();
+                 activatePlanningModeForSelection('all');
+				// openPlanningModeModal();
             }
         } else {
             const taskList = document.getElementById('taskList');
@@ -6435,7 +6437,109 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
         document.getElementById('planningModeModal').style.display = 'none';
     }
 
+  // ============================================================
+    // TÍNH NĂNG CAO CẤP: PASTE TỪ EXCEL VÀO MODAL
+    // ============================================================
     
+    document.addEventListener('paste', function(e) {
+        // 1. Chỉ kích hoạt khi đang ở trong Modal Dữ liệu (#dataModal) và con trỏ ở trong bảng
+        const target = e.target;
+        const modalTable = target.closest('#dataModal .modal-table');
+        
+        if (!modalTable || (!target.matches('input') && !target.matches('select') && !target.matches('textarea'))) {
+            return;
+        }
+
+        // 2. Lấy dữ liệu từ Clipboard
+        const clipboardData = (e.clipboardData || window.clipboardData).getData('text');
+        if (!clipboardData) return;
+
+        e.preventDefault(); // Ngăn hành động paste mặc định (dồn cục vào 1 ô)
+
+        // 3. Phân tích dữ liệu (Excel dùng \t cho cột và \n cho dòng)
+        // Loại bỏ dòng trống cuối cùng nếu có
+        const rows = clipboardData.split(/\r\n|\n|\r/).filter((row, index, array) => {
+            return !(index === array.length - 1 && row.trim() === '');
+        });
+        
+        if (rows.length === 0) return;
+
+        // 4. Xác định vị trí con trỏ hiện tại
+        const currentRow = target.closest('tr');
+        const allRows = Array.from(modalTable.querySelectorAll('tbody tr'));
+        const startRowIndex = allRows.indexOf(currentRow);
+
+        // Lấy tất cả các ô nhập liệu trong dòng hiện tại để xác định chỉ số cột
+        // Lưu ý: Chỉ lấy các ô input/select/textarea hiển thị được (không lấy hidden)
+        const getInputsInRow = (tr) => Array.from(tr.querySelectorAll('input:not([type="hidden"]), select, textarea'));
+        
+        const inputsInCurrentRow = getInputsInRow(currentRow);
+        const startColIndex = inputsInCurrentRow.indexOf(target);
+
+        if (startRowIndex === -1 || startColIndex === -1) return;
+
+        let missingRows = 0;
+        let missingCols = 0;
+
+        // 5. Duyệt qua dữ liệu và đổ vào bảng
+        rows.forEach((rowString, i) => {
+            const cells = rowString.split('\t');
+            const targetRowIndex = startRowIndex + i;
+
+            // Kiểm tra thiếu dòng
+            if (targetRowIndex >= allRows.length) {
+                missingRows++;
+                return; // Bỏ qua dòng này
+            }
+
+            const targetRow = allRows[targetRowIndex];
+            const targetInputs = getInputsInRow(targetRow);
+
+            cells.forEach((cellData, j) => {
+                const targetColIndex = startColIndex + j;
+
+                // Kiểm tra thiếu cột (hoặc ô bị disabled)
+                if (targetColIndex >= targetInputs.length) {
+                    if (i === 0) missingCols++; // Chỉ đếm cột thiếu ở dòng đầu tiên để báo cáo
+                    return;
+                }
+
+                const inputEl = targetInputs[targetColIndex];
+
+                // Chỉ paste vào ô không bị khóa
+                if (inputEl && !inputEl.disabled) {
+                    // Xử lý dữ liệu thô: Xóa ngoặc kép nếu Excel thêm vào (khi có xuống dòng)
+                    let cleanValue = cellData.trim();
+                    if (cleanValue.startsWith('"') && cleanValue.endsWith('"')) {
+                        cleanValue = cleanValue.slice(1, -1).replace(/""/g, '"');
+                    }
+
+                    // Gán giá trị
+                    inputEl.value = cleanValue;
+
+                    // QUAN TRỌNG: Kích hoạt sự kiện để các hàm tính toán/định dạng hoạt động
+                    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                    
+                    // Nếu là ô số, trigger thêm focus/blur để format lại tiền tệ (nếu cần)
+                    if (inputEl.dataset.field && ['chiPhi', 'donGia', 'soLuong', 'khNamTruoc', 'thucHienNamTruoc'].includes(inputEl.dataset.field)) {
+                         // Giả lập hành vi người dùng nhập xong và blur ra ngoài để format số
+                         // Logic trong oninput="this.value=formatNumber..." sẽ chạy nhờ Event 'input' ở trên
+                    }
+                }
+            });
+        });
+
+        // 6. Cảnh báo nếu thiếu dòng/cột
+        if (missingRows > 0 || missingCols > 0) {
+            let msg = 'CẢNH BÁO: Dữ liệu Paste vượt quá kích thước bảng!\n';
+            if (missingRows > 0) msg += `- Thiếu ${missingRows} dòng bên dưới.\n`;
+            if (missingCols > 0) msg += `- Thiếu cột hoặc vượt quá số ô nhập liệu bên phải.\n`;
+            msg += '\nVui lòng thêm đủ dòng trước khi Paste hoặc kiểm tra lại vị trí đặt con trỏ.';
+            alert(msg);
+        }
+    });
+	
  // XỬ LÝ AUTH STATE
     onAuthStateChanged(auth, async (user) => {
         const authButton = document.getElementById('authButton');
