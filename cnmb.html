@@ -1825,17 +1825,37 @@ const deleteBtnHtml = canEdit ?
         const yearSelect = document.getElementById('yearSelect');
         const currentYearValue = new Date().getFullYear();
         const nextYear = currentYearValue + 1;
+        
         yearSelect.innerHTML = '';
+        
+        // 1. Tạo danh sách các năm động (như cũ: Năm hiện tại + 1 năm sau + 3 năm trước)
         const years = [currentYearValue, nextYear];
         for (let i = currentYearValue - 1; i >= currentYearValue - 3; i--) {
             years.unshift(i);
         }
+        
+        // 2. [THÊM MỚI] Chèn năm 2000 vào đầu mảng để làm Sample
+        // Dùng unshift để đưa nó lên vị trí đầu tiên
+        years.unshift(2000); 
+
+        // 3. Tạo thẻ <option>
         years.forEach(year => {
             const option = document.createElement('option');
             option.value = year;
-            option.textContent = year;
+            
+            // Tùy chỉnh hiển thị: Nếu là 2000 thì hiện thêm chữ "(Sample)" cho dễ hiểu
+            if (year === 2000) {
+                option.textContent = "2000 (Test)";
+                option.style.color = "blue"; // Tô màu xanh cho nổi bật (tuỳ chọn)
+            //    option.style.fontWeight = "bold";
+            } else {
+                option.textContent = year;
+            }
+            
             yearSelect.appendChild(option);
         });
+
+        // 4. Mặc định vẫn chọn năm hiện tại khi load trang
         currentYear = currentYearValue;
         yearSelect.value = currentYearValue;
     };
@@ -2271,38 +2291,47 @@ window.recalculateAllCostsAndReload = async function(showConfirm = true) {
             traverseToLeaves(allData[pid], `${getParentCollectionName()}/${pid}`);
         }
 
-        const aggregateFromChildren = (parentNode, childCollectionName) => {
-            let sumCP = 0, sumTH = 0, sumKHPrev = 0, sumTHPrev = 0, sumCPPhanBo = 0, sumCpCap1 = 0;
-            let anyExecuted = false;
+        // Tìm đoạn khai báo aggregateFromChildren bên trong recalculateAllCostsAndReload sửa logic tinh toan theo capDo
+const aggregateFromChildren = (parentNode, childCollectionName) => {
+    let sumCP = 0, sumTH = 0, sumKHPrev = 0, sumTHPrev = 0, sumCPPhanBo = 0, sumCpCap1 = 0;
+    let anyExecuted = false;
+    
+    if (parentNode[childCollectionName]) {
+        for (const key in parentNode[childCollectionName]) {
+            const child = parentNode[childCollectionName][key];
             
-            if (parentNode[childCollectionName]) {
-                for (const key in parentNode[childCollectionName]) {
-                    const child = parentNode[childCollectionName][key];
-                    sumCP += (child.chiPhi || 0);
-                    sumTH += (child.chiPhiThucHien || 0);
-                    sumKHPrev += (child.khNamTruoc || 0);
-                    sumTHPrev += (child.thucHienNamTruoc || 0);
-                    sumCPPhanBo += (parseFloat(child.chiPhiPhanBo) || 0);
-                    sumCpCap1 += (child.cpCap1 || 0);
-
-                    if (child.daThucHien || (child.executions && Object.keys(child.executions).length > 0)) {
-                         anyExecuted = true;
-                    }
-                    if (child.children || child.grandchildren || child.greatGrandchildren) {
-                         if(child.daThucHien) anyExecuted = true;
-                    }
-                }
+            // === [LOGIC MỚI]: Bỏ qua tính toán nếu Cấp độ là PS ===
+            const isPS = String(child.capDo || '').trim().toUpperCase() === 'PS';
+            
+            if (!isPS) {
+                sumCP += (child.chiPhi || 0);
+                sumTH += (child.chiPhiThucHien || 0);
+                sumKHPrev += (child.khNamTruoc || 0);
+                sumTHPrev += (child.thucHienNamTruoc || 0);
+                sumCPPhanBo += (parseFloat(child.chiPhiPhanBo) || 0);
+                sumCpCap1 += (child.cpCap1 || 0);
             }
-            return { 
-                chiPhi: sumCP, 
-                chiPhiThucHien: sumTH, 
-                khNamTruoc: sumKHPrev, 
-                thucHienNamTruoc: sumTHPrev, 
-                daThucHien: anyExecuted,
-                chiPhiPhanBo: sumCPPhanBo,
-                cpCap1: sumCpCap1 
-            };
-        };
+            // ====================================================
+
+            // Logic kiểm tra "đã thực hiện" vẫn giữ nguyên để hiển thị trạng thái
+            if (child.daThucHien || (child.executions && Object.keys(child.executions).length > 0)) {
+                 anyExecuted = true;
+            }
+            if (child.children || child.grandchildren || child.greatGrandchildren) {
+                 if(child.daThucHien) anyExecuted = true;
+            }
+        }
+    }
+    return { 
+        chiPhi: sumCP, 
+        chiPhiThucHien: sumTH, 
+        khNamTruoc: sumKHPrev, 
+        thucHienNamTruoc: sumTHPrev, 
+        daThucHien: anyExecuted,
+        chiPhiPhanBo: sumCPPhanBo,
+        cpCap1: sumCpCap1 
+    };
+};
 
         const aggregateNodeRecursively = (node, path) => {
             if (node.children) Object.keys(node.children).forEach(k => aggregateNodeRecursively(node.children[k], `${path}/children/${k}`));
@@ -3133,15 +3162,24 @@ window.openDeleteAllDataModal = function() {
 
     window.toggleEditMode = async function(isChecked) {
         if (!isAuthenticated) {
+            // Nếu chưa đăng nhập, hoàn tác checkbox và báo lỗi
             document.getElementById('editModeCheckbox').checked = !isChecked;
             return showAuthError();
         }
         try {
-            const settingsRef = ref(db, 'settings/global');
-            await update(settingsRef, { editModeStatus: { [currentYear]: isChecked } });
+            // === [CẢI TIẾN]: Update theo đường dẫn chi tiết để không ghi đè các năm khác ===
+            const updates = {};
+            // Chỉ định rõ đường dẫn sâu đến tận năm cần sửa
+            updates[`settings/global/editModeStatus/${currentYear}`] = isChecked;
+
+            // Gọi update trên root (ref(db)) với object updates chứa đường dẫn đầy đủ
+            await update(ref(db), updates);
+            
         } catch (error) {
             console.error("Lỗi khi cập nhật trạng thái mở khóa:", error);
             alert("Đã có lỗi xảy ra khi lưu trạng thái. Vui lòng thử lại.");
+            // Hoàn tác checkbox nếu lỗi
+            document.getElementById('editModeCheckbox').checked = !isChecked;
         }
     };
 
@@ -5540,93 +5578,143 @@ window.exportFormattedExcel_HTML = async function() {
 
 
 
-    const calculateCosts = (tree) => {
+    // Hàm tính toán chi phí theo cấu trúc cây (Tree)
+// Đã tích hợp logic: Nếu task con có capDo là 'PS' thì không cộng dồn lên cha
+const calculateCosts = (tree) => {
     tree.forEach(parent => {
-        let parentChiPhi = 0, parentChiPhiThucHien = 0, parentKhNamTruoc = 0;
+        // Khởi tạo biến tổng cho Cấp 1 (Parent)
+        let parentChiPhi = 0;
+        let parentChiPhiThucHien = 0;
+        let parentKhNamTruoc = 0;
+        let parentThucHienNamTruoc = 0;
+        let parentChiPhiPhanBo = 0;
+
         (parent.children || []).forEach(child => {
-            let childChiPhi = 0, childChiPhiThucHien = 0, childKhNamTruoc = 0;
+            // Khởi tạo biến tổng cho Cấp 2 (Child)
+            let childChiPhi = 0;
+            let childChiPhiThucHien = 0;
+            let childKhNamTruoc = 0;
+            let childThucHienNamTruoc = 0;
+            let childChiPhiPhanBo = 0;
+
             (child.grandchildren || []).forEach(grandchild => {
-                let grandchildChiPhi = 0, grandchildChiPhiThucHien = 0, grandchildKhNamTruoc = 0;
+                // Khởi tạo biến tổng cho Cấp 3 (Grandchild)
+                let grandchildChiPhi = 0;
+                let grandchildChiPhiThucHien = 0;
+                let grandchildKhNamTruoc = 0;
+                let grandchildThucHienNamTruoc = 0;
+                let grandchildChiPhiPhanBo = 0;
+
                 (grandchild.greatGrandchildren || []).forEach(ggc => {
+                    // --- XỬ LÝ CẤP 4 (GreatGrandchild) ---
+                    
+                    // 1. Kiểm tra xem có Cấp 5 (GreatGreatGrandchildren) không
                     if ((ggc.greatGreatGrandchildren || []).length > 0) {
                         ggc.data.hasChildren = true;
                         
-                        // THÊM MỚI: Tính chi phí cho lá cấp 5 (ggggc) từ giải trình của nó
-                        ggc.greatGreatGrandchildren.forEach(ggggc => {
-                            // Tính tổng chi phí từ giải trình (cả cấp 1 và cấp 2) của lá cấp 5
-                            let justificationChiPhi = 0;
-                            if (ggggc.justifications && ggggc.justifications.length > 0) {
-                                ggggc.justifications.forEach(just => {
-                                    // NẾU CÓ GIẢI TRÌNH CẤP 2: tính tổng chi phí của các giải trình cấp 2
-                                    if (just.subJustifications && just.subJustifications.length > 0) {
-                                        justificationChiPhi += just.subJustifications.reduce(
-                                            (sum, subJust) => sum + (subJust.data.chiPhi || 0), 0
-                                        );
-                                    } else {
-                                        // NẾU KHÔNG CÓ GIẢI TRÌNH CẤP 2: lấy chi phí của giải trình cấp 1
-                                        justificationChiPhi += just.data.chiPhi || 0;
-                                    }
-                                });
-                                ggggc.data.chiPhi = justificationChiPhi; // Ghi đè chiPhi của lá cấp 5
-                            }
+                        // Nếu có con cấp 5, tính tổng từ cấp 5 lên cấp 4
+                        let ggcChiPhi = 0;
+                        let ggcChiPhiThucHien = 0;
+                        // (Thường cấp 5 ít dùng nhưng giữ logic để đảm bảo đầy đủ)
+                        ggc.greatGreatGrandchildren.forEach(gggc => {
+                             ggcChiPhi += (gggc.data.chiPhi || 0);
+                             ggcChiPhiThucHien += (gggc.data.chiPhiThucHien || 0);
                         });
-
-                        const ggcChiPhi = ggc.greatGreatGrandchildren.reduce((s, gggc) => s + (gggc.data.chiPhi || 0), 0);
-                        const ggcChiPhiThucHien = ggc.greatGreatGrandchildren.reduce((s, gggc) => s + (gggc.data.chiPhiThucHien || 0), 0);
-                        const ggcKhNamTruoc = ggc.greatGreatGrandchildren.reduce((s, gggc) => s + (gggc.data.khNamTruoc || 0), 0);
                         ggc.data.chiPhi = ggcChiPhi;
                         ggc.data.chiPhiThucHien = ggcChiPhiThucHien;
-                        ggc.data.khNamTruoc = ggcKhNamTruoc;
+
                     } else {
-                        // Đây là lá cấp 4. Tính chi phí từ giải trình của nó (cả cấp 1 và cấp 2)
-                        let justificationChiPhi = 0;
-                        if (ggc.justifications && ggc.justifications.length > 0) {
-                            ggc.justifications.forEach(just => {
-                                // NẾU CÓ GIẢI TRÌNH CẤP 2: tính tổng chi phí của các giải trình cấp 2
-                                if (just.subJustifications && just.subJustifications.length > 0) {
-                                    justificationChiPhi += just.subJustifications.reduce(
-                                        (sum, subJust) => sum + (subJust.data.chiPhi || 0), 0
-                                    );
-                                } else {
-                                    // NẾU KHÔNG CÓ GIẢI TRÌNH CẤP 2: lấy chi phí của giải trình cấp 1
-                                    justificationChiPhi += just.data.chiPhi || 0;
-                                }
-                            });
-                            ggc.data.chiPhi = justificationChiPhi; // Ghi đè chiPhi của lá cấp 4
-                        }
+                        // Nếu là node lá (Leaf)
                         ggc.data.hasChildren = false;
+
+                        // Kiểm tra nếu có giải trình (Justifications) thì tính tổng giải trình
+                        if (ggc.justifications && ggc.justifications.length > 0) {
+                             let justificationChiPhi = 0;
+                             ggc.justifications.forEach(j => {
+                                 let subCost = j.chiPhi || 0;
+                                 // Nếu giải trình có giải trình con
+                                 if (j.subJustifications) {
+                                     let subTotal = 0;
+                                     Object.values(j.subJustifications).forEach(sub => subTotal += (sub.chiPhi || 0));
+                                     subCost = subTotal;
+                                 }
+                                 justificationChiPhi += subCost;
+                             });
+                             // Gán tổng chi phí giải trình vào chi phí của Task
+                             ggc.data.chiPhi = justificationChiPhi; 
+                        }
                     }
+
+                    // 2. Tính toán nội bộ cho Cấp 4 (Kế hoạch còn lại)
                     if (ggc.data) {
                         ggc.data.keHoachConLai = (ggc.data.chiPhi || 0) - (ggc.data.chiPhiThucHien || 0);
-                        grandchildChiPhi += ggc.data.chiPhi || 0;
-                        grandchildChiPhiThucHien += ggc.data.chiPhiThucHien || 0;
-                        grandchildKhNamTruoc += ggc.data.khNamTruoc || 0;
+                    }
+
+                    // 3. === LOGIC QUAN TRỌNG: KIỂM TRA CẤP ĐỘ PS ===
+                    // Lấy giá trị cấp độ, xóa khoảng trắng và chuyển về chữ hoa
+                    const isGgcPS = String(ggc.data.capDo || '').trim().toUpperCase() === 'PS';
+
+                    // 4. Cộng dồn lên Cấp 3 (Grandchild)
+                    // CHỈ CỘNG NẾU KHÔNG PHẢI LÀ 'PS'
+                    if (!isGgcPS) {
+                        grandchildChiPhi += (ggc.data.chiPhi || 0);
+                        grandchildChiPhiThucHien += (ggc.data.chiPhiThucHien || 0);
+                        grandchildKhNamTruoc += (ggc.data.khNamTruoc || 0);
+                        grandchildThucHienNamTruoc += (ggc.data.thucHienNamTruoc || 0);
+                        grandchildChiPhiPhanBo += (parseFloat(ggc.data.chiPhiPhanBo) || 0);
                     }
                 });
+
+                // --- CẬP NHẬT DỮ LIỆU CẤP 3 (Grandchild) ---
                 if (grandchild.data) {
                     grandchild.data.chiPhi = grandchildChiPhi;
                     grandchild.data.chiPhiThucHien = grandchildChiPhiThucHien;
                     grandchild.data.khNamTruoc = grandchildKhNamTruoc;
+                    grandchild.data.thucHienNamTruoc = grandchildThucHienNamTruoc;
+                    grandchild.data.chiPhiPhanBo = grandchildChiPhiPhanBo;
+                    
+                    // Tính còn lại cho cấp 3
                     grandchild.data.keHoachConLai = grandchildChiPhi - grandchildChiPhiThucHien;
                 }
+
+                // Cộng dồn Cấp 3 lên Cấp 2 (Child)
+                // (Ở cấp này chưa áp dụng logic PS, trừ khi bạn muốn mở rộng thêm)
                 childChiPhi += grandchildChiPhi;
                 childChiPhiThucHien += grandchildChiPhiThucHien;
                 childKhNamTruoc += grandchildKhNamTruoc;
+                childThucHienNamTruoc += grandchildThucHienNamTruoc;
+                childChiPhiPhanBo += grandchildChiPhiPhanBo;
             });
+
+            // --- CẬP NHẬT DỮ LIỆU CẤP 2 (Child) ---
             if (child.data) {
                 child.data.chiPhi = childChiPhi;
                 child.data.chiPhiThucHien = childChiPhiThucHien;
                 child.data.khNamTruoc = childKhNamTruoc;
+                child.data.thucHienNamTruoc = childThucHienNamTruoc;
+                child.data.chiPhiPhanBo = childChiPhiPhanBo;
+
+                // Tính còn lại cho cấp 2
                 child.data.keHoachConLai = childChiPhi - childChiPhiThucHien;
             }
+
+            // Cộng dồn Cấp 2 lên Cấp 1 (Parent)
             parentChiPhi += childChiPhi;
             parentChiPhiThucHien += childChiPhiThucHien;
             parentKhNamTruoc += childKhNamTruoc;
+            parentThucHienNamTruoc += childThucHienNamTruoc;
+            parentChiPhiPhanBo += childChiPhiPhanBo;
         });
+        
+        // --- CẬP NHẬT DỮ LIỆU CẤP 1 (Parent) ---
         if (parent.data) {
             parent.data.chiPhi = parentChiPhi;
             parent.data.chiPhiThucHien = parentChiPhiThucHien;
             parent.data.khNamTruoc = parentKhNamTruoc;
+            parent.data.thucHienNamTruoc = parentThucHienNamTruoc;
+            parent.data.chiPhiPhanBo = parentChiPhiPhanBo;
+
+            // Tính còn lại cho cấp 1
             parent.data.keHoachConLai = parentChiPhi - parentChiPhiThucHien;
         }
     });
@@ -6046,23 +6134,31 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
             khNamTruoc: 0, 
             thucHienNamTruoc: 0,
             chiPhiPhanBo: 0,
-            cpCap1: 0 // Tổng CP Cấp 1
+            cpCap1: 0 
         };
 
         if (typeof childrenData === 'object' && childrenData !== null) {
             for (const childId in childrenData) {
                 if (typeof childrenData[childId] === 'object' && childrenData[childId] !== null) {
                     const child = childrenData[childId];
-                    total.chiPhi += child.chiPhi || 0;
-                    total.chiPhiThucHien += child.chiPhiThucHien || 0;
-                    total.khNamTruoc += child.khNamTruoc || 0;
-                    total.thucHienNamTruoc += child.thucHienNamTruoc || 0;
-                    total.chiPhiPhanBo += (parseFloat(child.chiPhiPhanBo) || 0);
-                    // Cộng dồn từ con
-                    total.cpCap1 += (child.cpCap1 || 0);
+                    
+                    // === [LOGIC MỚI]: Bỏ qua nếu Cấp độ là PS ===
+                    const isPS = String(child.capDo || '').trim().toUpperCase() === 'PS';
+                    
+                    if (!isPS) {
+                        total.chiPhi += child.chiPhi || 0;
+                        total.chiPhiThucHien += child.chiPhiThucHien || 0;
+                        total.khNamTruoc += child.khNamTruoc || 0;
+                        total.thucHienNamTruoc += child.thucHienNamTruoc || 0;
+                        total.chiPhiPhanBo += (parseFloat(child.chiPhiPhanBo) || 0);
+                        total.cpCap1 += (child.cpCap1 || 0);
+                    }
+                    // ============================================
                 }
             }
         }
+        
+        // ... (Phần code update fieldsToRecalculate bên dưới giữ nguyên) ...
         
         fieldsToRecalculate.forEach(field => {
             if (field === 'keHoachConLai') return;
@@ -6073,6 +6169,7 @@ const recalculateSingleParentCost = async (parentPath, childrenField = null, fie
             }
         });
 
+        // Tính lại Kế hoạch còn lại cho cha
         const newChiPhi = updates[`${parentPath}/chiPhi`] !== undefined ? updates[`${parentPath}/chiPhi`] : (parentData.chiPhi || 0);
         const newChiPhiThucHien = updates[`${parentPath}/chiPhiThucHien`] !== undefined ? updates[`${parentPath}/chiPhiThucHien`] : (parentData.chiPhiThucHien || 0);
         const newKeHoachConLai = newChiPhi - newChiPhiThucHien;
