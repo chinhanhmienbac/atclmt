@@ -123,9 +123,8 @@
         let gisInited = false;
         let tokenClient;
         
-        // Lưu trữ dữ liệu PDF
-        let originalPdfBytes = null; // File gốc dưới dạng ArrayBuffer
-        let selectedPageIndices = new Set(); // Các trang được chọn (index bắt đầu từ 0)
+        let originalPdfBytes = null; // Biến lưu trữ dữ liệu gốc để cắt
+        let selectedPageIndices = new Set();
         let currentFileName = "";
 
         // Thiết lập worker cho PDF.js
@@ -183,7 +182,7 @@
             }
         }
 
-        // --- 2. XỬ LÝ ĐỌC FILE VÀ HIỂN THỊ PDF (VIEWER) ---
+        // --- 2. XỬ LÝ ĐỌC FILE VÀ HIỂN THỊ PDF (ĐÃ SỬA LỖI DETACHED BUFFER) ---
         fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -202,16 +201,18 @@
             try {
                 // Đọc file thành ArrayBuffer
                 const arrayBuffer = await file.arrayBuffer();
-                originalPdfBytes = arrayBuffer;
+                
+                // QUAN TRỌNG: Clone (sao chép) dữ liệu ra một bản riêng để dành cho việc cắt file sau này.
+                // arrayBuffer.slice(0) tạo ra một bản sao hoàn chỉnh trong bộ nhớ.
+                originalPdfBytes = arrayBuffer.slice(0);
 
-                // Tải document bằng PDF.js để render thumbnail
+                // Dùng bản gốc để đưa cho PDF.js hiển thị (PDF.js có thể làm hỏng/transfer bản này)
                 const loadingTask = pdfjsLib.getDocument(arrayBuffer);
                 const pdf = await loadingTask.promise;
                 
                 fileLoadingStatus.textContent = `Đang tạo bản xem trước cho ${pdf.numPages} trang...`;
                 pdfPreviewArea.classList.remove('hidden');
 
-                // Loop qua từng trang để render
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                     renderPageThumbnail(pdf, pageNum);
                 }
@@ -220,40 +221,35 @@
 
             } catch (error) {
                 console.error(error);
-                statusDiv.textContent = "Lỗi khi đọc file PDF. Vui lòng thử lại.";
+                statusDiv.textContent = "Lỗi khi đọc file PDF: " + error.message;
             }
         });
 
         async function renderPageThumbnail(pdf, pageNum) {
             const page = await pdf.getPage(pageNum);
-            const scale = 0.5; // Scale nhỏ để làm thumbnail
+            const scale = 0.5; 
             const viewport = page.getViewport({ scale: scale });
 
-            // Tạo thẻ canvas
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             canvas.height = viewport.height;
             canvas.width = viewport.width;
-            canvas.className = "w-full h-auto rounded shadow-sm pointer-events-none"; // pointer-events-none để click vào div cha
+            canvas.className = "w-full h-auto rounded shadow-sm pointer-events-none"; 
 
-            // Render trang lên canvas
             const renderContext = {
                 canvasContext: context,
                 viewport: viewport
             };
             await page.render(renderContext).promise;
 
-            // Tạo container bao quanh (để xử lý click chọn)
             const container = document.createElement('div');
             container.className = "pdf-page-container bg-white p-2 rounded-lg relative";
-            container.dataset.pageIndex = pageNum - 1; // PDF.js trang bắt đầu từ 1, PDF-lib bắt đầu từ 0
+            container.dataset.pageIndex = pageNum - 1; 
 
-            // Icon checkmark
             const checkIcon = document.createElement('div');
             checkIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>`;
             checkIcon.className = "check-icon";
 
-            // Số trang
             const pageNumberLabel = document.createElement('div');
             pageNumberLabel.className = "text-center text-xs text-gray-500 mt-1 font-semibold";
             pageNumberLabel.innerText = `Trang ${pageNum}`;
@@ -262,7 +258,6 @@
             container.appendChild(canvas);
             container.appendChild(pageNumberLabel);
 
-            // Sự kiện click chọn trang
             container.onclick = () => {
                 const index = parseInt(container.dataset.pageIndex);
                 if (selectedPageIndices.has(index)) {
@@ -289,39 +284,35 @@
             }
         }
 
-        // --- 3. XỬ LÝ CẮT FILE VÀ UPLOAD (PDF-LIB + DRIVE API) ---
+        // --- 3. XỬ LÝ CẮT FILE VÀ UPLOAD ---
         processButton.onclick = async () => {
             if (selectedPageIndices.size === 0) return;
             
+            // Kiểm tra xem dữ liệu gốc có tồn tại không
+            if (!originalPdfBytes || originalPdfBytes.byteLength === 0) {
+                statusDiv.textContent = "Lỗi: Dữ liệu file gốc bị hỏng. Vui lòng tải lại trang và chọn lại file.";
+                return;
+            }
+
             statusDiv.innerHTML = '<span class="text-blue-600 animate-pulse">Đang xử lý PDF và Tải lên...</span>';
             processButton.disabled = true;
 
             try {
-                // 3a. TẠO FILE PDF MỚI TỪ CÁC TRANG ĐÃ CHỌN (Client-side)
-                // Load file gốc
+                // Load file từ bản sao (originalPdfBytes)
                 const pdfDoc = await PDFLib.PDFDocument.load(originalPdfBytes);
-                
-                // Tạo file mới
                 const newPdfDoc = await PDFLib.PDFDocument.create();
                 
-                // Copy các trang đã chọn (cần convert Set -> Array và sort để đúng thứ tự)
                 const indicesArray = Array.from(selectedPageIndices).sort((a, b) => a - b);
                 const copiedPages = await newPdfDoc.copyPages(pdfDoc, indicesArray);
                 
-                // Add trang vào file mới
                 copiedPages.forEach((page) => newPdfDoc.addPage(page));
                 
-                // Lưu file mới thành mảng bytes
                 const pdfBytes = await newPdfDoc.save();
-                
-                // Tạo Blob từ bytes để chuẩn bị upload
                 const newBlob = new Blob([pdfBytes], { type: 'application/pdf' });
                 
-                // Đặt tên file mới
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                 const newFileName = `Cut_${timestamp}_${currentFileName}`;
 
-                // 3b. UPLOAD LÊN GOOGLE DRIVE
                 await uploadToDrive(newBlob, newFileName);
 
             } catch (error) {
@@ -357,7 +348,6 @@
 
                 const fileData = await response.json();
                 
-                // Hiển thị kết quả
                 statusDiv.innerHTML = `
                     <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
                         <strong class="font-bold">Thành công!</strong>
@@ -370,14 +360,14 @@
                     </div>
                 `;
                 
-                // Reset sau khi thành công (tuỳ chọn)
                 processButton.disabled = false;
                 processButton.textContent = "Thực hiện lại";
 
             } catch (error) {
-                throw error; // Ném lỗi để catch ở trên xử lý hiển thị
+                throw error;
             }
         }
     </script>
 </body>
+
 </html>
