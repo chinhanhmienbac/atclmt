@@ -4719,6 +4719,10 @@ async function generateWorksheetWithFormulas(includeJustifications) {
  * HÀM CẬP NHẬT: (Nút 1)
  * Xuất Excel với công thức tính toán (Tải file).
  */
+/**
+ * HÀM CẬP NHẬT: (Nút 1) - Đã thêm tính năng Grouping cho Justifications
+ * Xuất Excel với công thức tính toán và Group ẩn hiện.
+ */
 window.exportPlainDataExcel = async function() {
     if (typeof ExcelJS === 'undefined') {
         alert("Thư viện ExcelJS chưa được tải. Vui lòng kiểm tra kết nối mạng.");
@@ -4784,7 +4788,16 @@ window.exportPlainDataExcel = async function() {
 
         // 3. Khởi tạo Excel
         const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet(`Kế Hoạch ${currentYear}`, { views: [{ showGridLines: false, state: 'frozen', ySplit: 1 }] });
+        const sheet = workbook.addWorksheet(`Kế Hoạch ${currentYear}`, { 
+            views: [{ showGridLines: false, state: 'frozen', ySplit: 1 }] 
+        });
+
+        // === [NEW] CẤU HÌNH GROUPING: Nút đóng mở nằm ở dòng cha (phía trên) ===
+        sheet.properties.outlineProperties = {
+            summaryBelow: false,
+            summaryRight: false
+        };
+        // ======================================================================
 
         // 4. Định nghĩa Cột
         const isFullMode = (activeExportType === 'full');
@@ -4830,7 +4843,7 @@ window.exportPlainDataExcel = async function() {
         headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
         headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-        // 5. HÀM ĐỆ QUY XỬ LÝ
+        // 5. HÀM ĐỆ QUY XỬ LÝ (Có thêm logic Outline)
         const processNodeToExcelJS = (node, level, path) => {
             const isContainer = (node.hasChildren === true) 
                 || (node.children && Object.keys(node.children).length > 0)
@@ -4883,6 +4896,14 @@ window.exportPlainDataExcel = async function() {
             }
 
             const row = sheet.addRow(rowValues);
+            
+            // === [NEW] THIẾT LẬP OUTLINE LEVEL CHO TASK ===
+            // Gán level hiện tại cho dòng Task. 
+            // Cấp 0 (A) -> outlineLevel 0
+            // Cấp 3 (Task) -> outlineLevel 3
+            row.outlineLevel = level;
+            // ==============================================
+
             const rIdx = row.number;
             const childRowNumbers = [];
             const justificationRowNumbers = [];
@@ -4907,6 +4928,12 @@ window.exportPlainDataExcel = async function() {
                     const jRow = sheet.addRow({
                         tt: j.tt ? String(j.tt).replace(/,/g, '.') : '', noiDung: j.noiDung, donVi: j.donVi, soLuong: j.soLuong, donGia: j.donGia, chiPhi: j.chiPhi, ghiChu: j.ghiChu
                     });
+                    
+                    // === [NEW] THIẾT LẬP OUTLINE LEVEL CHO GIẢI TRÌNH ===
+                    // Giải trình là con của Task (level), nên nó là level + 1
+                    jRow.outlineLevel = level + 1;
+                    // ====================================================
+
                     jRow.font = { italic: true, color: { argb: 'FFFF0000' } };
                     if(activeColumnKeys.has('chiPhi')) jRow.getCell('chiPhi').numFmt = '#,##0';
                     
@@ -4914,6 +4941,12 @@ window.exportPlainDataExcel = async function() {
                     if (j.subJustifications) {
                         Object.values(j.subJustifications).sort(compareChapters).forEach(s => {
                             const sRow = sheet.addRow({ tt: s.tt, noiDung: s.noiDung, donVi: s.donVi, soLuong: s.soLuong, donGia: s.donGia, chiPhi: s.chiPhi, ghiChu: s.ghiChu });
+                            
+                            // === [NEW] THIẾT LẬP OUTLINE LEVEL CHO GT CON ===
+                            // GT con là con của Giải trình, nên nó là level + 2
+                            sRow.outlineLevel = level + 2;
+                            // ================================================
+
                             sRow.font = { italic: true, color: { argb: 'FF800000' } };
                             if(activeColumnKeys.has('chiPhi')) sRow.getCell('chiPhi').numFmt = '#,##0';
                             subJustRowNumbers.push(sRow.number);
@@ -4932,15 +4965,12 @@ window.exportPlainDataExcel = async function() {
             
             // 1. Kế hoạch còn lại (Trừ level 5 VÀ Trừ task có capDo = PS)
             if (activeColumnKeys.has('chiPhi') && activeColumnKeys.has('chiPhiThucHien') && activeColumnKeys.has('keHoachConLai')) {
-                // Kiểm tra xem Cấp độ có phải là PS không
                 const isPs = node.capDo && String(node.capDo).trim().toLowerCase() === 'ps';
-
-                if (level !== 4 && !isPs) { // Level 5 = 4. Nếu không phải Level 5 VÀ không phải PS thì mới tạo công thức
+                if (level !== 4 && !isPs) { 
                     const cellChiPhi = row.getCell('chiPhi').address;
                     const cellChiPhiTH = row.getCell('chiPhiThucHien').address;
                     row.getCell('keHoachConLai').value = { formula: `${cellChiPhi}-${cellChiPhiTH}` };
                 } else {
-                    // Nếu là Level 5 HOẶC là PS -> Xóa trắng
                     row.getCell('keHoachConLai').value = null; 
                 }
             }
@@ -7754,4 +7784,5 @@ parentData.tgBatDau = parentSummary.totalExecutedLeafNodesCap1 || 0;
 
 </body>
 </html>
+
 
