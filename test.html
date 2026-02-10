@@ -4716,9 +4716,10 @@ async function generateWorksheetWithFormulas(includeJustifications) {
 }
 
 /**
- * HÀM CẬP NHẬT: (Nút 1) - Grouping Đơn giản (2 Cấp)
- * Level 0: Tất cả các Task (Cha, Con, Cháu...).
- * Level 1: Chỉ dành cho Justifications và SubJustifications.
+ * HÀM CẬP NHẬT: (Fix Bug)
+ * 1. Sửa lỗi hiển thị TT SubJustification (đổi dấu , thành .).
+ * 2. Sửa lỗi sắp xếp SubJustification (Natural Sort: 1.2 trước 1.10).
+ * 3. Giữ nguyên tính năng Grouping 2 cấp (Task Level 0, Justification Level 1).
  */
 window.exportPlainDataExcel = async function() {
     if (typeof ExcelJS === 'undefined') {
@@ -4731,7 +4732,9 @@ window.exportPlainDataExcel = async function() {
         statusDiv.innerText = 'Đang khởi tạo ExcelJS và tính toán dữ liệu...';
         closeAllModals();
 
-        // --- CÁC HÀM HELPER SẮP XẾP ---
+        // --- 1. CÁC HÀM HELPER SẮP XẾP (Đã nâng cấp) ---
+        
+        // Hàm sắp xếp số La Mã (cho cấp con)
         const romanToInt = (s) => {
             if (!s) return 0;
             const map = {I:1, V:5, X:10, L:50, C:100, D:500, M:1000};
@@ -4742,19 +4745,16 @@ window.exportPlainDataExcel = async function() {
             }
             return res;
         };
-        const compareChapters = (aObj, bObj) => {
-            const a = aObj.tt ? String(aObj.tt) : ""; const b = bObj.tt ? String(bObj.tt) : "";
-            const partsA = a.replace(/,/g, '.').split('.'); const partsB = b.replace(/,/g, '.').split('.');
-            const len = Math.max(partsA.length, partsB.length);
-            for (let i = 0; i < len; i++) {
-                if (partsA[i] === undefined) return -1; if (partsB[i] === undefined) return 1;
-                const numA = parseInt(partsA[i], 10); const numB = parseInt(partsB[i], 10);
-                if (!isNaN(numA) && !isNaN(numB)) { if (numA !== numB) return numA - numB; } 
-                else { if (partsA[i] !== partsB[i]) return partsA[i].localeCompare(partsB[i]); }
-            }
-            return 0;
-        };
         const compareRoman = (a, b) => romanToInt(a.tt) - romanToInt(b.tt);
+
+        // [QUAN TRỌNG] Hàm sắp xếp tự nhiên (Natural Sort)
+        // Giải quyết vấn đề: 1*1.2 sẽ đứng trước 1*1.10
+        const naturalSort = (aObj, bObj) => {
+            const a = aObj.tt ? String(aObj.tt) : "";
+            const b = bObj.tt ? String(bObj.tt) : "";
+            // numeric: true giúp so sánh chuỗi số học thông minh
+            return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+        };
 
         // 2. Tải Dữ liệu
         const parentRef = ref(db, getParentCollectionName());
@@ -4766,9 +4766,12 @@ window.exportPlainDataExcel = async function() {
         const summarySnap = await get(summaryRef);
         const summaryData = summarySnap.exists() ? summarySnap.val() : {};
 
-        const parents = Object.keys(parentsData).map(id => ({ id, ...parentsData[id] })).sort((a, b) => a.id.localeCompare(b.id));
+        // Sắp xếp cấp cha (A, B, C...)
+        const parents = Object.keys(parentsData)
+            .map(id => ({ id, ...parentsData[id] }))
+            .sort((a, b) => a.id.localeCompare(b.id));
         
-        // Helper tìm max execution
+        // Helper tìm max execution (để vẽ cột động)
         const findMaxExecutions = (nodes) => {
             let max = 0;
             const traverse = (n) => {
@@ -4789,9 +4792,9 @@ window.exportPlainDataExcel = async function() {
             views: [{ showGridLines: false, state: 'frozen', ySplit: 1 }] 
         });
 
-        // === CẤU HÌNH GROUPING ===
+        // Cấu hình Grouping: Dấu (+) nằm ở dòng trên
         sheet.properties.outlineProperties = {
-            summaryBelow: false, // Dấu cộng (+) nằm ở dòng cha (phía trên)
+            summaryBelow: false,
             summaryRight: false
         };
 
@@ -4834,12 +4837,14 @@ window.exportPlainDataExcel = async function() {
             }
         }
         sheet.columns = columnsToUse;
+        
+        // Style Header
         const headerRow = sheet.getRow(1);
         headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
         headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
         headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-        // 5. HÀM ĐỆ QUY XỬ LÝ (Điều chỉnh Outline Level)
+        // 5. HÀM ĐỆ QUY XỬ LÝ
         const processNodeToExcelJS = (node, level, path) => {
             const isContainer = (node.hasChildren === true) 
                 || (node.children && Object.keys(node.children).length > 0)
@@ -4892,56 +4897,52 @@ window.exportPlainDataExcel = async function() {
             }
 
             const row = sheet.addRow(rowValues);
-            
-            // === [LOGIC MỚI] OUTLINE LEVEL CHO TASK ===
-            // Tất cả các Task chính (Dù là Cha, Con, Cháu) đều ở Level 0
-            row.outlineLevel = 0;
-            // ==========================================
+            row.outlineLevel = 0; // Tất cả Task đều ở Level 0
 
             const rIdx = row.number;
             const childRowNumbers = [];
             const justificationRowNumbers = [];
 
-            // --- XỬ LÝ CON ---
+            // --- XỬ LÝ CON (Sử dụng naturalSort thay vì compareChapters ở các cấp lá) ---
             if (node.children) {
                 Object.values(node.children).sort(compareRoman).forEach(c => childRowNumbers.push(...processNodeToExcelJS(c, level + 1, `${path}/children/${c.id}`)));
             }
             if (node.grandchildren) {
-                Object.values(node.grandchildren).sort(compareChapters).forEach(c => childRowNumbers.push(...processNodeToExcelJS(c, level + 1, `${path}/grandchildren/${c.id}`)));
+                // Sử dụng naturalSort ở đây cho chắc chắn, hoặc giữ compareChapters nếu cấp này chỉ là số đơn
+                Object.values(node.grandchildren).sort(naturalSort).forEach(c => childRowNumbers.push(...processNodeToExcelJS(c, level + 1, `${path}/grandchildren/${c.id}`)));
             }
             if (node.greatGrandchildren) {
-                Object.values(node.greatGrandchildren).sort(compareChapters).forEach(c => childRowNumbers.push(...processNodeToExcelJS(c, level + 1, `${path}/greatGrandchildren/${c.id}`)));
+                Object.values(node.greatGrandchildren).sort(naturalSort).forEach(c => childRowNumbers.push(...processNodeToExcelJS(c, level + 1, `${path}/greatGrandchildren/${c.id}`)));
             }
             if (node.greatGreatGrandchildren) {
-                Object.values(node.greatGreatGrandchildren).sort(compareChapters).forEach(c => childRowNumbers.push(...processNodeToExcelJS(c, level + 1, `${path}/greatGreatGrandchildren/${c.id}`)));
+                Object.values(node.greatGreatGrandchildren).sort(naturalSort).forEach(c => childRowNumbers.push(...processNodeToExcelJS(c, level + 1, `${path}/greatGreatGrandchildren/${c.id}`)));
             }
 
-            // --- XỬ LÝ GIẢI TRÌNH ---
+            // --- XỬ LÝ GIẢI TRÌNH (Justifications) ---
             if (isFullMode && node.justifications) {
-                Object.values(node.justifications).sort(compareChapters).forEach(j => {
+                // Sắp xếp Justification cha
+                Object.values(node.justifications).sort(naturalSort).forEach(j => {
                     const jRow = sheet.addRow({
-                        tt: j.tt ? String(j.tt).replace(/,/g, '.') : '', noiDung: j.noiDung, donVi: j.donVi, soLuong: j.soLuong, donGia: j.donGia, chiPhi: j.chiPhi, ghiChu: j.ghiChu
+                        // Fix 1: Thay thế dấu phẩy
+                        tt: j.tt ? String(j.tt).replace(/,/g, '.') : '', 
+                        noiDung: j.noiDung, donVi: j.donVi, soLuong: j.soLuong, donGia: j.donGia, chiPhi: j.chiPhi, ghiChu: j.ghiChu
                     });
                     
-                    // === [LOGIC MỚI] OUTLINE LEVEL CHO GIẢI TRÌNH ===
-                    // Giải trình luôn ở Level 1 để Task cha (Level 0) có thể đóng/mở nó
-                    jRow.outlineLevel = 1;
-                    // ===============================================
-
+                    jRow.outlineLevel = 1; // Level 1 (ẩn trong Task)
                     jRow.font = { italic: true, color: { argb: 'FFFF0000' } };
                     if(activeColumnKeys.has('chiPhi')) jRow.getCell('chiPhi').numFmt = '#,##0';
                     
                     const subJustRowNumbers = [];
                     if (j.subJustifications) {
-                        Object.values(j.subJustifications).sort(compareChapters).forEach(s => {
-                            const sRow = sheet.addRow({ tt: s.tt, noiDung: s.noiDung, donVi: s.donVi, soLuong: s.soLuong, donGia: s.donGia, chiPhi: s.chiPhi, ghiChu: s.ghiChu });
+                        // Fix 2: Sử dụng naturalSort cho Sub-Justifications
+                        Object.values(j.subJustifications).sort(naturalSort).forEach(s => {
+                            const sRow = sheet.addRow({ 
+                                // Fix 1: Thay thế dấu phẩy cho cả Sub-Justifications
+                                tt: s.tt ? String(s.tt).replace(/,/g, '.') : '', 
+                                noiDung: s.noiDung, donVi: s.donVi, soLuong: s.soLuong, donGia: s.donGia, chiPhi: s.chiPhi, ghiChu: s.ghiChu 
+                            });
                             
-                            // === [LOGIC MỚI] OUTLINE LEVEL CHO GT CON ===
-                            // Giải trình CON cũng ở Level 1 (ngang hàng với GT cha về mặt hiển thị)
-                            // Để chúng cùng chui vào Group của Task chính
-                            sRow.outlineLevel = 1;
-                            // ============================================
-
+                            sRow.outlineLevel = 1; // Level 1 (ngang hàng Justification)
                             sRow.font = { italic: true, color: { argb: 'FF800000' } };
                             if(activeColumnKeys.has('chiPhi')) sRow.getCell('chiPhi').numFmt = '#,##0';
                             subJustRowNumbers.push(sRow.number);
@@ -4978,7 +4979,7 @@ window.exportPlainDataExcel = async function() {
                     if ((key === 'chiPhiPhanBo' || key === 'cpCap1') && level >= 3) return;
 
                     const cells = childRowNumbers.map(r => sheet.getRow(r).getCell(key).address).join(',');
-                    if (cells.length > 8000) return;
+                    if (cells.length > 8000) return; // Tránh lỗi chuỗi công thức quá dài
                     row.getCell(key).value = { formula: `SUM(${cells})` };
                 };
                 
@@ -5003,7 +5004,7 @@ window.exportPlainDataExcel = async function() {
                 }
             }
             
-            // 4. Công thức cho Level 4 & 5 (Level >= 3)
+            // 4. Công thức cho Level 4 & 5
             if (level >= 3) {
                 if (activeColumnKeys.has('chiPhi') && activeColumnKeys.has('namPhanBo') && activeColumnKeys.has('chiPhiPhanBo')) {
                     const addrChiPhi = row.getCell('chiPhi').address; const addrNamPB = row.getCell('namPhanBo').address;
@@ -7780,6 +7781,7 @@ parentData.tgBatDau = parentSummary.totalExecutedLeafNodesCap1 || 0;
 
 </body>
 </html>
+
 
 
 
