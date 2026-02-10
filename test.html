@@ -538,6 +538,7 @@
 
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <script src="xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="chart.js"></script>
@@ -4719,32 +4720,301 @@ async function generateWorksheetWithFormulas(includeJustifications) {
  * Xuất Excel với công thức tính toán (Tải file).
  */
 window.exportPlainDataExcel = async function() {
+    if (typeof ExcelJS === 'undefined') {
+        alert("Thư viện ExcelJS chưa được tải. Vui lòng kiểm tra kết nối mạng.");
+        return;
+    }
+
     try {
         statusDiv.className = 'success';
-        statusDiv.innerText = 'Đang chuẩn bị dữ liệu file Excel...';
+        statusDiv.innerText = 'Đang khởi tạo ExcelJS và tính toán dữ liệu...';
         closeAllModals();
 
-        // QUAN TRỌNG: Quyết định có xuất giải trình hay không dựa trên nút bấm ban đầu
-        // Nút 1 (Simplified) -> false. Nút 2 (Full) -> true.
-        const includeJustifications = (activeExportType === 'full');
+        // --- CÁC HÀM HELPER SẮP XẾP ---
+        const romanToInt = (s) => {
+            if (!s) return 0;
+            const map = {I:1, V:5, X:10, L:50, C:100, D:500, M:1000};
+            let res = 0; s = s.toUpperCase();
+            for (let i = 0; i < s.length; i++) {
+                let v1 = map[s[i]] || 0; let v2 = map[s[i+1]] || 0;
+                if (v2 > v1) res -= v1; else res += v1;
+            }
+            return res;
+        };
+        const compareChapters = (aObj, bObj) => {
+            const a = aObj.tt ? String(aObj.tt) : ""; const b = bObj.tt ? String(bObj.tt) : "";
+            const partsA = a.replace(/,/g, '.').split('.'); const partsB = b.replace(/,/g, '.').split('.');
+            const len = Math.max(partsA.length, partsB.length);
+            for (let i = 0; i < len; i++) {
+                if (partsA[i] === undefined) return -1; if (partsB[i] === undefined) return 1;
+                const numA = parseInt(partsA[i], 10); const numB = parseInt(partsB[i], 10);
+                if (!isNaN(numA) && !isNaN(numB)) { if (numA !== numB) return numA - numB; } 
+                else { if (partsA[i] !== partsB[i]) return partsA[i].localeCompare(partsB[i]); }
+            }
+            return 0;
+        };
+        const compareRoman = (a, b) => romanToInt(a.tt) - romanToInt(b.tt);
 
-        // Gọi hàm tạo dữ liệu (Hàm này đã được cấu hình để luôn xuất FULL CỘT)
-        const { wb, ws } = await generateWorksheetWithFormulas(includeJustifications);
-        
-        // Đặt tên file khác nhau để dễ phân biệt
-        const fileName = includeJustifications ? 
-            `AT-CL-MT_${currentYear}_Full.xlsx` : 
-            `AT-CL-MT_${currentYear}_NoJustification.xlsx`;
+        // 2. Tải Dữ liệu
+        const parentRef = ref(db, getParentCollectionName());
+        const parentSnapshot = await get(parentRef);
+        if (!parentSnapshot.exists()) { alert('Không có dữ liệu.'); statusDiv.innerText = ''; return; }
+        const parentsData = parentSnapshot.val();
 
-        XLSX.utils.book_append_sheet(wb, ws, 'Data');
-        XLSX.writeFile(wb, fileName);
+        const summaryRef = ref(db, `summary_data/${currentYear}`);
+        const summarySnap = await get(summaryRef);
+        const summaryData = summarySnap.exists() ? summarySnap.val() : {};
+
+        const parents = Object.keys(parentsData).map(id => ({ id, ...parentsData[id] })).sort((a, b) => a.id.localeCompare(b.id));
         
-        statusDiv.innerText = 'Xuất file Excel (.xlsx) thành công!';
+        // Helper tìm max execution
+        const findMaxExecutions = (nodes) => {
+            let max = 0;
+            const traverse = (n) => {
+                if (n.executions) { const count = Object.keys(n.executions).length; if (count > max) max = count; }
+                if (n.children) Object.values(n.children).forEach(traverse);
+                if (n.grandchildren) Object.values(n.grandchildren).forEach(traverse);
+                if (n.greatGrandchildren) Object.values(n.greatGrandchildren).forEach(traverse);
+                if (n.greatGreatGrandchildren) Object.values(n.greatGreatGrandchildren).forEach(traverse);
+            };
+            Object.values(nodes).forEach(traverse);
+            return max;
+        };
+        const maxExec = findMaxExecutions(parentsData);
+
+        // 3. Khởi tạo Excel
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet(`Kế Hoạch ${currentYear}`, { views: [{ showGridLines: false, state: 'frozen', ySplit: 1 }] });
+
+        // 4. Định nghĩa Cột
+        const isFullMode = (activeExportType === 'full');
+        const allBaseColumns = [
+            { header: 'TT', key: 'tt', width: 10, style: { numFmt: '@' } }, 
+            { header: 'Nội dung', key: 'noiDung', width: 50, style: { alignment: { wrapText: true } } },
+            { header: 'Tag Name', key: 'tagName', width: 12 },
+            { header: 'ĐV th.hiện', key: 'dvThucHien', width: 15 },
+            { header: 'KH năm trước', key: 'khNamTruoc', width: 15, style: { numFmt: '#,##0' } },
+            { header: 'Thực hiện năm trước', key: 'thucHienNamTruoc', width: 15, style: { numFmt: '#,##0' } },
+            { header: 'Tần suất TH', key: 'tanSuatTH', width: 10, style: { alignment: { horizontal: 'center' } } },
+            { header: 'Đ.vị tính', key: 'donVi', width: 10, style: { alignment: { horizontal: 'center' } } },
+            { header: 'Số lượng', key: 'soLuong', width: 10, style: { numFmt: '#,##0' } },
+            { header: 'Đơn giá (GT)', key: 'donGia', width: 15, style: { numFmt: '#,##0' } },
+            { header: 'Chi phí KH', key: 'chiPhi', width: 18, style: { numFmt: '#,##0' } },
+            { header: 'Chi phí thực hiện', key: 'chiPhiThucHien', width: 18, style: { numFmt: '#,##0' } },
+            { header: 'Kế hoạch còn lại', key: 'keHoachConLai', width: 18, style: { numFmt: '#,##0' } },
+            { header: 'Năm phân bổ', key: 'namPhanBo', width: 10, style: { alignment: { horizontal: 'center' } } },
+            { header: 'CP phân bổ', key: 'chiPhiPhanBo', width: 15, style: { numFmt: '#,##0' } },
+            { header: 'Cấp độ', key: 'capDo', width: 8, style: { alignment: { horizontal: 'center' } } },
+            { header: 'CP CĐ1', key: 'cpCap1', width: 15, style: { numFmt: '#,##0' } },
+            { header: 'Thời điểm TH', key: 'tgBatDau', width: 12 },
+            { header: 'ODDO', key: 'tgHoanThanh', width: 12, style: { numFmt: '#,##0' } },
+            { header: 'Ghi chú', key: 'ghiChu', width: 25 }
+        ];
+        const columnsToUse = isFullMode ? allBaseColumns : allBaseColumns.filter(c => !['donGia', 'khNamTruoc', 'thucHienNamTruoc', 'tgHoanThanh'].includes(c.key));
+        const activeColumnKeys = new Set(columnsToUse.map(c => c.key));
+
+        for (let i = 1; i <= maxExec; i++) {
+            columnsToUse.push(
+                { header: `Ngày TH (${i})`, key: `ngayTh_${i}`, width: 12, style: { numFmt: '@' } },
+                { header: `Số lượng (${i})`, key: `sl_${i}`, width: 10, style: { numFmt: '#,##0' } },
+                { header: `Đơn giá (${i})`, key: `dg_${i}`, width: 15, style: { numFmt: '#,##0' } },
+                { header: `Thành tiền (${i})`, key: `tt_${i}`, width: 18, style: { numFmt: '#,##0' } }
+            );
+            if (isFullMode) {
+                columnsToUse.push({ header: `Timestamp (${i})`, key: `ts_${i}`, width: 15, style: { numFmt: '0' } }, { header: `Hồ sơ Link (${i})`, key: `link_${i}`, width: 20 });
+            }
+        }
+        sheet.columns = columnsToUse;
+        const headerRow = sheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
+        headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+        // 5. HÀM ĐỆ QUY XỬ LÝ
+        const processNodeToExcelJS = (node, level, path) => {
+            const isContainer = (node.hasChildren === true) 
+                || (node.children && Object.keys(node.children).length > 0)
+                || (node.grandchildren && Object.keys(node.grandchildren).length > 0)
+                || (node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0)
+                || (node.greatGreatGrandchildren && Object.keys(node.greatGreatGrandchildren).length > 0);
+
+            let displaySoLuong = node.soLuong;
+            let displayTgBatDau = node.tgBatDau;
+            if (level === 0 && summaryData[node.id]) {
+                displaySoLuong = summaryData[node.id].totalLeafNodesCap1 || 0;
+                displayTgBatDau = summaryData[node.id].totalExecutedLeafNodesCap1 || 0;
+            }
+
+            const rowValues = {
+                tt: node.tt ? String(node.tt).replace(/,/g, '.') : '',
+                noiDung: node.noiDung || '', tagName: node.tagName || '', dvThucHien: node.dvThucHien || '',
+                khNamTruoc: node.khNamTruoc || 0, thucHienNamTruoc: node.thucHienNamTruoc || 0,
+                tanSuatTH: (node.tanSuatTH === 0) ? '-' : (node.tanSuatTH || ''),
+                donVi: node.donVi || '',
+                soLuong: (isContainer && level === 0) ? displaySoLuong : (node.soLuong || 0),
+                donGia: node.donGia || 0, chiPhi: node.chiPhi || 0, chiPhiThucHien: node.chiPhiThucHien || 0,
+                keHoachConLai: node.keHoachConLai || 0,
+                namPhanBo: node.namPhanBo || '', chiPhiPhanBo: node.chiPhiPhanBo || 0,
+                capDo: node.capDo || '', cpCap1: node.cpCap1 || 0,
+                tgBatDau: (level === 0) ? displayTgBatDau : (node.tgBatDau || ''),
+                tgHoanThanh: node.tgHoanThanh || '', ghiChu: node.ghiChu || ''
+            };
+
+            // Dữ liệu Executions
+            if (node.executions) {
+                const sortedExecs = Object.values(node.executions).sort((a, b) => {
+                    const timeA = a.timestamp || new Date(a.ngayThucHien).getTime() || 0;
+                    const timeB = b.timestamp || new Date(b.ngayThucHien).getTime() || 0;
+                    return timeA - timeB;
+                });
+                sortedExecs.forEach((exec, index) => {
+                    const colIndex = index + 1;
+                    if (colIndex <= maxExec) {
+                        rowValues[`ngayTh_${colIndex}`] = exec.ngayThucHien; 
+                        rowValues[`sl_${colIndex}`] = exec.dvt;
+                        rowValues[`dg_${colIndex}`] = exec.donGia; 
+                        rowValues[`tt_${colIndex}`] = exec.thanhTien;
+                        if (isFullMode) { 
+                            rowValues[`ts_${colIndex}`] = exec.timestamp ? String(exec.timestamp) : ''; 
+                            rowValues[`link_${colIndex}`] = exec.hoSoLink; 
+                        }
+                    }
+                });
+            }
+
+            const row = sheet.addRow(rowValues);
+            const rIdx = row.number;
+            const childRowNumbers = [];
+            const justificationRowNumbers = [];
+
+            // --- XỬ LÝ CON ---
+            if (node.children) {
+                Object.values(node.children).sort(compareRoman).forEach(c => childRowNumbers.push(...processNodeToExcelJS(c, level + 1, `${path}/children/${c.id}`)));
+            }
+            if (node.grandchildren) {
+                Object.values(node.grandchildren).sort(compareChapters).forEach(c => childRowNumbers.push(...processNodeToExcelJS(c, level + 1, `${path}/grandchildren/${c.id}`)));
+            }
+            if (node.greatGrandchildren) {
+                Object.values(node.greatGrandchildren).sort(compareChapters).forEach(c => childRowNumbers.push(...processNodeToExcelJS(c, level + 1, `${path}/greatGrandchildren/${c.id}`)));
+            }
+            if (node.greatGreatGrandchildren) {
+                Object.values(node.greatGreatGrandchildren).sort(compareChapters).forEach(c => childRowNumbers.push(...processNodeToExcelJS(c, level + 1, `${path}/greatGreatGrandchildren/${c.id}`)));
+            }
+
+            // --- XỬ LÝ GIẢI TRÌNH ---
+            if (isFullMode && node.justifications) {
+                Object.values(node.justifications).sort(compareChapters).forEach(j => {
+                    const jRow = sheet.addRow({
+                        tt: j.tt ? String(j.tt).replace(/,/g, '.') : '', noiDung: j.noiDung, donVi: j.donVi, soLuong: j.soLuong, donGia: j.donGia, chiPhi: j.chiPhi, ghiChu: j.ghiChu
+                    });
+                    jRow.font = { italic: true, color: { argb: 'FFFF0000' } };
+                    if(activeColumnKeys.has('chiPhi')) jRow.getCell('chiPhi').numFmt = '#,##0';
+                    
+                    const subJustRowNumbers = [];
+                    if (j.subJustifications) {
+                        Object.values(j.subJustifications).sort(compareChapters).forEach(s => {
+                            const sRow = sheet.addRow({ tt: s.tt, noiDung: s.noiDung, donVi: s.donVi, soLuong: s.soLuong, donGia: s.donGia, chiPhi: s.chiPhi, ghiChu: s.ghiChu });
+                            sRow.font = { italic: true, color: { argb: 'FF800000' } };
+                            if(activeColumnKeys.has('chiPhi')) sRow.getCell('chiPhi').numFmt = '#,##0';
+                            subJustRowNumbers.push(sRow.number);
+                        });
+                        if (subJustRowNumbers.length > 0 && activeColumnKeys.has('chiPhi')) {
+                            jRow.getCell('chiPhi').value = { formula: `SUM(${subJustRowNumbers.map(r => sheet.getRow(r).getCell('chiPhi').address).join(',')})` };
+                        }
+                    }
+                    justificationRowNumbers.push(jRow.number);
+                });
+            }
+
+            // =================================================================
+            // TẠO CÔNG THỨC EXCEL
+            // =================================================================
+            
+            // 1. Kế hoạch còn lại (Trừ level 5 VÀ Trừ task có capDo = PS)
+            if (activeColumnKeys.has('chiPhi') && activeColumnKeys.has('chiPhiThucHien') && activeColumnKeys.has('keHoachConLai')) {
+                // Kiểm tra xem Cấp độ có phải là PS không
+                const isPs = node.capDo && String(node.capDo).trim().toLowerCase() === 'ps';
+
+                if (level !== 4 && !isPs) { // Level 5 = 4. Nếu không phải Level 5 VÀ không phải PS thì mới tạo công thức
+                    const cellChiPhi = row.getCell('chiPhi').address;
+                    const cellChiPhiTH = row.getCell('chiPhiThucHien').address;
+                    row.getCell('keHoachConLai').value = { formula: `${cellChiPhi}-${cellChiPhiTH}` };
+                } else {
+                    // Nếu là Level 5 HOẶC là PS -> Xóa trắng
+                    row.getCell('keHoachConLai').value = null; 
+                }
+            }
+
+            // 2. Tổng hợp từ con (Container)
+            if (isContainer && childRowNumbers.length > 0) {
+                const makeSum = (key) => {
+                    if (!activeColumnKeys.has(key)) return;
+                    if (key === 'chiPhi' && level >= 2) return;
+                    if ((key === 'chiPhiPhanBo' || key === 'cpCap1') && level >= 3) return;
+
+                    const cells = childRowNumbers.map(r => sheet.getRow(r).getCell(key).address).join(',');
+                    if (cells.length > 8000) return;
+                    row.getCell(key).value = { formula: `SUM(${cells})` };
+                };
+                
+                makeSum('chiPhi');
+                makeSum('chiPhiThucHien'); 
+                makeSum('khNamTruoc'); makeSum('thucHienNamTruoc');
+                makeSum('chiPhiPhanBo'); 
+                makeSum('cpCap1');
+            }
+
+            // 3. Tổng hợp từ Giải trình
+            if (justificationRowNumbers.length > 0 && activeColumnKeys.has('chiPhi')) {
+                 const cells = justificationRowNumbers.map(r => sheet.getRow(r).getCell('chiPhi').address).join(',');
+                 row.getCell('chiPhi').value = { formula: `SUM(${cells})` };
+            } 
+            else if (!isContainer) { 
+                if (activeColumnKeys.has('soLuong') && activeColumnKeys.has('donGia') && activeColumnKeys.has('chiPhi')) {
+                    if ((node.soLuong || 0) !== 0 || (node.donGia || 0) !== 0) {
+                        const addrSL = row.getCell('soLuong').address; const addrDG = row.getCell('donGia').address;
+                        row.getCell('chiPhi').value = { formula: `${addrSL}*${addrDG}` };
+                    }
+                }
+            }
+            
+            // 4. Công thức cho Level 4 & 5 (Level >= 3)
+            if (level >= 3) {
+                if (activeColumnKeys.has('chiPhi') && activeColumnKeys.has('namPhanBo') && activeColumnKeys.has('chiPhiPhanBo')) {
+                    const addrChiPhi = row.getCell('chiPhi').address; const addrNamPB = row.getCell('namPhanBo').address;
+                    row.getCell('chiPhiPhanBo').value = { formula: `IF(ISNUMBER(${addrNamPB}), IF(${addrNamPB}>0, ${addrChiPhi}/${addrNamPB}, 0), 0)` };
+                }
+                if (activeColumnKeys.has('chiPhi') && activeColumnKeys.has('capDo') && activeColumnKeys.has('cpCap1')) {
+                    const addrChiPhi = row.getCell('chiPhi').address; const addrCapDo = row.getCell('capDo').address;
+                    row.getCell('cpCap1').value = { formula: `IF(${addrCapDo}="1", ${addrChiPhi}, IF(${addrCapDo}="6t", ${addrChiPhi}*0.5, 0))` };
+                }
+            }
+
+            // Style & Định dạng
+            const colors = ['FFC5D9F1', 'FFE4DFEC', 'FFF2DCDB', 'FFEBF1DE', 'FFFFFFFF', 'FFFFE599']; 
+            const bgColor = colors[level] || 'FFFFFFFF'; 
+            const isBold = level < 3;
+
+            row.eachCell({ includeEmpty: true }, (cell) => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                cell.border = { top: { style: 'thin', color: { argb: 'FFD9D9D9' } }, left: { style: 'thin', color: { argb: 'FFD9D9D9' } }, bottom: { style: 'thin', color: { argb: 'FFD9D9D9' } }, right: { style: 'thin', color: { argb: 'FFD9D9D9' } } };
+                if (isBold) cell.font = { bold: true };
+            });
+            return [rIdx];
+        };
+
+        parents.forEach(p => processNodeToExcelJS(p, 0, `${getParentCollectionName()}/${p.id}`));
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const fileName = isFullMode ? `KeHoach_Full_${currentYear}.xlsx` : `KeHoach_Simple_${currentYear}.xlsx`;
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = fileName;
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+
+        statusDiv.innerText = 'Xuất Excel thành công!'; setTimeout(() => statusDiv.innerText = '', 3000);
 
     } catch (error) {
-        console.error("Lỗi khi xuất Excel:", error);
-        statusDiv.className = 'error';
-        statusDiv.innerText = `Lỗi khi xuất file: ${error.message}`;
+        console.error("Lỗi xuất ExcelJS:", error); statusDiv.className = 'error'; statusDiv.innerText = `Lỗi: ${error.message}`;
     }
 };
 
@@ -7484,3 +7754,4 @@ parentData.tgBatDau = parentSummary.totalExecutedLeafNodesCap1 || 0;
 
 </body>
 </html>
+
