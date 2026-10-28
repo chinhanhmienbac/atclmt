@@ -918,7 +918,22 @@
                         
                         setupWorksheetHeaderAtRow7(ws, maxExec);
                         parentsList.forEach(p => processNodeExcelJS(p, 0, ws, maxExec));
-
+					// Kẻ viền chính xác từ dòng số 8 xuống đến dòng dữ liệu cuối cùng
+                        for (let r = 8; r <= totalRows; r++) {
+                            const row = ws.getRow(r);
+                            for (let c = 1; c <= maxCol; c++) {
+                                const cell = row.getCell(c);
+                                cell.border = {
+                                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                                    right: { style: 'thin', color: { argb: 'FF000000' } }
+                                };
+                            }
+                        }
+                        // ==========================================
+                        // [KẾT THÚC] BỔ SUNG ĐOẠN CODE KẺ BẢNG
+                        // ==========================================
                         // --- FORMATTING SAU KHI TẠO DỮ LIỆU ---
                         const maxCol = 12 + maxExec * 4;
 
@@ -939,21 +954,7 @@
                             ws.getColumn(c).hidden = true;
                         }
 
-                        // --- BỔ SUNG CHỈ KẺ BẢNG TỪ DÒNG 8 ĐẾN HẾT BẢNG ---
-                        const maxCol = 12 + maxExec * 4;
-                        const totalRows = ws.rowCount;
-                        for (let r = 8; r <= totalRows; r++) {
-                            const row = ws.getRow(r);
-                            for (let c = 1; c <= maxCol; c++) {
-                                const cell = row.getCell(c);
-                                cell.border = {
-                                    top: { style: 'thin', color: { argb: 'FF000000' } },
-                                    left: { style: 'thin', color: { argb: 'FF000000' } },
-                                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
-                                    right: { style: 'thin', color: { argb: 'FF000000' } }
-                                };
-                            }
-                        }
+                        
                     };
 
                     // Phân nhánh xuất Right / Left
