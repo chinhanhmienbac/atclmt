@@ -708,7 +708,7 @@
             }
         }
 		// =====================================================================
-        // CHỨC NĂNG XUẤT BÁO CÁO EXCEL TỔNG HỢP VÀO FILE Bieumau.xlsx (V5 - DÒNG 7 & TỔNG HỢP QUÝ)
+        // CHỨC NĂNG XUẤT BÁO CÁO EXCEL TỔNG HỢP VÀO FILE Bieumau.xlsx (V6 - HOÀN THIỆN FORMAT & CALC)
         // =====================================================================
         window.exportBaoCao = async function() {
             const btn = document.getElementById('btnExportExcel');
@@ -768,11 +768,10 @@
                     return max;
                 };
 
-                // --- HÀM SETUP HEADER TẠI DÒNG THỨ 7 (Giữ nguyên dòng 1-6) ---
+                // --- HÀM SETUP HEADER TẠI DÒNG THỨ 7 ---
                 const setupWorksheetHeaderAtRow7 = (ws, maxExec) => {
                     ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
                     
-                    // Khai báo tiêu đề và độ rộng cột tương ứng (Đã bổ sung 4 cột Quý)
                     const headers = ['TT', 'Nội dung công việc', 'ĐV th.hiện', 'Chi phí KH', 'TG bắt đầu', 'TG hoàn thành', 'Quý I', 'Quý II', 'Quý III', 'Quý IV', 'Chi phí thực hiện', 'Kế hoạch còn lại'];
                     const widths = [10, 50, 15, 18, 12, 12, 15, 15, 15, 15, 18, 18];
 
@@ -781,12 +780,10 @@
                         widths.push(12, 10, 15, 18);
                     }
 
-                    // Áp dụng độ rộng cột
                     widths.forEach((w, idx) => {
                         ws.getColumn(idx + 1).width = w;
                     });
                     
-                    // Viết tiêu đề vào chính xác dòng số 7
                     const headerRow = ws.getRow(7);
                     headerRow.values = headers;
                     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
@@ -807,7 +804,6 @@
                             const e = node.executions[k];
                             const thanhTien = e.thanhTien || 0;
                             if (e.ngayThucHien) {
-                                // Định dạng ngày mong đợi: YYYY-MM-DD
                                 const parts = e.ngayThucHien.split('-');
                                 if (parts.length >= 2) {
                                     const month = parseInt(parts[1], 10);
@@ -820,20 +816,17 @@
                         }
                     }
 
-                    // 2. Chuẩn bị mảng dữ liệu cơ bản (12 cột đầu)
+                    // 2. Chuẩn bị mảng dữ liệu cơ bản (12 cột)
                     const rData = [
                         convertTT(node.tt), 
                         node.noiDung || '', 
-                        node.dvThucHien || '',                                               // Cột 3: ĐV th.hiện
-                        node.chiPhi || 0,                                                    // Cột 4: Chi phí KH
-                        (level === 0) ? (node.tgBatDau || 0) : (node.tgBatDau || ''),        // Cột 5: TG bắt đầu
-                        node.tgHoanThanh || '',                                              // Cột 6: TG hoàn thành
-                        q1,                                                                  // Cột 7: Quý I
-                        q2,                                                                  // Cột 8: Quý II
-                        q3,                                                                  // Cột 9: Quý III
-                        q4,                                                                  // Cột 10: Quý IV
-                        node.chiPhiThucHien || 0,                                            // Cột 11: Chi phí thực hiện
-                        0                                                                    // Cột 12: Kế hoạch còn lại (sẽ chèn formula)
+                        node.dvThucHien || '', 
+                        node.chiPhi || 0,
+                        (level === 0) ? (node.tgBatDau || 0) : (node.tgBatDau || ''),
+                        node.tgHoanThanh || '', 
+                        q1, q2, q3, q4, 
+                        node.chiPhiThucHien || 0, 
+                        0 // Kế hoạch còn lại
                     ];
 
                     // Xử lý thông tin các lần thực hiện trải ngang
@@ -842,7 +835,6 @@
                             const e = node.executions[k];
                             const idx = parseInt(e.lanThucHien || k, 10);
                             if (!isNaN(idx) && idx <= maxExec) {
-                                // Bắt đầu từ offset 12 (Vì có 12 cột cơ bản ban đầu)
                                 const off = 12 + (idx - 1) * 4;
                                 rData[off] = e.ngayThucHien || ''; 
                                 rData[off+1] = e.dvt || 0;
@@ -851,13 +843,12 @@
                             }
                         }
                     }
-                    // Lấp đầy mảng trống
                     for(let i=0; i<12 + maxExec*4; i++) if(rData[i] === undefined) rData[i] = '';
 
                     const row = ws.addRow(rData);
                     const rIdx = row.number;
 
-                    // 3. Đệ quy xử lý các node con để lấy số thứ tự dòng
+                    // 3. Đệ quy xử lý node con
                     const childRows = [];
                     if (node.children) Object.keys(node.children).map(id=>({id,...node.children[id]})).sort(sortC).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
                     if (node.grandchildren) Object.keys(node.grandchildren).map(id=>({id,...node.grandchildren[id]})).sort((a,b)=>parseInt(a.id)-parseInt(b.id)).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
@@ -866,18 +857,16 @@
 
                     // 4. Chèn công thức Excel (MAPPING COLUMNS: D=4, G=7, H=8, I=9, J=10, K=11, L=12)
                     const addr = (col) => row.getCell(col).address;
-                    
                     if (isContainer && childRows.length > 0) {
                         const sumStr = (col) => `SUM(${childRows.map(r => ws.getRow(r).getCell(col).address).join(',')})`;
-                        row.getCell(4).value = { formula: sumStr(4) };   // Tổng Chi phí KH
-                        row.getCell(7).value = { formula: sumStr(7) };   // Tổng Quý I
-                        row.getCell(8).value = { formula: sumStr(8) };   // Tổng Quý II
-                        row.getCell(9).value = { formula: sumStr(9) };   // Tổng Quý III
-                        row.getCell(10).value = { formula: sumStr(10) }; // Tổng Quý IV
-                        row.getCell(11).value = { formula: sumStr(11) }; // Tổng Chi phí TH
+                        row.getCell(4).value = { formula: sumStr(4) };   
+                        row.getCell(7).value = { formula: sumStr(7) };   
+                        row.getCell(8).value = { formula: sumStr(8) };   
+                        row.getCell(9).value = { formula: sumStr(9) };   
+                        row.getCell(10).value = { formula: sumStr(10) }; 
+                        row.getCell(11).value = { formula: sumStr(11) }; 
                     }
                     
-                    // Công thức Kế hoạch còn lại = Chi phí KH (Cột 4) - Chi phí TH (Cột 11)
                     const isPs = node.capDo && String(node.capDo).trim().toLowerCase() === 'ps';
                     if (level !== 4 && !isPs) row.getCell(12).value = { formula: `${addr(4)}-${addr(11)}` };
                     else row.getCell(12).value = null;
@@ -885,9 +874,9 @@
                     // 5. Áp dụng Format and Styling
                     [4, 7, 8, 9, 10, 11, 12].forEach(c => row.getCell(c).numFmt = '#,##0');
                     for (let i = 1; i <= maxExec; i++) {
-                        row.getCell(12 + (i-1)*4 + 2).numFmt = '#,##0'; // Số lượng
-                        row.getCell(12 + (i-1)*4 + 3).numFmt = '#,##0'; // Đơn giá
-                        row.getCell(12 + (i-1)*4 + 4).numFmt = '#,##0'; // Thành tiền
+                        row.getCell(12 + (i-1)*4 + 2).numFmt = '#,##0'; 
+                        row.getCell(12 + (i-1)*4 + 3).numFmt = '#,##0'; 
+                        row.getCell(12 + (i-1)*4 + 4).numFmt = '#,##0'; 
                     }
 
                     const colors = ['FFC5D9F1', 'FFE4DFEC', 'FFF2DCDB', 'FFEBF1DE', 'FFFFFFFF', 'FFFFE599'];
@@ -895,7 +884,6 @@
                     
                     row.eachCell({ includeEmpty: true }, (cell) => {
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-                        cell.border = { top: { style: 'thin', color: { argb: 'FFD9D9D9' } }, left: { style: 'thin', color: { argb: 'FFD9D9D9' } }, bottom: { style: 'thin', color: { argb: 'FFD9D9D9' } }, right: { style: 'thin', color: { argb: 'FFD9D9D9' } } };
                         if (level < 3) cell.font = { bold: true };
                     });
                     
@@ -907,10 +895,8 @@
 
                 btn.innerHTML = "⏳ Đang quét dữ liệu...";
 
-                // --- DUYỆT QUA CÁC CSDL VÀ ÁNH XẠ VÀO SHEET ---
                 for (const item of window.activeDatabaseInstances) {
                     const conf = item.config;
-                    
                     const snap = await get(ref(item.dbObj, `congViecMe${year}`));
                     if (!snap.exists()) continue;
                     
@@ -921,46 +907,93 @@
                     const parents = Object.keys(parentsData).map(id=>({id,...parentsData[id]})).sort((a,b)=>a.id.localeCompare(b.id));
                     
                     parents.forEach(p => { 
-                        if(sumData[p.id]) {
-                            p.tgBatDau = sumData[p.id].totalExecutedLeafNodesCap1 || 0; 
-                        }
+                        if(sumData[p.id]) p.tgBatDau = sumData[p.id].totalExecutedLeafNodesCap1 || 0; 
                     });
 
-                    // -- NHÓM RIGHT (Chia sheet theo A, B, C...) --
+                    // Xử lý tạo dữ liệu cho các sheet tương ứng
+                    const processSheet = (ws, parentsList) => {
+                        if (!ws) return;
+                        let maxExec = 0;
+                        parentsList.forEach(p => { const m = findMaxExecutions(p); if (m > maxExec) maxExec = m; });
+                        
+                        setupWorksheetHeaderAtRow7(ws, maxExec);
+                        parentsList.forEach(p => processNodeExcelJS(p, 0, ws, maxExec));
+
+                        // --- FORMATTING SAU KHI TẠO DỮ LIỆU ---
+                        const maxCol = 12 + maxExec * 4;
+
+                        // 1. Merge các ô ở dòng tiêu đề (Dòng 6 và 7)
+                        ws.mergeCells('G6:K6');
+                        ws.mergeCells('A6:A7');
+                        ws.mergeCells('B6:B7');
+                        ws.mergeCells('C6:C7');
+
+                        // Căn giữa cho các ô merge để đẹp hơn
+                        ['A6', 'B6', 'C6', 'G6'].forEach(addr => {
+                            const cell = ws.getCell(addr);
+                            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                        });
+
+                        // 2. Ẩn toàn bộ các cột từ "Ngày TH (1)" trở đi (Từ cột số 13)
+                        for (let c = 13; c <= maxCol; c++) {
+                            ws.getColumn(c).hidden = true;
+                        }
+
+                        // 3. Kẻ khung (Borders) cho toàn bộ bảng từ dòng 6 đến hết
+                        for (let r = 6; r <= ws.rowCount; r++) {
+                            const row = ws.getRow(r);
+                            for (let c = 1; c <= maxCol; c++) {
+                                const cell = row.getCell(c);
+                                cell.border = {
+                                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                                    right: { style: 'thin', color: { argb: 'FF000000' } }
+                                };
+                            }
+                        }
+                    };
+
+                    // Phân nhánh xuất Right / Left
                     if (conf.sheetNames && Array.isArray(conf.sheetNames)) {
                         for (let i = 0; i < parents.length; i++) {
                             if (i >= conf.sheetNames.length) break; 
-                            
-                            const ws = workbook.getWorksheet(conf.sheetNames[i]);
-                            if (!ws) continue; 
-
-                            const pNode = parents[i];
-                            const maxExec = findMaxExecutions(pNode);
-                            
-                            setupWorksheetHeaderAtRow7(ws, maxExec);
-                            processNodeExcelJS(pNode, 0, ws, maxExec);
+                            processSheet(workbook.getWorksheet(conf.sheetNames[i]), [parents[i]]);
                         }
-                    } 
-                    // -- NHÓM LEFT (Gộp tất cả vào 1 sheet) --
-                    else if (conf.sheetName) {
-                        const ws = workbook.getWorksheet(conf.sheetName);
-                        if (!ws) continue;
-
-                        let maxExec = 0;
-                        parents.forEach(p => {
-                            const m = findMaxExecutions(p);
-                            if (m > maxExec) maxExec = m;
-                        });
-
-                        setupWorksheetHeaderAtRow7(ws, maxExec);
-                        for (const p of parents) {
-                            processNodeExcelJS(p, 0, ws, maxExec);
-                        }
+                    } else if (conf.sheetName) {
+                        processSheet(workbook.getWorksheet(conf.sheetName), parents);
                     }
                 }
 
-                btn.innerHTML = "⏳ Đang tạo file...";
+                btn.innerHTML = "⏳ Đang hoàn thiện File...";
 
+                // --- 4. TÌM VÀ THAY THẾ CHUỖI "20xy" TRÊN TOÀN BỘ WORKBOOK ---
+                workbook.eachSheet((sheet) => {
+                    sheet.eachRow((row) => {
+                        row.eachCell((cell) => {
+                            if (cell.type === ExcelJS.ValueType.String && cell.value && cell.value.includes('20xy')) {
+                                cell.value = cell.value.replace(/20xy/g, year);
+                            } else if (cell.type === ExcelJS.ValueType.RichText && cell.value && cell.value.richText) {
+                                let changed = false;
+                                cell.value.richText.forEach(rt => {
+                                    if (rt.text && rt.text.includes('20xy')) {
+                                        rt.text = rt.text.replace(/20xy/g, year);
+                                        changed = true;
+                                    }
+                                });
+                                // Phải gán lại để báo cho exceljs biết giá trị đã đổi
+                                if (changed) cell.value = { richText: cell.value.richText };
+                            }
+                        });
+                    });
+                });
+
+                // --- 5. ÉP EXCEL TỰ ĐỘNG TÍNH TOÁN LẠI (FORCE FULL CALCULATION ON LOAD) ---
+                // Gán thuộc tính calcProperties để buộc Excel phớt lờ bộ đệm và tính lại toàn bộ khi mở file
+                workbook.calcProperties = workbook.calcProperties || {};
+                workbook.calcProperties.fullCalcOnLoad = true;
+
+                // Xuất file
                 const outBuffer = await workbook.xlsx.writeBuffer();
                 const blob = new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 const link = document.createElement('a');
