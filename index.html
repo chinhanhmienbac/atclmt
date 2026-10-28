@@ -9,10 +9,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Script cho nội dung 2 bên (Chart.js) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="chart.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Script cho nội dung 2 bên (Firebase) -->
-    <!-- Chúng ta sẽ import các hàm trong script type="module" ở cuối body -->
+    <!-- THÊM THƯ VIỆN EXCELJS ĐỂ XUẤT FILE -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 
     <style>
         /* CSS cho nội dung trung tâm (từ index.HTML) */
@@ -240,10 +241,9 @@
         -->
         <div id="left-sidebar-content">
             <div class="header-controls">
-                               <!-- Thêm label riêng và đổi ID -> class -->
-                <select class="yearSelect" id="yearSelectLeft"></select>
-                <div class="connection-status" style="font-style: italic;">Đang kết nối...</div>
-            </div>
+        <select class="dbSelect yearSelect" id="dbSelectLeft"></select>
+        
+			</div>
 
             <div class="status"></div> <!-- Đổi từ ID sang class -->
             <div class="charts-container"></div> <!-- Đổi từ ID sang class -->
@@ -258,6 +258,24 @@
             </h1>
             <p class="text-lg text-gray-600 mt-2">Chọn một đơn vị để truy cập vào trang web tương ứng.</p>
         </header>
+		<!-- ================= BẮT ĐẦU ĐOẠN MÃ nút bấm ================= -->
+        <div class="w-full relative h-0">
+            <div class="absolute left-4 md:left-8 z-10">
+                <a href="https://drive.google.com/drive/folders/1mrd7gx2fZRZPrfSIt5lr3tWNhFqwm0qz" target="_blank" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-1.5 px-4 rounded shadow transition duration-200 text-sm flex items-center w-max">
+                    Mẫu BC
+                </a>
+				<!-- NÚT XUẤT BÁO CÁO MỚI -->
+                <button id="btnExportExcel" onclick="window.exportBaoCao()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-4 rounded shadow transition duration-200 text-sm flex items-center w-max cursor-pointer">
+                    Xuất BC
+                </button>
+            </div>
+			<!-- Menu Chọn Năm Chung (Đối xứng bên phải) -->
+            <div class="absolute right-4 md:right-8 z-10 flex items-center bg-white py-1 px-3 rounded shadow-md border border-gray-200">
+                <label for="globalYearSelect" class="mr-2 font-bold text-gray-700 text-sm whitespace-nowrap">Năm:</label>
+                <select id="globalYearSelect" class="border-none bg-transparent outline-none cursor-pointer text-sm font-bold text-blue-600"></select>
+            </div>
+        </div>
+        <!-- ================= KẾT THÚC ĐOẠN MÃ nút bấm ================= -->
     
         <main id="main-container" class="relative flex items-center justify-center orbit-container">
             <div class="z-0"> 
@@ -268,8 +286,8 @@
         <!-- Script cho nội dung chính -->
         <script>
             const units = [
-                { name: "CÁC TỔNG KHO TẠI HẢI PHÒNG", link: "https://chinhanhmienbac.github.io/atclmt/tk" },
-                { name: "CHI NHÁNH MIỀN BẮC", link: "https://chinhanhmienbac.github.io/atclmt/cnmb" }
+                { name: "CÁC TỔNG KHO TẠI HẢI PHÒNG", link: "tk.html" },
+                { name: "CHI NHÁNH MIỀN BẮC", link: "mb.html" }
             ];
     
             const container = document.getElementById('main-container');
@@ -332,24 +350,20 @@
         -->
         <div id="right-sidebar-content">
             <div class="header-controls">
-                                <!-- Thêm label riêng và đổi ID -> class -->
-                <select class="yearSelect" id="yearSelectRight"></select>
-                <div class="connection-status" style="font-style: italic;">Đang kết nối...</div>
-            </div>
+        <select class="dbSelect yearSelect" id="dbSelectRight"></select>
+        
+			</div>
 
             <div class="status"></div> <!-- Đổi từ ID sang class -->
             <div class="charts-container"></div> <!-- Đổi từ ID sang class -->
         </div>
     </aside>
-
-
-    <!-- === SCRIPT CHUNG CHO 2 BÊN (ĐÃ TÁI CẤU TRÚC) === -->
+		<!-- === SCRIPT CHUNG CHO TOÀN BỘ HỆ THỐNG CSDL === -->
     <script type="module">
-        // Import các hàm cần thiết (chỉ 1 lần)
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check.js";
 
-        // Plugin Chart.js (chỉ 1 lần)
         const centerTextPlugin = {
             id: 'centerText',
             afterDraw: function(chart) {
@@ -369,7 +383,7 @@
                 const y = height / 2;
                 
                 ctx.save();
-                const fontSize = (height / 57).toFixed(2); // Gấp đôi kích thước font (114 / 2 = 57)
+                const fontSize = (height / 57).toFixed(2);
                 ctx.font = `bold ${fontSize}em sans-serif`;
                 ctx.fillStyle = chart.data.datasets[0].backgroundColor[0] || '#333';
                 ctx.textAlign = 'center';
@@ -381,78 +395,92 @@
         };
         Chart.register(centerTextPlugin);
 
-        // --- Config Firebase cho 2 bên ---
-        const firebaseConfigTrai = {
-            apiKey: "AIzaSyAJdhRXAwRoDbIN471Q4v2DNUhBeNAenYM",
-            authDomain: "atclmt-cnmb.firebaseapp.com",
-            databaseURL: "https://atclmt-cnmb-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "atclmt-cnmb",
-            storageBucket: "atclmt-cnmb.firebasestorage.app",
-            messagingSenderId: "104442232829",
-            appId: "1:104442232829:web:06fca4f401ded5d1176394",
-            measurementId: "G-9YXBXBL7QW"
-        };
-
-        const firebaseConfigPhai = {
-            apiKey: "AIzaSyC2mX-vBKLv9COzjJyGGUYCPCF8O2gd7Mk",
-            authDomain: "atclmt-hp.firebaseapp.com",
-            databaseURL: "https://atclmt-hp-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "atclmt-hp",
-            storageBucket: "atclmt-hp.firebasestorage.app",
-            messagingSenderId: "1073263541013",
-            appId: "1:1073263541013:web:f259c87d81bdbb3f43871c",
-            measurementId: "G-XSZ89WBPTS"
-        };
-
-        // --- Các hàm Helper chung ---
         const formatNumber = (num) => num?.toLocaleString('vi-VN') || '0';
         function convertTTForDisplay(tt) {
             return String(tt).replace(/,/g, '.');
         }
 
-        // Biến lưu trữ các chart đang hoạt động cho mỗi bên
-        let sidebarCharts = {
-            'left-sidebar-content': [],
-            'right-sidebar-content': []
-        };
+        let sidebarCharts = {}; 
+
+        // =====================================================================
+        // 1. KHU VỰC CẤU HÌNH CÁC CƠ SỞ DỮ LIỆU
+        // =====================================================================
+        const databaseConfigs = [
+            {
+                id: "db_mb",          
+                side: "left",         
+                title: "CHI NHÁNH MIỀN BẮC", 
+				sheetName: "CNMB",
+                recaptchaSiteKey: "6LczK0ssAAAAALjCOZ3duO7WAmvcA83MgbVm6RtP",
+                config: {
+                    	apiKey: "AIzaSyALoxHjymCFFXLDj9Vf9hiX2x8r29Bp_yg",
+  			authDomain: "khatclmt.firebaseapp.com",
+  			databaseURL: "https://khatclmt-default-rtdb.asia-southeast1.firebasedatabase.app",
+  			projectId: "khatclmt",
+  			storageBucket: "khatclmt.firebasestorage.app",
+  			messagingSenderId: "574050342673",
+  			appId: "1:574050342673:web:201173ab4928dabd98deb0",
+  			measurementId: "G-PW7NP99C9J"
+                }
+            },
+            {
+                id: "db_hp",
+                side: "right",
+                title: "TỔNG KHO LPG HẢI PHÒNG",
+				sheetNames: ["TKMB", "TKHP"],
+                recaptchaSiteKey: "6LczK0ssAAAAALjCOZ3duO7WAmvcA83MgbVm6RtP",
+                config: {
+                    apiKey: "AIzaSyBChEvVYy5Iqbg1vP9pcOTKGdmgw4bhhY4",
+  			authDomain: "atskmt1.firebaseapp.com",
+  			databaseURL: "https://atskmt1-default-rtdb.asia-southeast1.firebasedatabase.app",
+  			projectId: "atskmt1",
+  			storageBucket: "atskmt1.firebasestorage.app",
+  			messagingSenderId: "672338161750",
+  			appId: "1:672338161750:web:94f1e8553d3845adf68bf7",
+  			measurementId: "G-EFYS1D2SRL"
+                }
+            }
+			/* --- MẪU ĐỂ COPY THÊM CSDL (Bỏ comment để dùng) ---
+            ,{
+                id: "db_dn",
+                side: "left",  <-- Có thể nhồi nhiều CSDL vào cùng 1 bên
+                title: "CHI NHÁNH ĐÀ NẴNG",
+                recaptchaSiteKey: "KEY_CỦA_BẠN_NẾU_CÓ",
+                config: { 
+                    // Paste cấu hình Firebase vào đây
+                }
+            }
+            */
+        ];
 
         /**
-         * Hàm tải và render biểu đồ (đã tái cấu trúc)
-         * @param {string} year - Năm được chọn
-         * @param {string} containerId - ID của div cha (left-sidebar-content | right-sidebar-content)
-         * @param {object} db - Đối tượng database của Firebase đã khởi tạo
+         * Hàm tải và render biểu đồ cho 1 CSDL cụ thể
          */
-        async function loadCharts(year, containerId, db) {
-            const container = document.getElementById(containerId);
-            // Sử dụng querySelector bên trong container
+        async function loadCharts(year, blockId, db) {
+            const container = document.getElementById(blockId);
+            if (!container) return;
+            
             const statusDiv = container.querySelector('.status');
             const chartsContainer = container.querySelector('.charts-container');
-            const connectionStatus = container.querySelector('.connection-status');
 
-            // Xóa các biểu đồ cũ CỦA RIÊNG SIDEBAR NÀY
-            sidebarCharts[containerId].forEach(chart => chart.destroy());
-            sidebarCharts[containerId] = [];
+            if (sidebarCharts[blockId]) {
+                sidebarCharts[blockId].forEach(chart => chart.destroy());
+            }
+            sidebarCharts[blockId] = [];
             
             chartsContainer.innerHTML = '';
-            statusDiv.className = 'status success'; // Reset class
+            statusDiv.className = 'status text-blue-600 font-normal'; 
             statusDiv.innerText = `Đang tải năm ${year}...`;
 
             try {
-                // 1. Lấy dữ liệu summary
                 const summaryRef = ref(db, `summary_data/${year}`);
                 const summarySnap = await get(summaryRef);
-                if (!summarySnap.exists()) {
-                    throw new Error(`Không có summary_data cho năm ${year}.`);
-                }
+                if (!summarySnap.exists()) throw new Error(`Chưa có dữ liệu.`);
                 const summaryData = summarySnap.val();
 
-                // 2. Lấy dữ liệu công việc mẹ
-                const parentCollectionName = `congViecMe${year}`;
-                const parentQuery = ref(db, parentCollectionName);
+                const parentQuery = ref(db, `congViecMe${year}`);
                 const parentSnapshot = await get(parentQuery);
-                if (!parentSnapshot.exists()) {
-                    throw new Error(`Không có congViecMe cho năm ${year}.`);
-                }
+                if (!parentSnapshot.exists()) throw new Error(`Chưa có công việc mẹ.`);
                 const parentsData = parentSnapshot.val();
                 
                 const parents = Object.keys(parentsData)
@@ -460,46 +488,36 @@
                     .sort((a, b) => a.id.localeCompare(b.id));
 
                 if (parents.length === 0) {
-                     statusDiv.innerText = `Không có dữ liệu đơn vị cho năm ${year}.`;
+                     statusDiv.innerText = `Không có dữ liệu.`;
                      return;
                 }
 
                 let htmlContent = '';
-
-                // 3. Tạo HTML cho mỗi đơn vị
                 for (const parent of parents) {
                     const parentId = parent.id;
-                    const parentSummary = summaryData[parentId] || {};
-
                     const name = parent.noiDung || 'Chưa có tên';
-                    const totalLeafNodesCap1 = parentSummary.totalLeafNodesCap1 || 0;
-                    const executedLeafNodesCap1 = parentSummary.totalExecutedLeafNodesCap1 || 0;
-                    const plannedCost = parent.chiPhi || 0;
-                    const executedCost = parent.chiPhiThucHien || 0;
 
-                    // Thêm canvas với ID duy nhất (an toàn vì parentId là duy nhất trong 1 sidebar)
                     htmlContent += `
-                        <div class="summary-parent-card">
-                            <h3>${convertTTForDisplay(parentId)}. ${name}</h3>
+                        <div class="summary-parent-card w-full mt-2 relative">
+                            <!-- Hiển thị nội dung, bỏ thẻ title của toàn DB -->
+                            <h3 class="text-sm font-bold text-blue-700">${convertTTForDisplay(parentId)}. ${name}</h3>
                             <div class="summary-charts-container">
                                 <div class="chart-wrapper">
-                                    <canvas id="${containerId}-cap1Chart-${parentId}"></canvas>
-                                    <p>Đầu việc cấp 1</p>
+                                    <canvas id="${blockId}-cap1Chart-${parentId}"></canvas>
+                                    <p>Cấp 1</p>
                                 </div>
                                 <div class="chart-wrapper">
-                                    <canvas id="${containerId}-costChart-${parentId}"></canvas>
-                                    <p>Tỷ lệ Chi phí</p>
+                                    <canvas id="${blockId}-costChart-${parentId}"></canvas>
+                                    <p>Chi phí</p>
                                 </div>
                             </div>
                         </div>
                     `;
                 }
 
-                // 4. Đưa HTML vào trang
                 chartsContainer.innerHTML = htmlContent;
-                statusDiv.innerText = ''; // Xóa thông báo loading
+                statusDiv.innerText = ''; 
 
-                // 5. Render biểu đồ
                 for (const parent of parents) {
                     const parentId = parent.id;
                     const parentSummary = summaryData[parentId] || {};
@@ -509,10 +527,8 @@
                     const plannedCost = parent.chiPhi || 0;
                     const executedCost = parent.chiPhiThucHien || 0;
 
-                    // Biểu đồ Cấp 1
-                    // Truy vấn canvas bằng ID duy nhất đã tạo
-                    const cap1Ctx = document.getElementById(`${containerId}-cap1Chart-${parentId}`).getContext('2d');
-                    const cap1Chart = new Chart(cap1Ctx, {
+                    const cap1Ctx = document.getElementById(`${blockId}-cap1Chart-${parentId}`).getContext('2d');
+                    sidebarCharts[blockId].push(new Chart(cap1Ctx, {
                         type: 'doughnut',
                         data: {
                             labels: ['Đã thực hiện', 'Chưa thực hiện'],
@@ -523,20 +539,11 @@
                                 borderWidth: 1
                             }]
                         },
-                        options: {
-                            responsive: true,
-                            cutout: '60%',
-                            plugins: {
-                                legend: { display: false },
-                                tooltip: { /* ... callbacks ... */ }
-                            }
-                        }
-                    });
-                    sidebarCharts[containerId].push(cap1Chart); // Thêm vào mảng của sidebar này
+                        options: { responsive: true, cutout: '60%', plugins: { legend: { display: false } } }
+                    })); 
 
-                    // Biểu đồ Chi phí
-                    const costCtx = document.getElementById(`${containerId}-costChart-${parentId}`).getContext('2d');
-                    const costChart = new Chart(costCtx, {
+                    const costCtx = document.getElementById(`${blockId}-costChart-${parentId}`).getContext('2d');
+                    sidebarCharts[blockId].push(new Chart(costCtx, {
                         type: 'doughnut',
                         data: {
                             labels: ['Đã thực hiện', 'Còn lại'],
@@ -547,39 +554,26 @@
                                 borderWidth: 1
                             }]
                         },
-                        options: {
-                            responsive: true,
-                            cutout: '60%',
-                            plugins: {
-                                legend: { display: false },
-                                tooltip: { /* ... callbacks ... */ }
-                            }
-                        }
-                    });
-                    sidebarCharts[containerId].push(costChart); // Thêm vào mảng của sidebar này
+                        options: { responsive: true, cutout: '60%', plugins: { legend: { display: false } } }
+                    }));
                 }
-
             } catch (error) {
-                console.error(`Lỗi khi tải biểu đồ cho ${containerId}:`, error);
-                statusDiv.className = 'status error';
-                statusDiv.innerText = `Lỗi: ${error.message}`;
-                chartsContainer.innerHTML = '';
-                connectionStatus.textContent = 'Kết nối thất bại!';
-                connectionStatus.style.color = 'red';
+                console.error(`Lỗi tải biểu đồ ${blockId}:`, error);
+                statusDiv.className = 'status text-red-500';
+                statusDiv.innerText = `${error.message}`;
             }
         }
-        
+
         /**
-         * Hàm khởi tạo dropdown (đã tái cấu trúc)
+         * Thiết lập Menu chọn Năm ở vị trí trung tâm
          */
-        function initializeYearDropdown(containerId, db) {
-            const container = document.getElementById(containerId);
-            const yearSelect = container.querySelector('.yearSelect'); // Dùng class
+        function setupGlobalYearControl(allActiveDBs) {
+            const yearSelect = document.getElementById('globalYearSelect');
+            if(!yearSelect) return null;
             
             const currentYearValue = new Date().getFullYear();
-            const nextYear = currentYearValue + 1;
             yearSelect.innerHTML = '';
-            const years = [currentYearValue, nextYear];
+            const years = [currentYearValue, currentYearValue + 1];
             for (let i = currentYearValue - 1; i >= currentYearValue - 3; i--) {
                 years.unshift(i);
             }
@@ -591,47 +585,283 @@
             });
             yearSelect.value = currentYearValue;
 
-            yearSelect.onchange = () => {
-                loadCharts(yearSelect.value, containerId, db);
-            };
+            // Khi đổi năm => Cập nhật toàn bộ CSDL
+            yearSelect.addEventListener('change', () => {
+                const year = yearSelect.value;
+                allActiveDBs.forEach(item => loadCharts(year, item.blockId, item.dbObj));
+            });
+            
+            return currentYearValue;
         }
 
         /**
-         * Hàm khởi tạo chính cho mỗi sidebar
+         * Thiết lập Dropdown chọn CSDL ở Sidebar 
+         * Mục đích: Khi chọn, sẽ chuyển CSDL đó lên trên cùng
          */
-        function initializeSidebar(containerId, config, appName) {
-            try {
-                // Khởi tạo app Firebase với tên duy nhất
-                const app = initializeApp(config, appName);
-                const db = getDatabase(app);
-                
-                const container = document.getElementById(containerId);
-                const connectionStatus = container.querySelector('.connection-status');
-                const yearSelect = container.querySelector('.yearSelect');
-                
-                connectionStatus.textContent = 'Đã kết nối.';
-                connectionStatus.style.color = 'green';
-                
-                initializeYearDropdown(containerId, db);
-                // Tải biểu đồ cho năm hiện tại
-                loadCharts(yearSelect.value, containerId, db);
+        function setupSidebarDBSelector(sidebarId, dbConfigsForSide) {
+            const container = document.getElementById(sidebarId);
+            const dbSelect = container.querySelector('.dbSelect');
+            if (!dbSelect) return;
 
-            } catch (error) {
-                console.error(`Lỗi khởi tạo ${containerId}:`, error);
-                const container = document.getElementById(containerId);
-                container.querySelector('.status').innerText = "Lỗi khởi tạo. Vui lòng kiểm tra console.";
-                container.querySelector('.connection-status').textContent = 'Lỗi!';
-            }
+            dbSelect.innerHTML = ''; // Clear
+            dbConfigsForSide.forEach(db => {
+                const option = document.createElement('option');
+                option.value = `block-${db.id}`;
+                option.textContent = db.title;
+                dbSelect.appendChild(option);
+            });
+
+            // Sự kiện đưa Block lên đầu
+            dbSelect.addEventListener('change', (e) => {
+                const selectedBlockId = e.target.value;
+                const blockDOM = document.getElementById(selectedBlockId);
+                const headerControls = container.querySelector('.header-controls');
+                
+                // insertAdjacentElement 'afterend' sẽ đưa blockDOM này chèn ngay phía dưới headerControls 
+                // => Đẩy các DB khác xuống dưới
+                if (blockDOM && headerControls) {
+                    headerControls.insertAdjacentElement('afterend', blockDOM);
+                }
+            });
         }
 
-        // --- KHỞI CHẠY ---
-        // Đợi DOM load xong mới chạy script
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeSidebar("left-sidebar-content", firebaseConfigTrai, "appTrai");
-            initializeSidebar("right-sidebar-content", firebaseConfigPhai, "appPhai");
-        });
+        /**
+         * Khởi tạo hệ thống
+         */
+        // Thêm biến toàn cục để lưu cấu hình và DB kết nối
+        window.activeDatabaseInstances = [];
+		
+		function initializeSystem() {
+            ['left-sidebar-content', 'right-sidebar-content'].forEach(sideId => {
+                const container = document.getElementById(sideId);
+                const oldStatus = container.querySelector('.status');
+                const oldCharts = container.querySelector('.charts-container');
+                if(oldStatus) oldStatus.style.display = 'none';
+                if(oldCharts) oldCharts.style.display = 'none';
+            });
 
+            const allActiveDBs = [];
+            const leftDBConfigs = [];
+            const rightDBConfigs = [];
+
+            databaseConfigs.forEach(dbConfig => {
+                const isLeft = dbConfig.side === 'left';
+                const parentContainer = document.getElementById(isLeft ? 'left-sidebar-content' : 'right-sidebar-content');
+                const blockId = `block-${dbConfig.id}`;
+
+                // Tạo khung cho DB - LƯU Ý: Không render thẻ H2 chứa Title nữa
+                const dbBlockHTML = `
+                    <div id="${blockId}" class="mt-4 pt-3 border-t border-gray-300 db-block transition-all duration-300">
+                        <div class="flex flex-col items-center mb-1">
+                            <div class="connection-status text-xs italic">Khởi tạo kết nối...</div>
+                        </div>
+                        <div class="status text-center text-sm font-bold my-1"></div>
+                        <div class="charts-container flex flex-col items-center gap-2"></div>
+                    </div>
+                `;
+                parentContainer.insertAdjacentHTML('beforeend', dbBlockHTML);
+                
+                const blockDOM = document.getElementById(blockId);
+                const connectionStatus = blockDOM.querySelector('.connection-status');
+
+                try {
+                    const app = initializeApp(dbConfig.config, dbConfig.id);
+                    if (dbConfig.recaptchaSiteKey) {
+                        initializeAppCheck(app, {
+                            provider: new ReCaptchaV3Provider(dbConfig.recaptchaSiteKey),
+                            isTokenAutoRefreshEnabled: true
+                        });
+                    }
+                    const db = getDatabase(app);
+                    
+                    connectionStatus.textContent = 'Đã kết nối';
+                    connectionStatus.style.color = '#28a745';
+					
+				// === SỬA DÒNG NÀY: Bổ sung dbConfig ===
+                    const itemData = { blockId, dbObj: db, config: dbConfig }; 
+                    allActiveDBs.push(itemData);
+                    window.activeDatabaseInstances.push(itemData); // Lưu vào biến toàn cục
+
+                    if (isLeft) {
+                        leftDBConfigs.push(dbConfig);
+                    } else {
+                        rightDBConfigs.push(dbConfig);
+                    }
+
+                } catch (error) {
+                    console.error(`Lỗi DB ${dbConfig.id}:`, error);
+                    connectionStatus.textContent = 'Kết nối thất bại';
+                    connectionStatus.style.color = '#dc3545';
+                    blockDOM.querySelector('.status').innerText = error.message;
+                }
+            });
+
+            // Gắn danh sách CSDL vào dropdown tương ứng
+            setupSidebarDBSelector('left-sidebar-content', leftDBConfigs);
+            setupSidebarDBSelector('right-sidebar-content', rightDBConfigs);
+
+            // Gắn sự kiện chọn Năm (Global)
+            const initialYear = setupGlobalYearControl(allActiveDBs);
+            if (initialYear) {
+                // Tải dữ liệu mặc định ban đầu cho tất cả
+                allActiveDBs.forEach(item => loadCharts(initialYear, item.blockId, item.dbObj));
+            }
+        }
+		// =====================================================================
+        // CHỨC NĂNG XUẤT BÁO CÁO EXCEL TỔNG HỢP VÀO FILE Bieumau.xlsx
+        // =====================================================================
+        window.exportBaoCao = async function() {
+            const btn = document.getElementById('btnExportExcel');
+            const originHtml = btn.innerHTML;
+            const yearSelect = document.getElementById('globalYearSelect');
+            const year = yearSelect ? yearSelect.value : new Date().getFullYear();
+
+            try {
+                btn.innerHTML = "⏳ Đang tải Template...";
+                btn.disabled = true;
+
+                // 1. Tải Template Bieumau.xlsx
+                const res = await fetch('Bieumau.xlsx');
+                if (!res.ok) throw new Error("Không tìm thấy file Bieumau.xlsx trên server.");
+                const buffer = await res.arrayBuffer();
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(buffer);
+
+                // --- HÀM HELPER SẮP XẾP VÀ CHUYỂN ĐỔI ---
+                const convertTT = (tt) => String(tt || '').replace(/,/g, '.');
+                const r2n = (r) => {
+                    if(!r) return 0;
+                    const m={'I':1,'V':5,'X':10,'L':50,'C':100,'D':500,'M':1000};
+                    let s=0; const str=r.toUpperCase();
+                    for(let i=0;i<str.length;i++){
+                        const c=m[str[i]], n=m[str[i+1]];
+                        if(n&&c<n) s-=c; else s+=c;
+                    }
+                    return s;
+                };
+                const sortC = (a,b) => r2n(a.id) - r2n(b.id);
+                const sortN = (a,b) => {
+                    const pa=String(a.id).split(',').map(Number), pb=String(b.id).split(',').map(Number);
+                    for(let i=0;i<Math.max(pa.length,pb.length);i++){
+                        const va=pa[i]||0, vb=pb[i]||0;
+                        if(va!==vb) return va-vb;
+                    }
+                    return 0;
+                };
+
+                // --- THUẬT TOÁN ĐỆ QUY LÀM PHẲNG (BỎ QUA GIẢI TRÌNH) ---
+                const flatten = (node, level, maxExecObj) => {
+                    let rows = [];
+                    if (node.tt) {
+                        const rData = [
+                            convertTT(node.tt), node.noiDung || '', node.tagName || '', node.dvThucHien || '',
+                            (node.tanSuatTH === 0 || node.tanSuatTH === null || node.tanSuatTH === undefined) ? '' : node.tanSuatTH,
+                            node.donVi || '', node.soLuong || 0, node.chiPhi || 0, node.chiPhiThucHien || 0,
+                            node.keHoachConLai || 0, node.namPhanBo || '', node.chiPhiPhanBo || 0, node.capDo || '', node.cpCap1 || 0
+                        ];
+                        
+                        // Xử lý dữ liệu số lần thực hiện trải ngang (nếu có)
+                        if (node.executions) {
+                            for (let k in node.executions) {
+                                const e = node.executions[k];
+                                const idx = parseInt(e.lanThucHien || k, 10);
+                                if (!isNaN(idx)) {
+                                    if (idx > maxExecObj.val) maxExecObj.val = idx;
+                                    const off = 14 + (idx - 1) * 4;
+                                    rData[off] = e.ngayThucHien || ''; rData[off+1] = e.dvt || 0;
+                                    rData[off+2] = e.donGia || 0; rData[off+3] = e.thanhTien || 0;
+                                }
+                            }
+                        }
+                        // Lấp đầy các ô trống để tránh mảng thưa
+                        for(let i=0; i<rData.length; i++) if(rData[i] === undefined) rData[i] = '';
+                        rows.push(rData);
+                    }
+                    
+                    if (node.children) Object.keys(node.children).map(id=>({id,...node.children[id]})).sort(sortC).forEach(c=>rows.push(...flatten(c, level+1, maxExecObj)));
+                    if (node.grandchildren) Object.keys(node.grandchildren).map(id=>({id,...node.grandchildren[id]})).sort((a,b)=>parseInt(a.id)-parseInt(b.id)).forEach(c=>rows.push(...flatten(c, level+2, maxExecObj)));
+                    if (node.greatGrandchildren) Object.keys(node.greatGrandchildren).map(id=>({id,...node.greatGrandchildren[id]})).sort(sortN).forEach(c=>rows.push(...flatten(c, level+3, maxExecObj)));
+                    if (node.greatGreatGrandchildren) Object.keys(node.greatGreatGrandchildren).map(id=>({id,...node.greatGreatGrandchildren[id]})).sort(sortN).forEach(c=>rows.push(...flatten(c, level+4, maxExecObj)));
+                    
+                    return rows;
+                };
+
+                btn.innerHTML = "⏳ Đang quét dữ liệu...";
+
+                // 2. Duyệt qua toàn bộ CSDL đã cấu hình
+                for (const item of window.activeDatabaseInstances) {
+                    const conf = item.config;
+                    
+                    const snap = await get(ref(item.dbObj, `congViecMe${year}`));
+                    if (!snap.exists()) continue;
+                    
+                    const sumSnap = await get(ref(item.dbObj, `summary_data/${year}`));
+                    const sumData = sumSnap.exists() ? sumSnap.val() : {};
+
+                    const parentsData = snap.val();
+                    const parents = Object.keys(parentsData).map(id=>({id,...parentsData[id]})).sort((a,b)=>a.id.localeCompare(b.id));
+
+                    // Lấy số lượng cấp 1 từ summary
+                    parents.forEach(p => { if(sumData[p.id]) p.soLuong = sumData[p.id].totalLeafNodesCap1 || 0; });
+
+                    // -- KỊCH BẢN CHIA SHEET THEO PARENTS (NHÓM RIGHT) --
+                    if (conf.sheetNames && Array.isArray(conf.sheetNames)) {
+                        for (let i = 0; i < parents.length; i++) {
+                            if (i >= conf.sheetNames.length) break; // Bỏ qua nếu dữ liệu parent thừa so với số lượng sheet quy định
+                            
+                            const ws = workbook.getWorksheet(conf.sheetNames[i]);
+                            if (!ws) continue; // Bỏ qua nếu sheet không tồn tại trong Bieumau.xlsx
+
+                            let maxExec = { val: 0 };
+                            const flatData = flatten(parents[i], 0, maxExec);
+                            
+                            const header = ['TT', 'Nội dung công việc', 'Tag Name', 'ĐV th.hiện', 'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Chi phí KH', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'Năm phân bổ', 'CP phân bổ', 'Cấp độ', 'CP Cấp 1'];
+                            for(let k=1; k<=maxExec.val; k++) header.push(`Ngày TH (${k})`, `Số lượng (${k})`, `Đơn giá (${k})`, `Thành tiền (${k})`);
+
+                            ws.addRow(header).font = { bold: true };
+                            flatData.forEach(r => ws.addRow(r));
+                        }
+                    } 
+                    // -- KỊCH BẢN 1 SHEET (NHÓM LEFT) --
+                    else if (conf.sheetName) {
+                        const ws = workbook.getWorksheet(conf.sheetName);
+                        if (!ws) continue;
+
+                        let allRows = [];
+                        let maxExec = { val: 0 };
+                        for (const p of parents) allRows.push(...flatten(p, 0, maxExec));
+
+                        const header = ['TT', 'Nội dung công việc', 'Tag Name', 'ĐV th.hiện', 'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Chi phí KH', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'Năm phân bổ', 'CP phân bổ', 'Cấp độ', 'CP Cấp 1'];
+                        for(let k=1; k<=maxExec.val; k++) header.push(`Ngày TH (${k})`, `Số lượng (${k})`, `Đơn giá (${k})`, `Thành tiền (${k})`);
+
+                        ws.addRow(header).font = { bold: true };
+                        allRows.forEach(r => ws.addRow(r));
+                    }
+                }
+
+                btn.innerHTML = "⏳ Đang tạo file...";
+
+                const outBuffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `TongHop_ATCLMT_${year}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+            } catch (error) {
+                console.error(error);
+                alert("Lỗi xuất báo cáo: " + error.message);
+            } finally {
+                btn.innerHTML = originHtml;
+                btn.disabled = false;
+            }
+        };
+        document.addEventListener('DOMContentLoaded', initializeSystem);
     </script>
+    
 </body>
 </html>
 
