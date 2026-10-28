@@ -708,7 +708,7 @@
             }
         }
 		// =====================================================================
-        // CHỨC NĂNG XUẤT BÁO CÁO EXCEL TỔNG HỢP VÀO FILE Bieumau.xlsx (V2 - CÓ CÔNG THỨC & STYLE)
+        // CHỨC NĂNG XUẤT BÁO CÁO EXCEL TỔNG HỢP VÀO FILE Bieumau.xlsx (V3 - CẬP NHẬT CỘT DỮ LIỆU)
         // =====================================================================
         window.exportBaoCao = async function() {
             const btn = document.getElementById('btnExportExcel');
@@ -768,24 +768,19 @@
                     return max;
                 };
 
-                // --- HÀM SETUP HEADER CHO SHEET ---
+                // --- HÀM SETUP HEADER CHO SHEET VỚI CẤU TRÚC CỘT MỚI ---
                 const setupWorksheetHeader = (ws, maxExec) => {
                     ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
                     
+                    // Định nghĩa lại cấu trúc cột theo yêu cầu mới
                     const cols = [
-                        { header: 'TT', width: 10, style: { numFmt: '@' } }, 
-                        { header: 'Nội dung công việc', width: 50, style: { alignment: { wrapText: true } } },
-                        { header: 'Tag Name', width: 12 }, { header: 'ĐV th.hiện', width: 15 },
-                        { header: 'Tần suất TH', width: 10, style: { alignment: { horizontal: 'center' } } },
-                        { header: 'Đ.vị tính', width: 10, style: { alignment: { horizontal: 'center' } } },
-                        { header: 'Số lượng', width: 10, style: { numFmt: '#,##0' } },
-                        { header: 'Chi phí KH', width: 18, style: { numFmt: '#,##0' } },
-                        { header: 'Chi phí thực hiện', width: 18, style: { numFmt: '#,##0' } },
-                        { header: 'Kế hoạch còn lại', width: 18, style: { numFmt: '#,##0' } },
-                        { header: 'Năm phân bổ', width: 10, style: { alignment: { horizontal: 'center' } } },
-                        { header: 'CP phân bổ', width: 15, style: { numFmt: '#,##0' } },
-                        { header: 'Cấp độ', width: 8, style: { alignment: { horizontal: 'center' } } },
-                        { header: 'CP CĐ1', width: 15, style: { numFmt: '#,##0' } }
+                        { header: 'TT', width: 10, style: { numFmt: '@' } },                    // Cột 1
+                        { header: 'Nội dung công việc', width: 50, style: { alignment: { wrapText: true } } }, // Cột 2
+                        { header: 'Chi phí KH', width: 18, style: { numFmt: '#,##0' } },        // Cột 3
+                        { header: 'TG bắt đầu', width: 12 },                                    // Cột 4 (MỚI)
+                        { header: 'TG hoàn thành', width: 12 },                                 // Cột 5 (MỚI)
+                        { header: 'Chi phí thực hiện', width: 18, style: { numFmt: '#,##0' } }, // Cột 6
+                        { header: 'Kế hoạch còn lại', width: 18, style: { numFmt: '#,##0' } }   // Cột 7
                     ];
 
                     for (let i = 1; i <= maxExec; i++) {
@@ -810,69 +805,65 @@
                                         (node.grandchildren && Object.keys(node.grandchildren).length > 0) ||
                                         (node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0);
 
-                    // 1. Chuẩn bị mảng dữ liệu cơ bản
+                    // 1. Chuẩn bị mảng dữ liệu cơ bản (7 cột đầu)
                     const rData = [
-                        convertTT(node.tt), node.noiDung || '', node.tagName || '', node.dvThucHien || '',
-                        (node.tanSuatTH === 0 || node.tanSuatTH == null) ? '' : node.tanSuatTH,
-                        node.donVi || '',
-                        (isContainer && level === 0) ? (node.soLuong || 0) : (node.soLuong || 0),
-                        node.chiPhi || 0, node.chiPhiThucHien || 0,
-                        0, // Kế hoạch còn lại (sẽ chèn formula)
-                        node.namPhanBo || '', 0, // CP Phân bổ (sẽ chèn formula)
-                        node.capDo || '', 0 // CP Cấp 1 (sẽ chèn formula)
+                        convertTT(node.tt), 
+                        node.noiDung || '', 
+                        node.chiPhi || 0,                                                    // Cột 3: Chi phí KH
+                        (level === 0) ? (node.tgBatDau || 0) : (node.tgBatDau || ''),        // Cột 4: TG bắt đầu
+                        node.tgHoanThanh || '',                                              // Cột 5: TG hoàn thành
+                        node.chiPhiThucHien || 0,                                            // Cột 6: Chi phí thực hiện
+                        0                                                                    // Cột 7: Kế hoạch còn lại (sẽ chèn formula)
                     ];
 
+                    // Xử lý thông tin các lần thực hiện trải ngang
                     if (node.executions) {
                         for (let k in node.executions) {
                             const e = node.executions[k];
                             const idx = parseInt(e.lanThucHien || k, 10);
                             if (!isNaN(idx) && idx <= maxExec) {
-                                const off = 14 + (idx - 1) * 4;
-                                rData[off] = e.ngayThucHien || ''; rData[off+1] = e.dvt || 0;
-                                rData[off+2] = e.donGia || 0; rData[off+3] = e.thanhTien || 0;
+                                // Bắt đầu từ offset 7 (Vì có 7 cột cơ bản ban đầu)
+                                const off = 7 + (idx - 1) * 4;
+                                rData[off] = e.ngayThucHien || ''; 
+                                rData[off+1] = e.dvt || 0;
+                                rData[off+2] = e.donGia || 0; 
+                                rData[off+3] = e.thanhTien || 0;
                             }
                         }
                     }
-                    for(let i=0; i<14 + maxExec*4; i++) if(rData[i] === undefined) rData[i] = '';
+                    // Lấp đầy mảng trống
+                    for(let i=0; i<7 + maxExec*4; i++) if(rData[i] === undefined) rData[i] = '';
 
                     const row = ws.addRow(rData);
                     const rIdx = row.number;
 
-                    // 2. Đệ quy xử lý các node con để lấy số thứ tự dòng (phục vụ hàm SUM)
+                    // 2. Đệ quy xử lý các node con để lấy số thứ tự dòng
                     const childRows = [];
                     if (node.children) Object.keys(node.children).map(id=>({id,...node.children[id]})).sort(sortC).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
                     if (node.grandchildren) Object.keys(node.grandchildren).map(id=>({id,...node.grandchildren[id]})).sort((a,b)=>parseInt(a.id)-parseInt(b.id)).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
                     if (node.greatGrandchildren) Object.keys(node.greatGrandchildren).map(id=>({id,...node.greatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
                     if (node.greatGreatGrandchildren) Object.keys(node.greatGreatGrandchildren).map(id=>({id,...node.greatGreatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
 
-                    // 3. Chèn công thức Excel (MAPPING COLUMNS: H=8, I=9, J=10, K=11, L=12, M=13, N=14)
+                    // 3. Chèn công thức Excel (MAPPING COLUMNS: C=3, F=6, G=7)
                     const addr = (col) => row.getCell(col).address;
                     
                     if (isContainer && childRows.length > 0) {
                         const sumStr = (col) => `SUM(${childRows.map(r => ws.getRow(r).getCell(col).address).join(',')})`;
-                        row.getCell(8).value = { formula: sumStr(8) };
-                        row.getCell(9).value = { formula: sumStr(9) };
-                        row.getCell(12).value = { formula: sumStr(12) };
-                        row.getCell(14).value = { formula: sumStr(14) };
-                    } else {
-                        // Formula cho các Node Lá (Tính phân bổ và Cấp 1)
-                        if (level >= 3) {
-                            row.getCell(12).value = { formula: `IF(ISNUMBER(${addr(11)}), IF(${addr(11)}>0, ${addr(8)}/${addr(11)}, 0), 0)` };
-                            row.getCell(14).value = { formula: `IF(${addr(13)}="1", ${addr(8)}, IF(${addr(13)}="6t", ${addr(8)}*0.5, 0))` };
-                        }
+                        row.getCell(3).value = { formula: sumStr(3) }; // Tổng Chi phí KH
+                        row.getCell(6).value = { formula: sumStr(6) }; // Tổng Chi phí TH
                     }
                     
-                    // Kế hoạch còn lại (Chặn PS)
+                    // Công thức Kế hoạch còn lại = Chi phí KH (Cột 3) - Chi phí TH (Cột 6)
                     const isPs = node.capDo && String(node.capDo).trim().toLowerCase() === 'ps';
-                    if (level !== 4 && !isPs) row.getCell(10).value = { formula: `${addr(8)}-${addr(9)}` };
-                    else row.getCell(10).value = null;
+                    if (level !== 4 && !isPs) row.getCell(7).value = { formula: `${addr(3)}-${addr(6)}` };
+                    else row.getCell(7).value = null;
 
-                    // 4. Áp dụng Format và Styling (Màu sắc, in đậm, căn lề)
-                    [7, 8, 9, 10, 12, 14].forEach(c => row.getCell(c).numFmt = '#,##0');
+                    // 4. Áp dụng Format and Styling
+                    [3, 6, 7].forEach(c => row.getCell(c).numFmt = '#,##0');
                     for (let i = 1; i <= maxExec; i++) {
-                        row.getCell(14 + (i-1)*4 + 2).numFmt = '#,##0'; // Số lượng
-                        row.getCell(14 + (i-1)*4 + 3).numFmt = '#,##0'; // Đơn giá
-                        row.getCell(14 + (i-1)*4 + 4).numFmt = '#,##0'; // Thành tiền
+                        row.getCell(7 + (i-1)*4 + 2).numFmt = '#,##0'; // Số lượng
+                        row.getCell(7 + (i-1)*4 + 3).numFmt = '#,##0'; // Đơn giá
+                        row.getCell(7 + (i-1)*4 + 4).numFmt = '#,##0'; // Thành tiền
                     }
 
                     const colors = ['FFC5D9F1', 'FFE4DFEC', 'FFF2DCDB', 'FFEBF1DE', 'FFFFFFFF', 'FFFFE599'];
@@ -885,7 +876,7 @@
                     });
                     
                     row.getCell(2).alignment = { wrapText: true, indent: level };
-                    row.outlineLevel = level; // Cho phép đóng/mở cấp độ (Group/Collapse) trong Excel
+                    row.outlineLevel = level; 
 
                     return [rIdx];
                 };
@@ -904,7 +895,13 @@
 
                     const parentsData = snap.val();
                     const parents = Object.keys(parentsData).map(id=>({id,...parentsData[id]})).sort((a,b)=>a.id.localeCompare(b.id));
-                    parents.forEach(p => { if(sumData[p.id]) p.soLuong = sumData[p.id].totalLeafNodesCap1 || 0; });
+                    
+                    // Gán dữ liệu số đầu việc TH (Cấp 1) vào trường tgBatDau cho node root giống cơ chế của acm
+                    parents.forEach(p => { 
+                        if(sumData[p.id]) {
+                            p.tgBatDau = sumData[p.id].totalExecutedLeafNodesCap1 || 0; 
+                        }
+                    });
 
                     // -- NHÓM RIGHT (Chia sheet theo A, B, C...) --
                     if (conf.sheetNames && Array.isArray(conf.sheetNames)) {
