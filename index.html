@@ -919,27 +919,21 @@
                         setupWorksheetHeaderAtRow7(ws, maxExec);
                         parentsList.forEach(p => processNodeExcelJS(p, 0, ws, maxExec));
 
-                        // --- FORMATTING SAU KHI TẠO DỮ LIỆU ---
+                        // --- BỔ SUNG CHỈ KẺ BẢNG TỪ DÒNG 8 ĐẾN HẾT BẢNG ---
                         const maxCol = 12 + maxExec * 4;
-
-                        // 1. Merge các ô ở dòng tiêu đề (Dòng 6 và 7)
-                        ws.mergeCells('G6:K6');
-                        ws.mergeCells('A6:A7');
-                        ws.mergeCells('B6:B7');
-                        ws.mergeCells('C6:C7');
-
-                        // Căn giữa cho các ô merge để đẹp hơn
-                        ['A6', 'B6', 'C6', 'G6'].forEach(addr => {
-                            const cell = ws.getCell(addr);
-                            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                        });
-
-                        // 2. Ẩn toàn bộ các cột từ "Ngày TH (1)" trở đi (Từ cột số 13)
-                        for (let c = 13; c <= maxCol; c++) {
-                            ws.getColumn(c).hidden = true;
+                        const totalRows = ws.rowCount;
+                        for (let r = 8; r <= totalRows; r++) {
+                            const row = ws.getRow(r);
+                            for (let c = 1; c <= maxCol; c++) {
+                                const cell = row.getCell(c);
+                                cell.border = {
+                                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                                    right: { style: 'thin', color: { argb: 'FF000000' } }
+                                };
+                            }
                         }
-
-                        
                     };
 
                     // Phân nhánh xuất Right / Left
