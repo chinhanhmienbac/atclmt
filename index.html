@@ -707,7 +707,8 @@
                 allActiveDBs.forEach(item => loadCharts(initialYear, item.blockId, item.dbObj));
             }
         }
-		// =====================================================================
+		
+// =====================================================================
         // CHỨC NĂNG XUẤT BÁO CÁO EXCEL TỔNG HỢP VÀO FILE Bieumau.xlsx (V6 - HOÀN THIỆN FORMAT & CALC)
         // =====================================================================
         window.exportBaoCao = async function() {
@@ -918,27 +919,7 @@
                         
                         setupWorksheetHeaderAtRow7(ws, maxExec);
                         parentsList.forEach(p => processNodeExcelJS(p, 0, ws, maxExec));
-					// ==========================================
-                        // [BẮT ĐẦU] ĐOẠN CODE KẺ BẢNG (ĐÃ TỐI ƯU)
-                        // ==========================================
-                        const maxCol = 12 + maxExec * 4;
-                        
-                        // Sử dụng trực tiếp ws.rowCount, kẻ từ dòng 8 đến dòng cuối cùng
-                        for (let r = 8; r <= ws.rowCount; r++) {
-                            const row = ws.getRow(r);
-                            for (let c = 1; c <= maxCol; c++) {
-                                const cell = row.getCell(c);
-                                cell.border = {
-                                    top: { style: 'thin', color: { argb: 'FF000000' } },
-                                    left: { style: 'thin', color: { argb: 'FF000000' } },
-                                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
-                                    right: { style: 'thin', color: { argb: 'FF000000' } }
-                                };
-                            }
-                        }
-                        // ==========================================
-                        // [KẾT THÚC] ĐOẠN CODE KẺ BẢNG
-                        // ==========================================
+
                         // --- FORMATTING SAU KHI TẠO DỮ LIỆU ---
                         const maxCol = 12 + maxExec * 4;
 
@@ -958,7 +939,19 @@
                         for (let c = 13; c <= maxCol; c++) {
                             ws.getColumn(c).hidden = true;
                         }
-
+					// 3. Kẻ khung cho toàn bộ bảng từ dòng 8 đến hết dòng dữ liệu
+                        for (let r = 8; r <= ws.rowCount; r++) {
+                            const row = ws.getRow(r);
+                            for (let c = 1; c <= maxCol; c++) {
+                                const cell = row.getCell(c);
+                                cell.border = {
+                                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                                    right: { style: 'thin', color: { argb: 'FF000000' } }
+                                };
+                            }
+                        }
                         
                     };
 
