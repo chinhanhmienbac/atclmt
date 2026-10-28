@@ -918,8 +918,13 @@
                         
                         setupWorksheetHeaderAtRow7(ws, maxExec);
                         parentsList.forEach(p => processNodeExcelJS(p, 0, ws, maxExec));
-					// Kẻ viền chính xác từ dòng số 8 xuống đến dòng dữ liệu cuối cùng
-                        for (let r = 8; r <= totalRows; r++) {
+					// ==========================================
+                        // [BẮT ĐẦU] ĐOẠN CODE KẺ BẢNG (ĐÃ TỐI ƯU)
+                        // ==========================================
+                        const maxCol = 12 + maxExec * 4;
+                        
+                        // Sử dụng trực tiếp ws.rowCount, kẻ từ dòng 8 đến dòng cuối cùng
+                        for (let r = 8; r <= ws.rowCount; r++) {
                             const row = ws.getRow(r);
                             for (let c = 1; c <= maxCol; c++) {
                                 const cell = row.getCell(c);
@@ -932,7 +937,7 @@
                             }
                         }
                         // ==========================================
-                        // [KẾT THÚC] BỔ SUNG ĐOẠN CODE KẺ BẢNG
+                        // [KẾT THÚC] ĐOẠN CODE KẺ BẢNG
                         // ==========================================
                         // --- FORMATTING SAU KHI TẠO DỮ LIỆU ---
                         const maxCol = 12 + maxExec * 4;
