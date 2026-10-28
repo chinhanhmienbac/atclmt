@@ -708,7 +708,7 @@
             }
         }
 		// =====================================================================
-        // CHỨC NĂNG XUẤT BÁO CÁO EXCEL TỔNG HỢP VÀO FILE Bieumau.xlsx
+        // CHỨC NĂNG XUẤT BÁO CÁO EXCEL TỔNG HỢP VÀO FILE Bieumau.xlsx (V2 - CÓ CÔNG THỨC & STYLE)
         // =====================================================================
         window.exportBaoCao = async function() {
             const btn = document.getElementById('btnExportExcel');
@@ -727,12 +727,12 @@
                 const workbook = new ExcelJS.Workbook();
                 await workbook.xlsx.load(buffer);
 
-                // --- HÀM HELPER SẮP XẾP VÀ CHUYỂN ĐỔI ---
+                // --- HÀM HELPER SẮP XẾP ---
                 const convertTT = (tt) => String(tt || '').replace(/,/g, '.');
                 const r2n = (r) => {
                     if(!r) return 0;
                     const m={'I':1,'V':5,'X':10,'L':50,'C':100,'D':500,'M':1000};
-                    let s=0; const str=r.toUpperCase();
+                    let s=0; const str=String(r).toUpperCase();
                     for(let i=0;i<str.length;i++){
                         const c=m[str[i]], n=m[str[i+1]];
                         if(n&&c<n) s-=c; else s+=c;
@@ -749,46 +749,150 @@
                     return 0;
                 };
 
-                // --- THUẬT TOÁN ĐỆ QUY LÀM PHẲNG (BỎ QUA GIẢI TRÌNH) ---
-                const flatten = (node, level, maxExecObj) => {
-                    let rows = [];
-                    if (node.tt) {
-                        const rData = [
-                            convertTT(node.tt), node.noiDung || '', node.tagName || '', node.dvThucHien || '',
-                            (node.tanSuatTH === 0 || node.tanSuatTH === null || node.tanSuatTH === undefined) ? '' : node.tanSuatTH,
-                            node.donVi || '', node.soLuong || 0, node.chiPhi || 0, node.chiPhiThucHien || 0,
-                            node.keHoachConLai || 0, node.namPhanBo || '', node.chiPhiPhanBo || 0, node.capDo || '', node.cpCap1 || 0
-                        ];
-                        
-                        // Xử lý dữ liệu số lần thực hiện trải ngang (nếu có)
-                        if (node.executions) {
-                            for (let k in node.executions) {
-                                const e = node.executions[k];
-                                const idx = parseInt(e.lanThucHien || k, 10);
-                                if (!isNaN(idx)) {
-                                    if (idx > maxExecObj.val) maxExecObj.val = idx;
-                                    const off = 14 + (idx - 1) * 4;
-                                    rData[off] = e.ngayThucHien || ''; rData[off+1] = e.dvt || 0;
-                                    rData[off+2] = e.donGia || 0; rData[off+3] = e.thanhTien || 0;
-                                }
+                // --- HÀM TÌM SỐ LẦN THỰC HIỆN MAX TRONG 1 NHÁNH ---
+                const findMaxExecutions = (node) => {
+                    let max = 0;
+                    const traverse = (n) => {
+                        if (n.executions) {
+                            for(let k in n.executions) {
+                                const idx = parseInt(n.executions[k].lanThucHien || k, 10);
+                                if (!isNaN(idx) && idx > max) max = idx;
                             }
                         }
-                        // Lấp đầy các ô trống để tránh mảng thưa
-                        for(let i=0; i<rData.length; i++) if(rData[i] === undefined) rData[i] = '';
-                        rows.push(rData);
+                        if (n.children) Object.values(n.children).forEach(traverse);
+                        if (n.grandchildren) Object.values(n.grandchildren).forEach(traverse);
+                        if (n.greatGrandchildren) Object.values(n.greatGrandchildren).forEach(traverse);
+                        if (n.greatGreatGrandchildren) Object.values(n.greatGreatGrandchildren).forEach(traverse);
+                    };
+                    traverse(node);
+                    return max;
+                };
+
+                // --- HÀM SETUP HEADER CHO SHEET ---
+                const setupWorksheetHeader = (ws, maxExec) => {
+                    ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
+                    
+                    const cols = [
+                        { header: 'TT', width: 10, style: { numFmt: '@' } }, 
+                        { header: 'Nội dung công việc', width: 50, style: { alignment: { wrapText: true } } },
+                        { header: 'Tag Name', width: 12 }, { header: 'ĐV th.hiện', width: 15 },
+                        { header: 'Tần suất TH', width: 10, style: { alignment: { horizontal: 'center' } } },
+                        { header: 'Đ.vị tính', width: 10, style: { alignment: { horizontal: 'center' } } },
+                        { header: 'Số lượng', width: 10, style: { numFmt: '#,##0' } },
+                        { header: 'Chi phí KH', width: 18, style: { numFmt: '#,##0' } },
+                        { header: 'Chi phí thực hiện', width: 18, style: { numFmt: '#,##0' } },
+                        { header: 'Kế hoạch còn lại', width: 18, style: { numFmt: '#,##0' } },
+                        { header: 'Năm phân bổ', width: 10, style: { alignment: { horizontal: 'center' } } },
+                        { header: 'CP phân bổ', width: 15, style: { numFmt: '#,##0' } },
+                        { header: 'Cấp độ', width: 8, style: { alignment: { horizontal: 'center' } } },
+                        { header: 'CP CĐ1', width: 15, style: { numFmt: '#,##0' } }
+                    ];
+
+                    for (let i = 1; i <= maxExec; i++) {
+                        cols.push(
+                            { header: `Ngày TH (${i})`, width: 12, style: { numFmt: '@' } },
+                            { header: `Số lượng (${i})`, width: 10, style: { numFmt: '#,##0' } },
+                            { header: `Đơn giá (${i})`, width: 15, style: { numFmt: '#,##0' } },
+                            { header: `Thành tiền (${i})`, width: 18, style: { numFmt: '#,##0' } }
+                        );
+                    }
+                    ws.columns = cols;
+                    
+                    const headerRow = ws.getRow(1);
+                    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+                    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
+                    headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                };
+
+                // --- THUẬT TOÁN ĐỆ QUY TẠO DÒNG CÓ CÔNG THỨC ---
+                const processNodeExcelJS = (node, level, ws, maxExec) => {
+                    const isContainer = (node.children && Object.keys(node.children).length > 0) ||
+                                        (node.grandchildren && Object.keys(node.grandchildren).length > 0) ||
+                                        (node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0);
+
+                    // 1. Chuẩn bị mảng dữ liệu cơ bản
+                    const rData = [
+                        convertTT(node.tt), node.noiDung || '', node.tagName || '', node.dvThucHien || '',
+                        (node.tanSuatTH === 0 || node.tanSuatTH == null) ? '' : node.tanSuatTH,
+                        node.donVi || '',
+                        (isContainer && level === 0) ? (node.soLuong || 0) : (node.soLuong || 0),
+                        node.chiPhi || 0, node.chiPhiThucHien || 0,
+                        0, // Kế hoạch còn lại (sẽ chèn formula)
+                        node.namPhanBo || '', 0, // CP Phân bổ (sẽ chèn formula)
+                        node.capDo || '', 0 // CP Cấp 1 (sẽ chèn formula)
+                    ];
+
+                    if (node.executions) {
+                        for (let k in node.executions) {
+                            const e = node.executions[k];
+                            const idx = parseInt(e.lanThucHien || k, 10);
+                            if (!isNaN(idx) && idx <= maxExec) {
+                                const off = 14 + (idx - 1) * 4;
+                                rData[off] = e.ngayThucHien || ''; rData[off+1] = e.dvt || 0;
+                                rData[off+2] = e.donGia || 0; rData[off+3] = e.thanhTien || 0;
+                            }
+                        }
+                    }
+                    for(let i=0; i<14 + maxExec*4; i++) if(rData[i] === undefined) rData[i] = '';
+
+                    const row = ws.addRow(rData);
+                    const rIdx = row.number;
+
+                    // 2. Đệ quy xử lý các node con để lấy số thứ tự dòng (phục vụ hàm SUM)
+                    const childRows = [];
+                    if (node.children) Object.keys(node.children).map(id=>({id,...node.children[id]})).sort(sortC).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
+                    if (node.grandchildren) Object.keys(node.grandchildren).map(id=>({id,...node.grandchildren[id]})).sort((a,b)=>parseInt(a.id)-parseInt(b.id)).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
+                    if (node.greatGrandchildren) Object.keys(node.greatGrandchildren).map(id=>({id,...node.greatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
+                    if (node.greatGreatGrandchildren) Object.keys(node.greatGreatGrandchildren).map(id=>({id,...node.greatGreatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
+
+                    // 3. Chèn công thức Excel (MAPPING COLUMNS: H=8, I=9, J=10, K=11, L=12, M=13, N=14)
+                    const addr = (col) => row.getCell(col).address;
+                    
+                    if (isContainer && childRows.length > 0) {
+                        const sumStr = (col) => `SUM(${childRows.map(r => ws.getRow(r).getCell(col).address).join(',')})`;
+                        row.getCell(8).value = { formula: sumStr(8) };
+                        row.getCell(9).value = { formula: sumStr(9) };
+                        row.getCell(12).value = { formula: sumStr(12) };
+                        row.getCell(14).value = { formula: sumStr(14) };
+                    } else {
+                        // Formula cho các Node Lá (Tính phân bổ và Cấp 1)
+                        if (level >= 3) {
+                            row.getCell(12).value = { formula: `IF(ISNUMBER(${addr(11)}), IF(${addr(11)}>0, ${addr(8)}/${addr(11)}, 0), 0)` };
+                            row.getCell(14).value = { formula: `IF(${addr(13)}="1", ${addr(8)}, IF(${addr(13)}="6t", ${addr(8)}*0.5, 0))` };
+                        }
                     }
                     
-                    if (node.children) Object.keys(node.children).map(id=>({id,...node.children[id]})).sort(sortC).forEach(c=>rows.push(...flatten(c, level+1, maxExecObj)));
-                    if (node.grandchildren) Object.keys(node.grandchildren).map(id=>({id,...node.grandchildren[id]})).sort((a,b)=>parseInt(a.id)-parseInt(b.id)).forEach(c=>rows.push(...flatten(c, level+2, maxExecObj)));
-                    if (node.greatGrandchildren) Object.keys(node.greatGrandchildren).map(id=>({id,...node.greatGrandchildren[id]})).sort(sortN).forEach(c=>rows.push(...flatten(c, level+3, maxExecObj)));
-                    if (node.greatGreatGrandchildren) Object.keys(node.greatGreatGrandchildren).map(id=>({id,...node.greatGreatGrandchildren[id]})).sort(sortN).forEach(c=>rows.push(...flatten(c, level+4, maxExecObj)));
+                    // Kế hoạch còn lại (Chặn PS)
+                    const isPs = node.capDo && String(node.capDo).trim().toLowerCase() === 'ps';
+                    if (level !== 4 && !isPs) row.getCell(10).value = { formula: `${addr(8)}-${addr(9)}` };
+                    else row.getCell(10).value = null;
+
+                    // 4. Áp dụng Format và Styling (Màu sắc, in đậm, căn lề)
+                    [7, 8, 9, 10, 12, 14].forEach(c => row.getCell(c).numFmt = '#,##0');
+                    for (let i = 1; i <= maxExec; i++) {
+                        row.getCell(14 + (i-1)*4 + 2).numFmt = '#,##0'; // Số lượng
+                        row.getCell(14 + (i-1)*4 + 3).numFmt = '#,##0'; // Đơn giá
+                        row.getCell(14 + (i-1)*4 + 4).numFmt = '#,##0'; // Thành tiền
+                    }
+
+                    const colors = ['FFC5D9F1', 'FFE4DFEC', 'FFF2DCDB', 'FFEBF1DE', 'FFFFFFFF', 'FFFFE599'];
+                    const bgColor = colors[level] || 'FFFFFFFF'; 
                     
-                    return rows;
+                    row.eachCell({ includeEmpty: true }, (cell) => {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                        cell.border = { top: { style: 'thin', color: { argb: 'FFD9D9D9' } }, left: { style: 'thin', color: { argb: 'FFD9D9D9' } }, bottom: { style: 'thin', color: { argb: 'FFD9D9D9' } }, right: { style: 'thin', color: { argb: 'FFD9D9D9' } } };
+                        if (level < 3) cell.font = { bold: true };
+                    });
+                    
+                    row.getCell(2).alignment = { wrapText: true, indent: level };
+                    row.outlineLevel = level; // Cho phép đóng/mở cấp độ (Group/Collapse) trong Excel
+
+                    return [rIdx];
                 };
 
                 btn.innerHTML = "⏳ Đang quét dữ liệu...";
 
-                // 2. Duyệt qua toàn bộ CSDL đã cấu hình
+                // --- DUYỆT QUA CÁC CSDL VÀ ÁNH XẠ VÀO SHEET ---
                 for (const item of window.activeDatabaseInstances) {
                     const conf = item.config;
                     
@@ -800,47 +904,44 @@
 
                     const parentsData = snap.val();
                     const parents = Object.keys(parentsData).map(id=>({id,...parentsData[id]})).sort((a,b)=>a.id.localeCompare(b.id));
-
-                    // Lấy số lượng cấp 1 từ summary
                     parents.forEach(p => { if(sumData[p.id]) p.soLuong = sumData[p.id].totalLeafNodesCap1 || 0; });
 
-                    // -- KỊCH BẢN CHIA SHEET THEO PARENTS (NHÓM RIGHT) --
+                    // -- NHÓM RIGHT (Chia sheet theo A, B, C...) --
                     if (conf.sheetNames && Array.isArray(conf.sheetNames)) {
                         for (let i = 0; i < parents.length; i++) {
-                            if (i >= conf.sheetNames.length) break; // Bỏ qua nếu dữ liệu parent thừa so với số lượng sheet quy định
+                            if (i >= conf.sheetNames.length) break; 
                             
                             const ws = workbook.getWorksheet(conf.sheetNames[i]);
-                            if (!ws) continue; // Bỏ qua nếu sheet không tồn tại trong Bieumau.xlsx
+                            if (!ws) continue; 
 
-                            let maxExec = { val: 0 };
-                            const flatData = flatten(parents[i], 0, maxExec);
+                            const pNode = parents[i];
+                            const maxExec = findMaxExecutions(pNode);
                             
-                            const header = ['TT', 'Nội dung công việc', 'Tag Name', 'ĐV th.hiện', 'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Chi phí KH', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'Năm phân bổ', 'CP phân bổ', 'Cấp độ', 'CP Cấp 1'];
-                            for(let k=1; k<=maxExec.val; k++) header.push(`Ngày TH (${k})`, `Số lượng (${k})`, `Đơn giá (${k})`, `Thành tiền (${k})`);
-
-                            ws.addRow(header).font = { bold: true };
-                            flatData.forEach(r => ws.addRow(r));
+                            setupWorksheetHeader(ws, maxExec);
+                            processNodeExcelJS(pNode, 0, ws, maxExec);
                         }
                     } 
-                    // -- KỊCH BẢN 1 SHEET (NHÓM LEFT) --
+                    // -- NHÓM LEFT (Gộp tất cả vào 1 sheet) --
                     else if (conf.sheetName) {
                         const ws = workbook.getWorksheet(conf.sheetName);
                         if (!ws) continue;
 
-                        let allRows = [];
-                        let maxExec = { val: 0 };
-                        for (const p of parents) allRows.push(...flatten(p, 0, maxExec));
+                        let maxExec = 0;
+                        parents.forEach(p => {
+                            const m = findMaxExecutions(p);
+                            if (m > maxExec) maxExec = m;
+                        });
 
-                        const header = ['TT', 'Nội dung công việc', 'Tag Name', 'ĐV th.hiện', 'Tần suất TH', 'Đ.vị tính', 'Số lượng', 'Chi phí KH', 'Chi phí thực hiện', 'Kế hoạch còn lại', 'Năm phân bổ', 'CP phân bổ', 'Cấp độ', 'CP Cấp 1'];
-                        for(let k=1; k<=maxExec.val; k++) header.push(`Ngày TH (${k})`, `Số lượng (${k})`, `Đơn giá (${k})`, `Thành tiền (${k})`);
-
-                        ws.addRow(header).font = { bold: true };
-                        allRows.forEach(r => ws.addRow(r));
+                        setupWorksheetHeader(ws, maxExec);
+                        for (const p of parents) {
+                            processNodeExcelJS(p, 0, ws, maxExec);
+                        }
                     }
                 }
 
                 btn.innerHTML = "⏳ Đang tạo file...";
 
+                // Xuất file
                 const outBuffer = await workbook.xlsx.writeBuffer();
                 const blob = new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 const link = document.createElement('a');
