@@ -938,7 +938,8 @@
                         for (let c = 13; c <= maxCol; c++) {
                             ws.getColumn(c).hidden = true;
                         }
-						// --- BỔ SUNG CHỈ KẺ BẢNG TỪ DÒNG 8 ĐẾN HẾT BẢNG ---
+
+                        // --- BỔ SUNG CHỈ KẺ BẢNG TỪ DÒNG 8 ĐẾN HẾT BẢNG ---
                         const maxCol = 12 + maxExec * 4;
                         const totalRows = ws.rowCount;
                         for (let r = 8; r <= totalRows; r++) {
@@ -953,10 +954,8 @@
                                 };
                             }
                         }
-                        
                     };
 
-					
                     // Phân nhánh xuất Right / Left
                     if (conf.sheetNames && Array.isArray(conf.sheetNames)) {
                         for (let i = 0; i < parents.length; i++) {
