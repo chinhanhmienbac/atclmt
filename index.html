@@ -261,9 +261,7 @@
 		<!-- ================= BẮT ĐẦU ĐOẠN MÃ nút bấm ================= -->
         <div class="w-full relative h-0">
             <div class="absolute left-4 md:left-8 z-10">
-                <a href="https://drive.google.com/drive/folders/1mrd7gx2fZRZPrfSIt5lr3tWNhFqwm0qz" target="_blank" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-1.5 px-4 rounded shadow transition duration-200 text-sm flex items-center w-max">
-                    Mẫu BC
-                </a>
+                
 				<!-- NÚT XUẤT BÁO CÁO MỚI -->
                 <button id="btnExportExcel" onclick="window.exportBaoCao()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-4 rounded shadow transition duration-200 text-sm flex items-center w-max cursor-pointer">
                     Xuất BC
@@ -774,7 +772,7 @@
                     ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
                     
                     const headers = ['TT', 'Nội dung công việc', 'ĐV th.hiện', 'Chi phí KH', 'TG bắt đầu', 'TG hoàn thành', 'Quý I', 'Quý II', 'Quý III', 'Quý IV', 'Chi phí thực hiện', 'Kế hoạch còn lại'];
-                    const widths = [8, 60, 15, 18, 10, 10, 12, 12, 12, 12, 18, 18];
+                    const widths = [5, 60, 15, 18, 7, 7, 12, 12, 12, 12, 18, 18];
 
                     for (let i = 1; i <= maxExec; i++) {
                         headers.push(`Ngày TH (${i})`, `Số lượng (${i})`, `Đơn giá (${i})`, `Thành tiền (${i})`);
