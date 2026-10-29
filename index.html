@@ -708,7 +708,7 @@
             }
         }
 		
-// =====================================================================
+		// =====================================================================
         // CHỨC NĂNG XUẤT BÁO CÁO EXCEL TỔNG HỢP VÀO FILE Bieumau.xlsx (V6 - HOÀN THIỆN FORMAT & CALC)
         // =====================================================================
         window.exportBaoCao = async function() {
@@ -774,7 +774,7 @@
                     ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
                     
                     const headers = ['TT', 'Nội dung công việc', 'ĐV th.hiện', 'Chi phí KH', 'TG bắt đầu', 'TG hoàn thành', 'Quý I', 'Quý II', 'Quý III', 'Quý IV', 'Chi phí thực hiện', 'Kế hoạch còn lại'];
-                    const widths = [10, 50, 15, 18, 12, 12, 15, 15, 15, 15, 18, 18];
+                    const widths = [8, 60, 15, 18, 10, 10, 12, 12, 12, 12, 18, 18];
 
                     for (let i = 1; i <= maxExec; i++) {
                         headers.push(`Ngày TH (${i})`, `Số lượng (${i})`, `Đơn giá (${i})`, `Thành tiền (${i})`);
