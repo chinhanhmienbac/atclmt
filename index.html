@@ -562,6 +562,7 @@
             }
         }
 
+        
         /**
          * Thiết lập Menu chọn Năm ở vị trí trung tâm
          */
@@ -571,16 +572,32 @@
             
             const currentYearValue = new Date().getFullYear();
             yearSelect.innerHTML = '';
+            
+            // Tạo mảng: Năm hiện tại, năm sau và 3 năm trước
             const years = [currentYearValue, currentYearValue + 1];
             for (let i = currentYearValue - 1; i >= currentYearValue - 3; i--) {
                 years.unshift(i);
             }
+            
+            // Bổ sung năm đặc biệt 2000 vào đầu danh sách
+            years.unshift(2000);
+
             years.forEach(year => {
                 const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
+                option.value = year; // Giá trị ngầm vẫn là 2000 để truy xuất DB
+                
+                // Đổi nhãn hiển thị nếu là năm 2000
+                if (year === 2000) {
+                    option.textContent = "TestKH";
+                    option.style.color = "#0056b3"; // Thêm màu xanh để dễ nhận diện (tùy chọn)
+                } else {
+                    option.textContent = year;
+                }
+                
                 yearSelect.appendChild(option);
             });
+            
+            // Mặc định vẫn chọn năm hiện tại khi mở web
             yearSelect.value = currentYearValue;
 
             // Khi đổi năm => Cập nhật toàn bộ CSDL
