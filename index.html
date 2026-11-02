@@ -1034,7 +1034,7 @@
         };
 
 		// =====================================================================
-        // CHỨC NĂNG MỚI: XUẤT KẾ HOẠCH VÀO FILE MauKH.xlsx (ĐÃ BỔ SUNG HEADERS & WIDTHS)
+        // CHỨC NĂNG MỚI: XUẤT KẾ HOẠCH VÀO FILE MauKH.xlsx (15 CỘT - ĐÃ CẬP NHẬT GHI CHÚ)
         // =====================================================================
         window.exportKH = async function() {
             const btn = document.getElementById('btnExportKH');
@@ -1079,15 +1079,16 @@
                 const setupWorksheetHeadersKH = (ws) => {
                     ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
                     
-                    // Khai báo 16 tiêu đề gốc
+                    // Khai báo 15 tiêu đề gốc (Đã xóa Tag Name, Tần suất, thêm Ghi chú ở cuối)
                     const headers = [
-                        'TT', 'Nội dung công việc', 'Tag Name', 'ĐV th.hiện', 'Tần suất TH', 
-                        'Đ.vị tính', 'Số lượng', 'Chi phí KH', 'TG bắt đầu', 'TG hoàn thành', 
-                        'Chi phí thực hiện', 'Kế hoạch còn lại', 'Năm phân bổ', 'CP phân bổ', 'Cấp độ', 'CP Cấp 1'
+                        'TT', 'Nội dung công việc', 'ĐV th.hiện', 'Đ.vị tính', 
+                        'Số lượng', 'Chi phí KH', 'TG bắt đầu', 'TG hoàn thành', 
+                        'Chi phí thực hiện', 'Kế hoạch còn lại', 'Năm phân bổ', 'CP phân bổ', 
+                        'Cấp độ', 'CP Cấp 1', 'Ghi chú'
                     ];
                     
-                    // Khai báo độ rộng tương ứng cho 16 cột
-                    const widths = [10, 50, 12, 15, 10, 10, 10, 18, 12, 12, 18, 18, 10, 15, 10, 15];
+                    // Khai báo độ rộng tương ứng cho 15 cột
+                    const widths = [10, 50, 15, 10, 10, 18, 12, 12, 18, 18, 10, 15, 10, 15, 25];
 
                     // Thiết lập độ rộng cho từng cột
                     widths.forEach((w, idx) => {
@@ -1102,30 +1103,29 @@
                     headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
                 };
 
-                // --- THUẬT TOÁN ĐỆ QUY TẠO DÒNG KẾ HOẠCH (16 CỘT - KHÔNG EXECUTIONS) ---
+                // --- THUẬT TOÁN ĐỆ QUY TẠO DÒNG KẾ HOẠCH (15 CỘT) ---
                 const processNodeForKH = (node, level, ws, ctx) => {
                     const isContainer = (node.children && Object.keys(node.children).length > 0) ||
                                         (node.grandchildren && Object.keys(node.grandchildren).length > 0) ||
                                         (node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0);
 
-                    // Chuẩn bị 16 cột gốc
+                    // Chuẩn bị 15 cột (Đã ánh xạ đúng vị trí)
                     const rData = [
                         convertTT(node.tt),                                                  // 1: TT
                         node.noiDung || '',                                                  // 2: Nội dung
-                        node.tagName || '',                                                  // 3: Tag Name
-                        node.dvThucHien || '',                                               // 4: ĐV th.hiện
-                        (node.tanSuatTH === 0 || node.tanSuatTH == null) ? '' : node.tanSuatTH, // 5: Tần suất
-                        node.donVi || '',                                                    // 6: ĐV tính
-                        (isContainer && level === 0) ? (node.soLuong || 0) : (node.soLuong || 0), // 7: Số lượng
-                        node.chiPhi || 0,                                                    // 8: Chi phí KH
-                        (level === 0) ? (node.tgBatDau || 0) : (node.tgBatDau || ''),        // 9: TG bắt đầu
-                        node.tgHoanThanh || '',                                              // 10: TG hoàn thành
-                        node.chiPhiThucHien || 0,                                            // 11: Chi phí thực hiện
-                        0,                                                                   // 12: Kế hoạch còn lại (Formula)
-                        node.namPhanBo || '',                                                // 13: Năm PB
-                        0,                                                                   // 14: CP Phân bổ (Formula)
-                        node.capDo || '',                                                    // 15: Cấp độ
-                        0                                                                    // 16: CP Cấp 1 (Formula)
+                        node.dvThucHien || '',                                               // 3: ĐV th.hiện
+                        node.donVi || '',                                                    // 4: ĐV tính
+                        (isContainer && level === 0) ? (node.soLuong || 0) : (node.soLuong || 0), // 5: Số lượng
+                        node.chiPhi || 0,                                                    // 6: Chi phí KH
+                        (level === 0) ? (node.tgBatDau || 0) : (node.tgBatDau || ''),        // 7: TG bắt đầu
+                        node.tgHoanThanh || '',                                              // 8: TG hoàn thành
+                        node.chiPhiThucHien || 0,                                            // 9: Chi phí thực hiện
+                        0,                                                                   // 10: Kế hoạch còn lại (Formula)
+                        node.namPhanBo || '',                                                // 11: Năm PB
+                        0,                                                                   // 12: CP Phân bổ (Formula)
+                        node.capDo || '',                                                    // 13: Cấp độ
+                        0,                                                                   // 14: CP Cấp 1 (Formula)
+                        node.ghiChu || ''                                                    // 15: Ghi chú
                     ];
 
                     const rIdx = ctx.rowIdx;
@@ -1140,30 +1140,30 @@
                     if (node.greatGrandchildren) Object.keys(node.greatGrandchildren).map(id=>({id,...node.greatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeForKH(c, level+1, ws, ctx)));
                     if (node.greatGreatGrandchildren) Object.keys(node.greatGreatGrandchildren).map(id=>({id,...node.greatGreatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeForKH(c, level+1, ws, ctx)));
 
-                    // Cấy Công thức mảng
+                    // Cấy Công thức mảng (Đã cập nhật tọa độ cột mới)
                     const addr = (col) => row.getCell(col).address;
                     if (isContainer && childRows.length > 0) {
                         const sumStr = (col) => `SUM(${childRows.map(r => ws.getRow(r).getCell(col).address).join(',')})`;
-                        row.getCell(7).value = { formula: sumStr(7) };   // Tổng Số lượng
-                        row.getCell(8).value = { formula: sumStr(8) };   // Tổng Chi phí KH
-                        row.getCell(11).value = { formula: sumStr(11) }; // Tổng Chi phí TH
-                        row.getCell(14).value = { formula: sumStr(14) }; // Tổng CP Phân bổ
-                        row.getCell(16).value = { formula: sumStr(16) }; // Tổng CP Cấp 1
+                        row.getCell(5).value = { formula: sumStr(5) };   // Tổng Số lượng
+                        row.getCell(6).value = { formula: sumStr(6) };   // Tổng Chi phí KH
+                        row.getCell(9).value = { formula: sumStr(9) };   // Tổng Chi phí TH
+                        row.getCell(12).value = { formula: sumStr(12) }; // Tổng CP Phân bổ
+                        row.getCell(14).value = { formula: sumStr(14) }; // Tổng CP Cấp 1
                     } else {
                         // Lá: Tính Phân bổ và Cấp 1
                         if (level >= 3) {
-                            row.getCell(14).value = { formula: `IF(ISNUMBER(${addr(13)}), IF(${addr(13)}>0, ${addr(8)}/${addr(13)}, 0), 0)` };
-                            row.getCell(16).value = { formula: `IF(${addr(15)}="1", ${addr(8)}, IF(${addr(15)}="6t", ${addr(8)}*0.5, 0))` };
+                            row.getCell(12).value = { formula: `IF(ISNUMBER(${addr(11)}), IF(${addr(11)}>0, ${addr(6)}/${addr(11)}, 0), 0)` };
+                            row.getCell(14).value = { formula: `IF(${addr(13)}="1", ${addr(6)}, IF(${addr(13)}="6t", ${addr(6)}*0.5, 0))` };
                         }
                     }
                     
                     // Kế hoạch còn lại
                     const isPs = node.capDo && String(node.capDo).trim().toLowerCase() === 'ps';
-                    if (level !== 4 && !isPs) row.getCell(12).value = { formula: `${addr(8)}-${addr(11)}` };
-                    else row.getCell(12).value = null;
+                    if (level !== 4 && !isPs) row.getCell(10).value = { formula: `${addr(6)}-${addr(9)}` };
+                    else row.getCell(10).value = null;
 
-                    // Style nền và Format số
-                    [7, 8, 11, 12, 14, 16].forEach(c => row.getCell(c).numFmt = '#,##0');
+                    // Style nền và Format số (Cập nhật tọa độ)
+                    [5, 6, 9, 10, 12, 14].forEach(c => row.getCell(c).numFmt = '#,##0');
 
                     const colors = ['FFC5D9F1', 'FFE4DFEC', 'FFF2DCDB', 'FFEBF1DE', 'FFFFFFFF', 'FFFFE599'];
                     const bgColor = colors[level] || 'FFFFFFFF'; 
@@ -1210,17 +1210,16 @@
                         const ws = workbook.getWorksheet(sheetName);
                         if (!ws) continue; 
 
-                        // Bổ sung gọi hàm setup header và độ rộng ở đây
                         setupWorksheetHeadersKH(ws);
 
-                        const ctx = { rowIdx: 8 }; 
+                        const ctx = { rowIdx: 8 }; // Ghi từ dòng 8, giữ nguyên 7 dòng tiêu đề của MauKH
                         processNodeForKH(parents[i], 0, ws, ctx);
 
-                        // Kẻ khung (Borders) cho toàn bộ 16 cột
+                        // Kẻ khung (Borders) cho toàn bộ 15 cột
                         const rowCount = ws.rowCount;
                         for (let r = 8; r <= rowCount; r++) {
                             const row = ws.getRow(r);
-                            for (let c = 1; c <= 16; c++) {
+                            for (let c = 1; c <= 15; c++) {
                                 const cell = row.getCell(c);
                                 cell.border = {
                                     top: { style: 'thin', color: { argb: 'FF000000' } },
@@ -1277,7 +1276,8 @@
                 btn.innerHTML = originHtml;
                 btn.disabled = false;
             }
-        };        document.addEventListener('DOMContentLoaded', initializeSystem);
+        };
+		document.addEventListener('DOMContentLoaded', initializeSystem);
     </script>
     
 </body>
