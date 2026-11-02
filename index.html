@@ -261,7 +261,9 @@
 		<!-- ================= BẮT ĐẦU ĐOẠN MÃ nút bấm ================= -->
         <div class="w-full relative h-0">
             <div class="absolute left-4 md:left-8 z-10">
-                
+                <button id="btnExportKH" onclick="window.exportKH()" title="Xuất Kế hoạch ra Excel (Theo từng đơn vị)" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-1.5 px-4 rounded shadow transition duration-200 text-sm flex items-center w-max cursor-pointer">
+                    Xuất KH
+                </button>
 				<!-- NÚT XUẤT BÁO CÁO MỚI -->
                 <button id="btnExportExcel" onclick="window.exportBaoCao()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-4 rounded shadow transition duration-200 text-sm flex items-center w-max cursor-pointer">
                     Xuất BC
@@ -409,6 +411,7 @@
                 side: "left",         
                 title: "CHI NHÁNH MIỀN BẮC", 
 				sheetName: "CNMB",
+				splitSheetNames: ["VPCN", "TNHN", "VPDH", "TNND", "TTKD"],
                 recaptchaSiteKey: "6LczK0ssAAAAALjCOZ3duO7WAmvcA83MgbVm6RtP",
                 config: {
                     	apiKey: "AIzaSyALoxHjymCFFXLDj9Vf9hiX2x8r29Bp_yg",
@@ -426,6 +429,7 @@
                 side: "right",
                 title: "TỔNG KHO LPG HẢI PHÒNG",
 				sheetNames: ["TKMB", "TKHP"],
+				splitSheetNames: ["TKMB", "TKHP"],
                 recaptchaSiteKey: "6LczK0ssAAAAALjCOZ3duO7WAmvcA83MgbVm6RtP",
                 config: {
                     apiKey: "AIzaSyBChEvVYy5Iqbg1vP9pcOTKGdmgw4bhhY4",
@@ -1028,7 +1032,222 @@
                 btn.disabled = false;
             }
         };
-		
+
+		// =====================================================================
+        // CHỨC NĂNG MỚI: XUẤT KẾ HOẠCH VÀO FILE MauKH.xlsx (KHÔNG EXECUTIONS)
+        // =====================================================================
+        window.exportKH = async function() {
+            const btn = document.getElementById('btnExportKH');
+            const originHtml = btn.innerHTML;
+            const yearSelect = document.getElementById('globalYearSelect');
+            const year = yearSelect ? yearSelect.value : new Date().getFullYear();
+
+            try {
+                btn.innerHTML = "⏳ Đang tải MauKH...";
+                btn.disabled = true;
+
+                // 1. Tải Template MauKH.xlsx
+                const res = await fetch('MauKH.xlsx');
+                if (!res.ok) throw new Error("Không tìm thấy file MauKH.xlsx trên server.");
+                const buffer = await res.arrayBuffer();
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(buffer);
+
+                // --- HÀM HELPER SẮP XẾP ---
+                const convertTT = (tt) => String(tt || '').replace(/,/g, '.');
+                const r2n = (r) => {
+                    if(!r) return 0;
+                    const m={'I':1,'V':5,'X':10,'L':50,'C':100,'D':500,'M':1000};
+                    let s=0; const str=String(r).toUpperCase();
+                    for(let i=0;i<str.length;i++){
+                        const c=m[str[i]], n=m[str[i+1]];
+                        if(n&&c<n) s-=c; else s+=c;
+                    }
+                    return s;
+                };
+                const sortC = (a,b) => r2n(a.id) - r2n(b.id);
+                const sortN = (a,b) => {
+                    const pa=String(a.id).split(',').map(Number), pb=String(b.id).split(',').map(Number);
+                    for(let i=0;i<Math.max(pa.length,pb.length);i++){
+                        const va=pa[i]||0, vb=pb[i]||0;
+                        if(va!==vb) return va-vb;
+                    }
+                    return 0;
+                };
+
+                // --- THUẬT TOÁN ĐỆ QUY TẠO DÒNG KẾ HOẠCH (16 CỘT - KHÔNG EXECUTIONS) ---
+                const processNodeForKH = (node, level, ws, ctx) => {
+                    const isContainer = (node.children && Object.keys(node.children).length > 0) ||
+                                        (node.grandchildren && Object.keys(node.grandchildren).length > 0) ||
+                                        (node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0);
+
+                    // Chuẩn bị 16 cột gốc (Không xóa cột nào, thêm tgBatDau, tgHoanThanh)
+                    const rData = [
+                        convertTT(node.tt),                                                  // 1: TT
+                        node.noiDung || '',                                                  // 2: Nội dung
+                        node.tagName || '',                                                  // 3: Tag Name
+                        node.dvThucHien || '',                                               // 4: ĐV th.hiện
+                        (node.tanSuatTH === 0 || node.tanSuatTH == null) ? '' : node.tanSuatTH, // 5: Tần suất
+                        node.donVi || '',                                                    // 6: ĐV tính
+                        (isContainer && level === 0) ? (node.soLuong || 0) : (node.soLuong || 0), // 7: Số lượng
+                        node.chiPhi || 0,                                                    // 8: Chi phí KH
+                        (level === 0) ? (node.tgBatDau || 0) : (node.tgBatDau || ''),        // 9: TG bắt đầu
+                        node.tgHoanThanh || '',                                              // 10: TG hoàn thành
+                        node.chiPhiThucHien || 0,                                            // 11: Chi phí thực hiện
+                        0,                                                                   // 12: Kế hoạch còn lại (Formula)
+                        node.namPhanBo || '',                                                // 13: Năm PB
+                        0,                                                                   // 14: CP Phân bổ (Formula)
+                        node.capDo || '',                                                    // 15: Cấp độ
+                        0                                                                    // 16: CP Cấp 1 (Formula)
+                    ];
+
+                    const rIdx = ctx.rowIdx;
+                    const row = ws.getRow(rIdx);
+                    row.values = rData;
+                    ctx.rowIdx++;
+
+                    // Đệ quy nhánh con
+                    const childRows = [];
+                    if (node.children) Object.keys(node.children).map(id=>({id,...node.children[id]})).sort(sortC).forEach(c=>childRows.push(...processNodeForKH(c, level+1, ws, ctx)));
+                    if (node.grandchildren) Object.keys(node.grandchildren).map(id=>({id,...node.grandchildren[id]})).sort((a,b)=>parseInt(a.id)-parseInt(b.id)).forEach(c=>childRows.push(...processNodeForKH(c, level+1, ws, ctx)));
+                    if (node.greatGrandchildren) Object.keys(node.greatGrandchildren).map(id=>({id,...node.greatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeForKH(c, level+1, ws, ctx)));
+                    if (node.greatGreatGrandchildren) Object.keys(node.greatGreatGrandchildren).map(id=>({id,...node.greatGreatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeForKH(c, level+1, ws, ctx)));
+
+                    // Cấy Công thức mảng
+                    const addr = (col) => row.getCell(col).address;
+                    if (isContainer && childRows.length > 0) {
+                        const sumStr = (col) => `SUM(${childRows.map(r => ws.getRow(r).getCell(col).address).join(',')})`;
+                        row.getCell(7).value = { formula: sumStr(7) };   // Tổng Số lượng
+                        row.getCell(8).value = { formula: sumStr(8) };   // Tổng Chi phí KH
+                        row.getCell(11).value = { formula: sumStr(11) }; // Tổng Chi phí TH
+                        row.getCell(14).value = { formula: sumStr(14) }; // Tổng CP Phân bổ
+                        row.getCell(16).value = { formula: sumStr(16) }; // Tổng CP Cấp 1
+                    } else {
+                        // Lá: Tính Phân bổ và Cấp 1
+                        if (level >= 3) {
+                            row.getCell(14).value = { formula: `IF(ISNUMBER(${addr(13)}), IF(${addr(13)}>0, ${addr(8)}/${addr(13)}, 0), 0)` };
+                            row.getCell(16).value = { formula: `IF(${addr(15)}="1", ${addr(8)}, IF(${addr(15)}="6t", ${addr(8)}*0.5, 0))` };
+                        }
+                    }
+                    
+                    // Kế hoạch còn lại
+                    const isPs = node.capDo && String(node.capDo).trim().toLowerCase() === 'ps';
+                    if (level !== 4 && !isPs) row.getCell(12).value = { formula: `${addr(8)}-${addr(11)}` };
+                    else row.getCell(12).value = null;
+
+                    // Style nền và Format số
+                    [7, 8, 11, 12, 14, 16].forEach(c => row.getCell(c).numFmt = '#,##0');
+
+                    const colors = ['FFC5D9F1', 'FFE4DFEC', 'FFF2DCDB', 'FFEBF1DE', 'FFFFFFFF', 'FFFFE599'];
+                    const bgColor = colors[level] || 'FFFFFFFF'; 
+                    
+                    row.eachCell({ includeEmpty: true }, (cell) => {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                        if (level < 3) cell.font = { bold: true }; 
+                    });
+                    
+                    row.getCell(2).alignment = { wrapText: true, indent: level };
+                    row.outlineLevel = level; 
+
+                    return [rIdx];
+                };
+
+                btn.innerHTML = "⏳ Đang quét dữ liệu...";
+
+                // --- DUYỆT CÁC CSDL VÀ CHIA SHEET THEO splitSheetNames ---
+                for (const item of window.activeDatabaseInstances) {
+                    const conf = item.config;
+                    if (!conf.splitSheetNames || !Array.isArray(conf.splitSheetNames)) continue; // Bỏ qua nếu chưa cấu hình splitSheetNames
+
+                    const snap = await get(ref(item.dbObj, `congViecMe${year}`));
+                    if (!snap.exists()) continue;
+                    
+                    const sumSnap = await get(ref(item.dbObj, `summary_data/${year}`));
+                    const sumData = sumSnap.exists() ? sumSnap.val() : {};
+
+                    const parentsData = snap.val();
+                    const parents = Object.keys(parentsData).map(id=>({id,...parentsData[id]})).sort((a,b)=>a.id.localeCompare(b.id));
+                    
+                    parents.forEach(p => { 
+                        if(sumData[p.id]) {
+                            p.soLuong = sumData[p.id].totalLeafNodesCap1 || 0;
+                            p.tgBatDau = sumData[p.id].totalExecutedLeafNodesCap1 || 0; 
+                        }
+                    });
+
+                    // Xử lý ghi dữ liệu vào từng sheet đích dựa trên Parent A, B, C...
+                    for (let i = 0; i < parents.length; i++) {
+                        if (i >= conf.splitSheetNames.length) break; // Vượt quá số sheet cấu hình thì dừng
+                        
+                        const sheetName = conf.splitSheetNames[i];
+                        const ws = workbook.getWorksheet(sheetName);
+                        if (!ws) continue; // Bỏ qua nếu file MauKH.xlsx không có sheet này
+
+                        const ctx = { rowIdx: 8 }; // Ghi từ dòng 8, giữ nguyên 7 dòng tiêu đề của MauKH
+                        processNodeForKH(parents[i], 0, ws, ctx);
+
+                        // Kẻ khung (Borders) cho toàn bộ 16 cột
+                        const rowCount = ws.rowCount;
+                        for (let r = 8; r <= rowCount; r++) {
+                            const row = ws.getRow(r);
+                            for (let c = 1; c <= 16; c++) {
+                                const cell = row.getCell(c);
+                                cell.border = {
+                                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                                    right: { style: 'thin', color: { argb: 'FF000000' } }
+                                };
+                            }
+                        }
+                    }
+                }
+
+                btn.innerHTML = "⏳ Đang hoàn thiện File...";
+
+                // --- TÌM VÀ THAY THẾ CHUỖI "20xy" = NĂM ĐƯỢC CHỌN ---
+                workbook.eachSheet((sheet) => {
+                    sheet.eachRow((row) => {
+                        row.eachCell((cell) => {
+                            if (cell.type === ExcelJS.ValueType.String && cell.value && cell.value.includes('20xy')) {
+                                cell.value = cell.value.replace(/20xy/g, year);
+                            } else if (cell.type === ExcelJS.ValueType.RichText && cell.value && cell.value.richText) {
+                                let changed = false;
+                                cell.value.richText.forEach(rt => {
+                                    if (rt.text && rt.text.includes('20xy')) {
+                                        rt.text = rt.text.replace(/20xy/g, year);
+                                        changed = true;
+                                    }
+                                });
+                                if (changed) cell.value = { richText: cell.value.richText };
+                            }
+                        });
+                    });
+                });
+
+                // Ép Excel tự động tính toán lại
+                workbook.calcProperties = workbook.calcProperties || {};
+                workbook.calcProperties.fullCalcOnLoad = true;
+
+                // Xuất file
+                const outBuffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `KeHoach_ATCLMT_${year}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+            } catch (error) {
+                console.error(error);
+                alert("Lỗi xuất Kế hoạch: " + error.message);
+            } finally {
+                btn.innerHTML = originHtml;
+                btn.disabled = false;
+            }
+        };
         document.addEventListener('DOMContentLoaded', initializeSystem);
     </script>
     
