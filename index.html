@@ -1034,7 +1034,7 @@
         };
 
 		// =====================================================================
-        // CHỨC NĂNG MỚI: XUẤT KẾ HOẠCH VÀO FILE MauKH.xlsx (KHÔNG EXECUTIONS)
+        // CHỨC NĂNG MỚI: XUẤT KẾ HOẠCH VÀO FILE MauKH.xlsx (ĐÃ BỔ SUNG HEADERS & WIDTHS)
         // =====================================================================
         window.exportKH = async function() {
             const btn = document.getElementById('btnExportKH');
@@ -1075,13 +1075,40 @@
                     return 0;
                 };
 
+                // --- BỔ SUNG HÀM SETUP HEADERS & WIDTHS TẠI DÒNG 7 ---
+                const setupWorksheetHeadersKH = (ws) => {
+                    ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
+                    
+                    // Khai báo 16 tiêu đề gốc
+                    const headers = [
+                        'TT', 'Nội dung công việc', 'Tag Name', 'ĐV th.hiện', 'Tần suất TH', 
+                        'Đ.vị tính', 'Số lượng', 'Chi phí KH', 'TG bắt đầu', 'TG hoàn thành', 
+                        'Chi phí thực hiện', 'Kế hoạch còn lại', 'Năm phân bổ', 'CP phân bổ', 'Cấp độ', 'CP Cấp 1'
+                    ];
+                    
+                    // Khai báo độ rộng tương ứng cho 16 cột
+                    const widths = [10, 50, 12, 15, 10, 10, 10, 18, 12, 12, 18, 18, 10, 15, 10, 15];
+
+                    // Thiết lập độ rộng cho từng cột
+                    widths.forEach((w, idx) => {
+                        ws.getColumn(idx + 1).width = w;
+                    });
+                    
+                    // Ghi tiêu đề vào dòng 7 và định dạng CSS
+                    const headerRow = ws.getRow(7);
+                    headerRow.values = headers;
+                    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+                    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
+                    headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                };
+
                 // --- THUẬT TOÁN ĐỆ QUY TẠO DÒNG KẾ HOẠCH (16 CỘT - KHÔNG EXECUTIONS) ---
                 const processNodeForKH = (node, level, ws, ctx) => {
                     const isContainer = (node.children && Object.keys(node.children).length > 0) ||
                                         (node.grandchildren && Object.keys(node.grandchildren).length > 0) ||
                                         (node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0);
 
-                    // Chuẩn bị 16 cột gốc (Không xóa cột nào, thêm tgBatDau, tgHoanThanh)
+                    // Chuẩn bị 16 cột gốc
                     const rData = [
                         convertTT(node.tt),                                                  // 1: TT
                         node.noiDung || '',                                                  // 2: Nội dung
@@ -1157,7 +1184,7 @@
                 // --- DUYỆT CÁC CSDL VÀ CHIA SHEET THEO splitSheetNames ---
                 for (const item of window.activeDatabaseInstances) {
                     const conf = item.config;
-                    if (!conf.splitSheetNames || !Array.isArray(conf.splitSheetNames)) continue; // Bỏ qua nếu chưa cấu hình splitSheetNames
+                    if (!conf.splitSheetNames || !Array.isArray(conf.splitSheetNames)) continue; 
 
                     const snap = await get(ref(item.dbObj, `congViecMe${year}`));
                     if (!snap.exists()) continue;
@@ -1177,13 +1204,16 @@
 
                     // Xử lý ghi dữ liệu vào từng sheet đích dựa trên Parent A, B, C...
                     for (let i = 0; i < parents.length; i++) {
-                        if (i >= conf.splitSheetNames.length) break; // Vượt quá số sheet cấu hình thì dừng
+                        if (i >= conf.splitSheetNames.length) break; 
                         
                         const sheetName = conf.splitSheetNames[i];
                         const ws = workbook.getWorksheet(sheetName);
-                        if (!ws) continue; // Bỏ qua nếu file MauKH.xlsx không có sheet này
+                        if (!ws) continue; 
 
-                        const ctx = { rowIdx: 8 }; // Ghi từ dòng 8, giữ nguyên 7 dòng tiêu đề của MauKH
+                        // Bổ sung gọi hàm setup header và độ rộng ở đây
+                        setupWorksheetHeadersKH(ws);
+
+                        const ctx = { rowIdx: 8 }; 
                         processNodeForKH(parents[i], 0, ws, ctx);
 
                         // Kẻ khung (Borders) cho toàn bộ 16 cột
@@ -1247,8 +1277,7 @@
                 btn.innerHTML = originHtml;
                 btn.disabled = false;
             }
-        };
-        document.addEventListener('DOMContentLoaded', initializeSystem);
+        };        document.addEventListener('DOMContentLoaded', initializeSystem);
     </script>
     
 </body>
