@@ -1083,12 +1083,12 @@
                     const headers = [
                         'TT', 'Nội dung công việc', 'ĐV th.hiện', 'Đ.vị tính', 
                         'Số lượng', 'Chi phí KH', 'TG bắt đầu', 'TG hoàn thành', 
-                        'Chi phí thực hiện', 'Kế hoạch còn lại', 'Năm phân bổ', 'CP phân bổ', 
+                        'Chi phí thực hiện', 'Năm phân bổ', 'CP phân bổ', 
                         'Cấp độ', 'CP Cấp 1', 'Ghi chú'
                     ];
                     
                     // Khai báo độ rộng tương ứng cho 15 cột
-                    const widths = [10, 50, 15, 10, 10, 18, 12, 12, 18, 18, 10, 15, 10, 15, 25];
+                    const widths = [10, 50, 15, 10, 10, 18, 12, 12, 18, 10, 15, 10, 15, 25];
 
                     // Thiết lập độ rộng cho từng cột
                     widths.forEach((w, idx) => {
@@ -1120,7 +1120,7 @@
                         (level === 0) ? (node.tgBatDau || 0) : (node.tgBatDau || ''),        // 7: TG bắt đầu
                         node.tgHoanThanh || '',                                              // 8: TG hoàn thành
                         node.chiPhiThucHien || 0,                                            // 9: Chi phí thực hiện
-                        0,                                                                   // 10: Kế hoạch còn lại (Formula)
+                        
                         node.namPhanBo || '',                                                // 11: Năm PB
                         0,                                                                   // 12: CP Phân bổ (Formula)
                         node.capDo || '',                                                    // 13: Cấp độ
