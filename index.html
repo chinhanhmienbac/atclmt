@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AT-CL-MT Dashboard</title>
+    
+    <!-- Script cho nội dung trung tâm (Tailwind) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Script cho nội dung 2 bên (Chart.js) -->
+    <script src="chart.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- THÊM THƯ VIỆN EXCELJS ĐỂ XUẤT FILE -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+
+    <style>
+        /* CSS cho nội dung trung tâm (từ index.HTML) */
+        .circle-text {
+            text-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+        }
+        .orbit-container {
+            min-width: 300px;
+            min-height: 300px;
+            width: 80vh;
+            height: 80vh;
+            max-width: 800px;
+            max-height: 800px;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2), 
+                            inset 0px -5px 10px rgba(0,0,0,0.4), 
+                            0 0 10px #87CEEB;
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 15px 25px rgba(0, 0, 0, 0.3), 
+                            inset 0px -5px 15px rgba(0,0,0,0.5), 
+                            0 0 25px #87CEEB, 0 0 10px #ffffff;
+            }
+        }
+
+        .orbit-circle {
+            background: radial-gradient(circle at 35% 35%, #87CEEB, #0077b6);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2), inset 0px -5px 10px rgba(0,0,0,0.4);
+            transition: left 2s cubic-bezier(0.25, 1, 0.5, 1), 
+                        top 2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .orbit-circle:hover {
+            transform: scale(1.1) translateY(-5px); 
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.3), inset 0px -5px 15px rgba(0,0,0,0.5);
+        }
+
+        .pulsating {
+            animation: pulse-glow 4s ease-in-out infinite;
+        }
+        
+        /* === CSS CHUNG CHO 2 BÊN (TỪ trai.html/phai.html) === */
+        /* Lưu ý: Tất cả các selector đã được thêm tiền tố 
+           #left-sidebar, #right-sidebar 
+           để "scope" (giới hạn) CSS, tránh xung đột.
+        */
+        
+        /* Điều chỉnh font chữ và padding chung cho 2 bên để vừa vặn 15% */
+        #left-sidebar,
+        #right-sidebar {
+            font-size: 10px; /* Giảm font chữ cơ bản */
+            line-height: 1.4;
+            box-sizing: border-box; /* Đảm bảo padding không làm vỡ layout */
+            border-left: 1px solid #ddd;
+            border-right: 1px solid #ddd;
+        }
+        
+        /* Ghi đè padding/margin của body gốc từ 2 file kia */
+        #left-sidebar-content,
+        #right-sidebar-content {
+            padding: 8px; /* Giảm padding */
+            margin: 0;
+            background-color: #f4f4f9;
+        }
+
+        #left-sidebar h1,
+        #right-sidebar h1 {
+            color: #333;
+            text-align: center;
+            font-size: 1.2em; /* Sử dụng 'em' để co dãn theo font-size cơ bản */
+        }
+
+        #left-sidebar .header-controls,
+        #right-sidebar .header-controls {
+            display: flex;
+            flex-direction: column; /* Chuyển sang cột cho vừa */
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px; /* Giảm margin */
+            padding: 5px; /* Giảm padding */
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        #left-sidebar .header-controls div,
+        #right-sidebar .header-controls div {
+             margin-top: 5px; /* Thêm khoảng cách khi xếp cột */
+        }
+
+        #left-sidebar .header-controls label,
+        #right-sidebar .header-controls label {
+            font-weight: bold;
+            margin-right: 0; /* Bỏ margin */
+            margin-bottom: 5px; /* Thêm margin dưới */
+            font-size: 1.1em;
+        }
+
+        #left-sidebar .yearSelect, /* Đổi từ ID sang class */
+        #right-sidebar .yearSelect { /* Đổi từ ID sang class */
+            padding: 4px 6px; /* Giảm padding */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1.1em;
+            background-color: white;
+            cursor: pointer;
+            width: 100%; /* Cho vừa container */
+        }
+
+        #left-sidebar .charts-container, /* Đổi từ ID sang class */
+        #right-sidebar .charts-container { /* Đổi từ ID sang class */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px; /* Giảm gap */
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        #left-sidebar .summary-parent-card,
+        #right-sidebar .summary-parent-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px; /* Giảm padding */
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            max-width: 600px; 
+            width: 100%; 
+            box-sizing: border-box;
+        }
+
+        #left-sidebar .summary-parent-card h3,
+        #right-sidebar .summary-parent-card h3 {
+            margin-top: 0;
+            color: #007bff;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+            font-size: 1.15em; /* Giảm font */
+            text-align: center;
+        }
+
+        /* Ẩn cột thông tin chi tiết để tiết kiệm không gian */
+        #left-sidebar .summary-columns-container,
+        #right-sidebar .summary-columns-container {
+            display: none;
+        }
+
+        #left-sidebar .summary-charts-container,
+        #right-sidebar .summary-charts-container {
+            display: flex;
+            flex-direction: row; /* Thay đổi từ column sang row */
+            flex-wrap: wrap; /* Cho phép rớt hàng */
+            justify-content: space-evenly; /* Căn đều 2 bên */
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            flex-grow: 1;
+        }
+
+        #left-sidebar .chart-wrapper,
+        #right-sidebar .chart-wrapper {
+            width: 48%; /* Đặt chiều rộng để 2 chart vừa 1 hàng */
+            max-width: 100px; /* Giảm 50% so với 200px ban đầu */
+            text-align: center;
+            position: relative;
+            margin-bottom: 10px; /* Thêm margin dưới cho các chart */
+        }
+         
+        /* Bỏ quy tắc :first-child vì giờ chúng nằm ngang */
+        /*
+        #left-sidebar .chart-wrapper:first-child,
+        #right-sidebar .chart-wrapper:first-child {
+             margin-bottom: 10px;
+        }
+        */
+
+        #left-sidebar .chart-wrapper p,
+        #right-sidebar .chart-wrapper p {
+            font-size: 1.1em;
+            margin-top: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        #left-sidebar .status, /* Đổi từ ID sang class */
+        #right-sidebar .status { /* Đổi từ ID sang class */
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        #left-sidebar .status.error,
+        #right-sidebar .status.error {
+            color: #dc3545;
+        }
+
+        #left-sidebar .status.success,
+        #right-sidebar .status.success {
+            color: #28a745;
+        }
+        
+        #left-sidebar .connection-status, /* Đổi từ ID sang class */
+        #right-sidebar .connection-status { /* Đổi từ ID sang class */
+            margin-left: 0; 
+            font-style: italic;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen overflow-x-hidden bg-white font-sans">
+
+    <!-- === SIDEBAR TRÁI (NỘI DUNG TỪ trai.html) === -->
+    <aside id="left-sidebar" class="flex-shrink-0 w-[22%] h-screen overflow-y-auto">
+        <!-- 
+          Lưu ý: Các ID gốc đã được đổi thành CLASS 
+          để JavaScript có thể truy vấn trong phạm vi (scope)
+        -->
+        <div id="left-sidebar-content">
+            <div class="header-controls">
+        <select class="dbSelect yearSelect" id="dbSelectLeft"></select>
+        
+			</div>
+
+            <div class="status"></div> <!-- Đổi từ ID sang class -->
+            <div class="charts-container"></div> <!-- Đổi từ ID sang class -->
+        </div>
+    </aside>
+
+    <!-- === NỘI DUNG CHÍNH (TỪ index.HTML) === -->
+    <div id="main-content" class="flex-grow flex flex-col items-center justify-center min-h-screen p-2 md:p-4">
+        <header class="text-center mb-2 md:mb-3">
+            <h1 style="color: #008037; font-weight: bold; text-transform: uppercase; text-align: center; flex-grow: 1; font-size: 2rem;">
+                    KẾ HOẠCH<br>AN TOÀN - CHẤT LƯỢNG - MÔI TRƯỜNG
+            </h1>
+            <p class="text-lg text-gray-600 mt-2">Chọn một đơn vị để truy cập vào trang web tương ứng.</p>
+        </header>
+		<!-- ================= BẮT ĐẦU ĐOẠN MÃ nút bấm ================= -->
+        <div class="w-full relative h-0">
+            <div class="absolute left-4 md:left-8 z-10">
+                <button id="btnExportKH" onclick="window.exportKH()" title="Xuất Kế hoạch ra Excel (Theo từng đơn vị)" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-1.5 px-4 rounded shadow transition duration-200 text-sm flex items-center w-max cursor-pointer">
+                    Xuất KH
+                </button>
+				<!-- NÚT XUẤT BÁO CÁO MỚI -->
+                <button id="btnExportExcel" onclick="window.exportBaoCao()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-4 rounded shadow transition duration-200 text-sm flex items-center w-max cursor-pointer">
+                    Xuất BC
+                </button>
+            </div>
+			<!-- Menu Chọn Năm Chung (Đối xứng bên phải) -->
+            <div class="absolute right-4 md:right-8 z-10 flex items-center bg-white py-1 px-3 rounded shadow-md border border-gray-200">
+                <label for="globalYearSelect" class="mr-2 font-bold text-gray-700 text-sm whitespace-nowrap">Năm:</label>
+                <select id="globalYearSelect" class="border-none bg-transparent outline-none cursor-pointer text-sm font-bold text-blue-600"></select>
+            </div>
+        </div>
+        <!-- ================= KẾT THÚC ĐOẠN MÃ nút bấm ================= -->
+    
+        <main id="main-container" class="relative flex items-center justify-center orbit-container">
+            <div class="z-0"> 
+                <img src="PVGLPG.gif" alt="Logo" style="width: 200px; height: auto; margin-bottom: 20px;">
+            </div>
+        </main>
+    
+        <!-- Script cho nội dung chính -->
+        <script>
+            const units = [
+                { name: "CÁC TỔNG KHO TẠI HẢI PHÒNG", link: "tk.html" },
+                { name: "CHI NHÁNH MIỀN BẮC", link: "mb.html" }
+            ];
+    
+            const container = document.getElementById('main-container');
+    
+            function setupCircles() {
+                container.querySelectorAll('.orbit-circle').forEach(el => el.remove());
+    
+                const unitCount = units.length;
+                const containerSize = container.offsetWidth;
+                const radius = containerSize * 0.37;
+                const circleSize = containerSize * 0.22;
+    
+                units.forEach((unit, index) => {
+                    const circle = document.createElement('a');
+                    circle.href = unit.link;
+                    circle.target = "_blank";
+                    circle.rel = "noopener noreferrer";
+                    
+                    circle.className = 'orbit-circle absolute flex items-center justify-center p-2 rounded-full text-white text-center font-bold';
+                    
+                    circle.innerHTML = `<span class="circle-text">${unit.name}</span>`;
+                    circle.style.width = `${circleSize}px`;
+                    circle.style.height = `${circleSize}px`;
+                    circle.style.fontSize = `${circleSize * 0.1}px`;
+    
+                    const initialX = (containerSize / 2) - (circleSize / 2);
+                    const initialY = (containerSize / 2) - (circleSize / 2);
+                    circle.style.left = `${initialX}px`;
+                    circle.style.top = `${initialY}px`;
+                    
+                    container.appendChild(circle);
+    
+                    const angle = index * Math.PI; 
+                    
+                    const finalX = (containerSize / 2) + radius * Math.cos(angle) - (circleSize / 2);
+                    const finalY = (containerSize / 2) + radius * Math.sin(angle) - (circleSize / 2);
+    
+                    setTimeout(() => {
+                        circle.style.left = `${finalX}px`;
+                        circle.style.top = `${finalY}px`;
+                    }, 50);
+    
+                    setTimeout(() => {
+                        circle.classList.add('pulsating');
+                        circle.style.animationDelay = `${index * 0.3}s`;
+                    }, 2000); 
+                });
+            }
+            
+            window.onload = setupCircles;
+            window.onresize = setupCircles;
+        </script>
+    </div>
+
+    <!-- === SIDEBAR PHẢI (NỘI DUNG TỪ phai.html) === -->
+    <aside id="right-sidebar" class="flex-shrink-0 w-[22%] h-screen overflow-y-auto">
+        <!-- 
+          Lưu ý: Các ID gốc đã được đổi thành CLASS 
+          để JavaScript có thể truy vấn trong phạm vi (scope)
+        -->
+        <div id="right-sidebar-content">
+            <div class="header-controls">
+        <select class="dbSelect yearSelect" id="dbSelectRight"></select>
+        
+			</div>
+
+            <div class="status"></div> <!-- Đổi từ ID sang class -->
+            <div class="charts-container"></div> <!-- Đổi từ ID sang class -->
+        </div>
+    </aside>
+		<!-- === SCRIPT CHUNG CHO TOÀN BỘ HỆ THỐNG CSDL === -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check.js";
+
+        const centerTextPlugin = {
+            id: 'centerText',
+            afterDraw: function(chart) {
+                if (chart.data.datasets.length === 0) return;
+                const data = chart.data.datasets[0].data;
+                if (data.length === 0) return;
+
+                const executed = data[0] || 0;
+                const remaining = data[1] || 0;
+                const total = executed + remaining;
+                const percentage = total > 0 ? Math.round((executed / total) * 100) : 0;
+                const text = `${percentage}%`; 
+
+                const ctx = chart.ctx;
+                const {width, height} = chart;
+                const x = width / 2;
+                const y = height / 2;
+                
+                ctx.save();
+                const fontSize = (height / 57).toFixed(2);
+                ctx.font = `bold ${fontSize}em sans-serif`;
+                ctx.fillStyle = chart.data.datasets[0].backgroundColor[0] || '#333';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                ctx.fillText(text, x, y);
+                ctx.restore();
+            }
+        };
+        Chart.register(centerTextPlugin);
+
+        const formatNumber = (num) => num?.toLocaleString('vi-VN') || '0';
+        function convertTTForDisplay(tt) {
+            return String(tt).replace(/,/g, '.');
+        }
+
+        let sidebarCharts = {}; 
+
+        // =====================================================================
+        // 1. KHU VỰC CẤU HÌNH CÁC CƠ SỞ DỮ LIỆU
+        // =====================================================================
+        const databaseConfigs = [
+            {
+                id: "db_mb",          
+                side: "left",         
+                title: "CHI NHÁNH MIỀN BẮC", 
+				sheetName: "CNMB",
+				splitSheetNames: ["VPCN", "TNHN", "VPDH", "TNND", "TTKD"],
+                recaptchaSiteKey: "6LczK0ssAAAAALjCOZ3duO7WAmvcA83MgbVm6RtP",
+                config: {
+                    	apiKey: "AIzaSyALoxHjymCFFXLDj9Vf9hiX2x8r29Bp_yg",
+  			authDomain: "khatclmt.firebaseapp.com",
+  			databaseURL: "https://khatclmt-default-rtdb.asia-southeast1.firebasedatabase.app",
+  			projectId: "khatclmt",
+  			storageBucket: "khatclmt.firebasestorage.app",
+  			messagingSenderId: "574050342673",
+  			appId: "1:574050342673:web:201173ab4928dabd98deb0",
+  			measurementId: "G-PW7NP99C9J"
+                }
+            },
+            {
+                id: "db_hp",
+                side: "right",
+                title: "TỔNG KHO LPG HẢI PHÒNG",
+				sheetNames: ["TKMB", "TKHP"],
+				splitSheetNames: ["TKMB", "TKHP"],
+                recaptchaSiteKey: "6LczK0ssAAAAALjCOZ3duO7WAmvcA83MgbVm6RtP",
+                config: {
+                    apiKey: "AIzaSyBChEvVYy5Iqbg1vP9pcOTKGdmgw4bhhY4",
+  			authDomain: "atskmt1.firebaseapp.com",
+  			databaseURL: "https://atskmt1-default-rtdb.asia-southeast1.firebasedatabase.app",
+  			projectId: "atskmt1",
+  			storageBucket: "atskmt1.firebasestorage.app",
+  			messagingSenderId: "672338161750",
+  			appId: "1:672338161750:web:94f1e8553d3845adf68bf7",
+  			measurementId: "G-EFYS1D2SRL"
+                }
+            }
+			/* --- MẪU ĐỂ COPY THÊM CSDL (Bỏ comment để dùng) ---
+            ,{
+                id: "db_dn",
+                side: "left",  <-- Có thể nhồi nhiều CSDL vào cùng 1 bên
+                title: "CHI NHÁNH ĐÀ NẴNG",
+                recaptchaSiteKey: "KEY_CỦA_BẠN_NẾU_CÓ",
+                config: { 
+                    // Paste cấu hình Firebase vào đây
+                }
+            }
+            */
+        ];
+
+        /**
+         * Hàm tải và render biểu đồ cho 1 CSDL cụ thể
+         */
+        async function loadCharts(year, blockId, db) {
+            const container = document.getElementById(blockId);
+            if (!container) return;
+            
+            const statusDiv = container.querySelector('.status');
+            const chartsContainer = container.querySelector('.charts-container');
+
+            if (sidebarCharts[blockId]) {
+                sidebarCharts[blockId].forEach(chart => chart.destroy());
+            }
+            sidebarCharts[blockId] = [];
+            
+            chartsContainer.innerHTML = '';
+            statusDiv.className = 'status text-blue-600 font-normal'; 
+            statusDiv.innerText = `Đang tải năm ${year}...`;
+
+            try {
+                const summaryRef = ref(db, `summary_data/${year}`);
+                const summarySnap = await get(summaryRef);
+                if (!summarySnap.exists()) throw new Error(`Chưa có dữ liệu.`);
+                const summaryData = summarySnap.val();
+
+                const parentQuery = ref(db, `congViecMe${year}`);
+                const parentSnapshot = await get(parentQuery);
+                if (!parentSnapshot.exists()) throw new Error(`Chưa có công việc mẹ.`);
+                const parentsData = parentSnapshot.val();
+                
+                const parents = Object.keys(parentsData)
+                    .map(id => ({ id, ...parentsData[id] }))
+                    .sort((a, b) => a.id.localeCompare(b.id));
+
+                if (parents.length === 0) {
+                     statusDiv.innerText = `Không có dữ liệu.`;
+                     return;
+                }
+
+                let htmlContent = '';
+                for (const parent of parents) {
+                    const parentId = parent.id;
+                    const name = parent.noiDung || 'Chưa có tên';
+
+                    htmlContent += `
+                        <div class="summary-parent-card w-full mt-2 relative">
+                            <!-- Hiển thị nội dung, bỏ thẻ title của toàn DB -->
+                            <h3 class="text-sm font-bold text-blue-700">${convertTTForDisplay(parentId)}. ${name}</h3>
+                            <div class="summary-charts-container">
+                                <div class="chart-wrapper">
+                                    <canvas id="${blockId}-cap1Chart-${parentId}"></canvas>
+                                    <p>Cấp 1</p>
+                                </div>
+                                <div class="chart-wrapper">
+                                    <canvas id="${blockId}-costChart-${parentId}"></canvas>
+                                    <p>Chi phí</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                chartsContainer.innerHTML = htmlContent;
+                statusDiv.innerText = ''; 
+
+                for (const parent of parents) {
+                    const parentId = parent.id;
+                    const parentSummary = summaryData[parentId] || {};
+
+                    const totalLeafNodesCap1 = parentSummary.totalLeafNodesCap1 || 0;
+                    const executedLeafNodesCap1 = parentSummary.totalExecutedLeafNodesCap1 || 0;
+                    const plannedCost = parent.chiPhi || 0;
+                    const executedCost = parent.chiPhiThucHien || 0;
+
+                    const cap1Ctx = document.getElementById(`${blockId}-cap1Chart-${parentId}`).getContext('2d');
+                    sidebarCharts[blockId].push(new Chart(cap1Ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Đã thực hiện', 'Chưa thực hiện'],
+                            datasets: [{
+                                data: [executedLeafNodesCap1, totalLeafNodesCap1 - executedLeafNodesCap1],
+                                backgroundColor: ['#28a745', '#e9ecef'],
+                                borderColor: ['#28a745', '#e9ecef'],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: { responsive: true, cutout: '60%', plugins: { legend: { display: false } } }
+                    })); 
+
+                    const costCtx = document.getElementById(`${blockId}-costChart-${parentId}`).getContext('2d');
+                    sidebarCharts[blockId].push(new Chart(costCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Đã thực hiện', 'Còn lại'],
+                            datasets: [{
+                                data: [executedCost, plannedCost > executedCost ? plannedCost - executedCost : 0],
+                                backgroundColor: ['#007bff', '#e9ecef'],
+                                borderColor: ['#007bff', '#e9ecef'],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: { responsive: true, cutout: '60%', plugins: { legend: { display: false } } }
+                    }));
+                }
+            } catch (error) {
+                console.error(`Lỗi tải biểu đồ ${blockId}:`, error);
+                statusDiv.className = 'status text-red-500';
+                statusDiv.innerText = `${error.message}`;
+            }
+        }
+
+        
+        /**
+         * Thiết lập Menu chọn Năm ở vị trí trung tâm
+         */
+        function setupGlobalYearControl(allActiveDBs) {
+            const yearSelect = document.getElementById('globalYearSelect');
+            if(!yearSelect) return null;
+            
+            const currentYearValue = new Date().getFullYear();
+            yearSelect.innerHTML = '';
+            
+            // Tạo mảng: Năm hiện tại, năm sau và 3 năm trước
+            const years = [currentYearValue, currentYearValue + 1];
+            for (let i = currentYearValue - 1; i >= currentYearValue - 3; i--) {
+                years.unshift(i);
+            }
+            
+            // Bổ sung năm đặc biệt 2000 vào đầu danh sách
+            years.unshift(2000);
+
+            years.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year; // Giá trị ngầm vẫn là 2000 để truy xuất DB
+                
+                // Đổi nhãn hiển thị nếu là năm 2000
+                if (year === 2000) {
+                    option.textContent = "TestKH";
+                    option.style.color = "#0056b3"; // Thêm màu xanh để dễ nhận diện (tùy chọn)
+                } else {
+                    option.textContent = year;
+                }
+                
+                yearSelect.appendChild(option);
+            });
+            
+            // Mặc định vẫn chọn năm hiện tại khi mở web
+            yearSelect.value = currentYearValue;
+
+            // Khi đổi năm => Cập nhật toàn bộ CSDL
+            yearSelect.addEventListener('change', () => {
+                const year = yearSelect.value;
+                allActiveDBs.forEach(item => loadCharts(year, item.blockId, item.dbObj));
+            });
+            
+            return currentYearValue;
+        }
+
+        /**
+         * Thiết lập Dropdown chọn CSDL ở Sidebar 
+         * Mục đích: Khi chọn, sẽ chuyển CSDL đó lên trên cùng
+         */
+        function setupSidebarDBSelector(sidebarId, dbConfigsForSide) {
+            const container = document.getElementById(sidebarId);
+            const dbSelect = container.querySelector('.dbSelect');
+            if (!dbSelect) return;
+
+            dbSelect.innerHTML = ''; // Clear
+            dbConfigsForSide.forEach(db => {
+                const option = document.createElement('option');
+                option.value = `block-${db.id}`;
+                option.textContent = db.title;
+                dbSelect.appendChild(option);
+            });
+
+            // Sự kiện đưa Block lên đầu
+            dbSelect.addEventListener('change', (e) => {
+                const selectedBlockId = e.target.value;
+                const blockDOM = document.getElementById(selectedBlockId);
+                const headerControls = container.querySelector('.header-controls');
+                
+                // insertAdjacentElement 'afterend' sẽ đưa blockDOM này chèn ngay phía dưới headerControls 
+                // => Đẩy các DB khác xuống dưới
+                if (blockDOM && headerControls) {
+                    headerControls.insertAdjacentElement('afterend', blockDOM);
+                }
+            });
+        }
+
+        /**
+         * Khởi tạo hệ thống
+         */
+        // Thêm biến toàn cục để lưu cấu hình và DB kết nối
+        window.activeDatabaseInstances = [];
+		
+		function initializeSystem() {
+            ['left-sidebar-content', 'right-sidebar-content'].forEach(sideId => {
+                const container = document.getElementById(sideId);
+                const oldStatus = container.querySelector('.status');
+                const oldCharts = container.querySelector('.charts-container');
+                if(oldStatus) oldStatus.style.display = 'none';
+                if(oldCharts) oldCharts.style.display = 'none';
+            });
+
+            const allActiveDBs = [];
+            const leftDBConfigs = [];
+            const rightDBConfigs = [];
+
+            databaseConfigs.forEach(dbConfig => {
+                const isLeft = dbConfig.side === 'left';
+                const parentContainer = document.getElementById(isLeft ? 'left-sidebar-content' : 'right-sidebar-content');
+                const blockId = `block-${dbConfig.id}`;
+
+                // Tạo khung cho DB - LƯU Ý: Không render thẻ H2 chứa Title nữa
+                const dbBlockHTML = `
+                    <div id="${blockId}" class="mt-4 pt-3 border-t border-gray-300 db-block transition-all duration-300">
+                        <div class="flex flex-col items-center mb-1">
+                            <div class="connection-status text-xs italic">Khởi tạo kết nối...</div>
+                        </div>
+                        <div class="status text-center text-sm font-bold my-1"></div>
+                        <div class="charts-container flex flex-col items-center gap-2"></div>
+                    </div>
+                `;
+                parentContainer.insertAdjacentHTML('beforeend', dbBlockHTML);
+                
+                const blockDOM = document.getElementById(blockId);
+                const connectionStatus = blockDOM.querySelector('.connection-status');
+
+                try {
+                    const app = initializeApp(dbConfig.config, dbConfig.id);
+                    if (dbConfig.recaptchaSiteKey) {
+                        initializeAppCheck(app, {
+                            provider: new ReCaptchaV3Provider(dbConfig.recaptchaSiteKey),
+                            isTokenAutoRefreshEnabled: true
+                        });
+                    }
+                    const db = getDatabase(app);
+                    
+                    connectionStatus.textContent = 'Đã kết nối';
+                    connectionStatus.style.color = '#28a745';
+					
+				// === SỬA DÒNG NÀY: Bổ sung dbConfig ===
+                    const itemData = { blockId, dbObj: db, config: dbConfig }; 
+                    allActiveDBs.push(itemData);
+                    window.activeDatabaseInstances.push(itemData); // Lưu vào biến toàn cục
+
+                    if (isLeft) {
+                        leftDBConfigs.push(dbConfig);
+                    } else {
+                        rightDBConfigs.push(dbConfig);
+                    }
+
+                } catch (error) {
+                    console.error(`Lỗi DB ${dbConfig.id}:`, error);
+                    connectionStatus.textContent = 'Kết nối thất bại';
+                    connectionStatus.style.color = '#dc3545';
+                    blockDOM.querySelector('.status').innerText = error.message;
+                }
+            });
+
+            // Gắn danh sách CSDL vào dropdown tương ứng
+            setupSidebarDBSelector('left-sidebar-content', leftDBConfigs);
+            setupSidebarDBSelector('right-sidebar-content', rightDBConfigs);
+
+            // Gắn sự kiện chọn Năm (Global)
+            const initialYear = setupGlobalYearControl(allActiveDBs);
+            if (initialYear) {
+                // Tải dữ liệu mặc định ban đầu cho tất cả
+                allActiveDBs.forEach(item => loadCharts(initialYear, item.blockId, item.dbObj));
+            }
+        }
+		
+		// =====================================================================
+        // CHỨC NĂNG XUẤT BÁO CÁO EXCEL TỔNG HỢP VÀO FILE Bieumau.xlsx (V6 - HOÀN THIỆN FORMAT & CALC)
+        // =====================================================================
+        window.exportBaoCao = async function() {
+            const btn = document.getElementById('btnExportExcel');
+            const originHtml = btn.innerHTML;
+            const yearSelect = document.getElementById('globalYearSelect');
+            const year = yearSelect ? yearSelect.value : new Date().getFullYear();
+
+            try {
+                btn.innerHTML = "⏳ Đang tải Template...";
+                btn.disabled = true;
+
+                // 1. Tải Template Bieumau.xlsx
+                const res = await fetch('Bieumau.xlsx');
+                if (!res.ok) throw new Error("Không tìm thấy file Bieumau.xlsx trên server.");
+                const buffer = await res.arrayBuffer();
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(buffer);
+
+                // --- HÀM HELPER SẮP XẾP ---
+                const convertTT = (tt) => String(tt || '').replace(/,/g, '.');
+                const r2n = (r) => {
+                    if(!r) return 0;
+                    const m={'I':1,'V':5,'X':10,'L':50,'C':100,'D':500,'M':1000};
+                    let s=0; const str=String(r).toUpperCase();
+                    for(let i=0;i<str.length;i++){
+                        const c=m[str[i]], n=m[str[i+1]];
+                        if(n&&c<n) s-=c; else s+=c;
+                    }
+                    return s;
+                };
+                const sortC = (a,b) => r2n(a.id) - r2n(b.id);
+                const sortN = (a,b) => {
+                    const pa=String(a.id).split(',').map(Number), pb=String(b.id).split(',').map(Number);
+                    for(let i=0;i<Math.max(pa.length,pb.length);i++){
+                        const va=pa[i]||0, vb=pb[i]||0;
+                        if(va!==vb) return va-vb;
+                    }
+                    return 0;
+                };
+
+                // --- HÀM TÌM SỐ LẦN THỰC HIỆN MAX TRONG 1 NHÁNH ---
+                const findMaxExecutions = (node) => {
+                    let max = 0;
+                    const traverse = (n) => {
+                        if (n.executions) {
+                            for(let k in n.executions) {
+                                const idx = parseInt(n.executions[k].lanThucHien || k, 10);
+                                if (!isNaN(idx) && idx > max) max = idx;
+                            }
+                        }
+                        if (n.children) Object.values(n.children).forEach(traverse);
+                        if (n.grandchildren) Object.values(n.grandchildren).forEach(traverse);
+                        if (n.greatGrandchildren) Object.values(n.greatGrandchildren).forEach(traverse);
+                        if (n.greatGreatGrandchildren) Object.values(n.greatGreatGrandchildren).forEach(traverse);
+                    };
+                    traverse(node);
+                    return max;
+                };
+
+                // --- HÀM SETUP HEADER TẠI DÒNG THỨ 7 ---
+                const setupWorksheetHeaderAtRow7 = (ws, maxExec) => {
+                    ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
+                    
+                    const headers = ['TT', 'Nội dung công việc', 'ĐV th.hiện', 'Chi phí KH', 'TG bắt đầu', 'TG hoàn thành', 'Quý I', 'Quý II', 'Quý III', 'Quý IV', 'Chi phí thực hiện', 'Kế hoạch còn lại'];
+                    const widths = [5, 60, 12, 18, 6, 6, 12, 12, 12, 12, 18, 18];
+
+                    for (let i = 1; i <= maxExec; i++) {
+                        headers.push(`Ngày TH (${i})`, `Số lượng (${i})`, `Đơn giá (${i})`, `Thành tiền (${i})`);
+                        widths.push(12, 10, 15, 18);
+                    }
+
+                    widths.forEach((w, idx) => {
+                        ws.getColumn(idx + 1).width = w;
+                    });
+                    
+                    const headerRow = ws.getRow(7);
+                    headerRow.values = headers;
+                    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+                    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
+                    headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                };
+
+                // --- THUẬT TOÁN ĐỆ QUY TẠO DÒNG CÓ CÔNG THỨC ---
+                const processNodeExcelJS = (node, level, ws, maxExec) => {
+                    const isContainer = (node.children && Object.keys(node.children).length > 0) ||
+                                        (node.grandchildren && Object.keys(node.grandchildren).length > 0) ||
+                                        (node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0);
+
+                    // 1. Tính toán giá trị các Quý từ dữ liệu thực hiện
+                    let q1 = 0, q2 = 0, q3 = 0, q4 = 0;
+                    if (node.executions) {
+                        for (let k in node.executions) {
+                            const e = node.executions[k];
+                            const thanhTien = e.thanhTien || 0;
+                            if (e.ngayThucHien) {
+                                const parts = e.ngayThucHien.split('-');
+                                if (parts.length >= 2) {
+                                    const month = parseInt(parts[1], 10);
+                                    if (month >= 1 && month <= 3) q1 += thanhTien;
+                                    else if (month >= 4 && month <= 6) q2 += thanhTien;
+                                    else if (month >= 7 && month <= 9) q3 += thanhTien;
+                                    else if (month >= 10 && month <= 12) q4 += thanhTien;
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Chuẩn bị mảng dữ liệu cơ bản (12 cột)
+                    const rData = [
+                        convertTT(node.tt), 
+                        node.noiDung || '', 
+                        node.dvThucHien || '', 
+                        node.chiPhi || 0,
+                        (level === 0) ? (node.tgBatDau || 0) : (node.tgBatDau || ''),
+                        node.tgHoanThanh || '', 
+                        q1, q2, q3, q4, 
+                        node.chiPhiThucHien || 0, 
+                        0 // Kế hoạch còn lại
+                    ];
+
+                    // Xử lý thông tin các lần thực hiện trải ngang
+                    if (node.executions) {
+                        for (let k in node.executions) {
+                            const e = node.executions[k];
+                            const idx = parseInt(e.lanThucHien || k, 10);
+                            if (!isNaN(idx) && idx <= maxExec) {
+                                const off = 12 + (idx - 1) * 4;
+                                rData[off] = e.ngayThucHien || ''; 
+                                rData[off+1] = e.dvt || 0;
+                                rData[off+2] = e.donGia || 0; 
+                                rData[off+3] = e.thanhTien || 0;
+                            }
+                        }
+                    }
+                    for(let i=0; i<12 + maxExec*4; i++) if(rData[i] === undefined) rData[i] = '';
+
+                    const row = ws.addRow(rData);
+                    const rIdx = row.number;
+
+                    // 3. Đệ quy xử lý node con
+                    const childRows = [];
+                    if (node.children) Object.keys(node.children).map(id=>({id,...node.children[id]})).sort(sortC).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
+                    if (node.grandchildren) Object.keys(node.grandchildren).map(id=>({id,...node.grandchildren[id]})).sort((a,b)=>parseInt(a.id)-parseInt(b.id)).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
+                    if (node.greatGrandchildren) Object.keys(node.greatGrandchildren).map(id=>({id,...node.greatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
+                    if (node.greatGreatGrandchildren) Object.keys(node.greatGreatGrandchildren).map(id=>({id,...node.greatGreatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeExcelJS(c, level+1, ws, maxExec)));
+
+                    // 4. Chèn công thức Excel (MAPPING COLUMNS: D=4, G=7, H=8, I=9, J=10, K=11, L=12)
+                    const addr = (col) => row.getCell(col).address;
+                    if (isContainer && childRows.length > 0) {
+                        const sumStr = (col) => `SUM(${childRows.map(r => ws.getRow(r).getCell(col).address).join(',')})`;
+                        row.getCell(4).value = { formula: sumStr(4) };   
+                        row.getCell(7).value = { formula: sumStr(7) };   
+                        row.getCell(8).value = { formula: sumStr(8) };   
+                        row.getCell(9).value = { formula: sumStr(9) };   
+                        row.getCell(10).value = { formula: sumStr(10) }; 
+                        row.getCell(11).value = { formula: sumStr(11) }; 
+                    }
+                    
+                    const isPs = node.capDo && String(node.capDo).trim().toLowerCase() === 'ps';
+                    if (level !== 4 && !isPs) row.getCell(12).value = { formula: `${addr(4)}-${addr(11)}` };
+                    else row.getCell(12).value = null;
+
+                    // 5. Áp dụng Format and Styling
+                    [4, 7, 8, 9, 10, 11, 12].forEach(c => row.getCell(c).numFmt = '#,##0');
+                    for (let i = 1; i <= maxExec; i++) {
+                        row.getCell(12 + (i-1)*4 + 2).numFmt = '#,##0'; 
+                        row.getCell(12 + (i-1)*4 + 3).numFmt = '#,##0'; 
+                        row.getCell(12 + (i-1)*4 + 4).numFmt = '#,##0'; 
+                    }
+
+                    const colors = ['FFC5D9F1', 'FFE4DFEC', 'FFF2DCDB', 'FFEBF1DE', 'FFFFFFFF', 'FFFFE599'];
+                    const bgColor = colors[level] || 'FFFFFFFF'; 
+                    
+                    row.eachCell({ includeEmpty: true }, (cell) => {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                        if (level < 2) cell.font = { bold: true };
+                    });
+                    
+                    row.getCell(2).alignment = { wrapText: true, indent: level };
+                    row.outlineLevel = level; 
+
+                    return [rIdx];
+                };
+
+                btn.innerHTML = "⏳ Đang quét dữ liệu...";
+
+                for (const item of window.activeDatabaseInstances) {
+                    const conf = item.config;
+                    const snap = await get(ref(item.dbObj, `congViecMe${year}`));
+                    if (!snap.exists()) continue;
+                    
+                    const sumSnap = await get(ref(item.dbObj, `summary_data/${year}`));
+                    const sumData = sumSnap.exists() ? sumSnap.val() : {};
+
+                    const parentsData = snap.val();
+                    const parents = Object.keys(parentsData).map(id=>({id,...parentsData[id]})).sort((a,b)=>a.id.localeCompare(b.id));
+                    
+                    parents.forEach(p => { 
+                        if(sumData[p.id]) p.tgBatDau = sumData[p.id].totalExecutedLeafNodesCap1 || 0; 
+                    });
+
+                    // Xử lý tạo dữ liệu cho các sheet tương ứng
+                    const processSheet = (ws, parentsList) => {
+                        if (!ws) return;
+                        let maxExec = 0;
+                        parentsList.forEach(p => { const m = findMaxExecutions(p); if (m > maxExec) maxExec = m; });
+                        
+                        setupWorksheetHeaderAtRow7(ws, maxExec);
+                        parentsList.forEach(p => processNodeExcelJS(p, 0, ws, maxExec));
+
+                        // --- FORMATTING SAU KHI TẠO DỮ LIỆU ---
+                        const maxCol = 12 + maxExec * 4;
+
+                        // 1. Merge các ô ở dòng tiêu đề (Dòng 6 và 7)
+                        ws.mergeCells('G6:K6');
+                        ws.mergeCells('A6:A7');
+                        ws.mergeCells('B6:B7');
+                        ws.mergeCells('C6:C7');
+
+                        // Căn giữa cho các ô merge để đẹp hơn
+                        ['A6', 'B6', 'C6', 'G6'].forEach(addr => {
+                            const cell = ws.getCell(addr);
+                            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                        });
+
+                        // 2. Ẩn toàn bộ các cột từ "Ngày TH (1)" trở đi (Từ cột số 13)
+                        for (let c = 13; c <= maxCol; c++) {
+                            ws.getColumn(c).hidden = true;
+                        }
+					// 3. Kẻ khung cho toàn bộ bảng từ dòng 8 đến hết dòng dữ liệu
+                        for (let r = 8; r <= ws.rowCount; r++) {
+                            const row = ws.getRow(r);
+                            for (let c = 1; c <= maxCol; c++) {
+                                const cell = row.getCell(c);
+                                cell.border = {
+                                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                                    right: { style: 'thin', color: { argb: 'FF000000' } }
+                                };
+                            }
+                        }
+                        
+                    };
+
+                    // Phân nhánh xuất Right / Left
+                    if (conf.sheetNames && Array.isArray(conf.sheetNames)) {
+                        for (let i = 0; i < parents.length; i++) {
+                            if (i >= conf.sheetNames.length) break; 
+                            processSheet(workbook.getWorksheet(conf.sheetNames[i]), [parents[i]]);
+                        }
+                    } else if (conf.sheetName) {
+                        processSheet(workbook.getWorksheet(conf.sheetName), parents);
+                    }
+                }
+
+                btn.innerHTML = "⏳ Đang hoàn thiện File...";
+
+                // --- 4. TÌM VÀ THAY THẾ CHUỖI "20xy" TRÊN TOÀN BỘ WORKBOOK ---
+                workbook.eachSheet((sheet) => {
+                    sheet.eachRow((row) => {
+                        row.eachCell((cell) => {
+                            if (cell.type === ExcelJS.ValueType.String && cell.value && cell.value.includes('20xy')) {
+                                cell.value = cell.value.replace(/20xy/g, year);
+                            } else if (cell.type === ExcelJS.ValueType.RichText && cell.value && cell.value.richText) {
+                                let changed = false;
+                                cell.value.richText.forEach(rt => {
+                                    if (rt.text && rt.text.includes('20xy')) {
+                                        rt.text = rt.text.replace(/20xy/g, year);
+                                        changed = true;
+                                    }
+                                });
+                                // Phải gán lại để báo cho exceljs biết giá trị đã đổi
+                                if (changed) cell.value = { richText: cell.value.richText };
+                            }
+                        });
+                    });
+                });
+
+                // --- 5. ÉP EXCEL TỰ ĐỘNG TÍNH TOÁN LẠI (FORCE FULL CALCULATION ON LOAD) ---
+                // Gán thuộc tính calcProperties để buộc Excel phớt lờ bộ đệm và tính lại toàn bộ khi mở file
+                workbook.calcProperties = workbook.calcProperties || {};
+                workbook.calcProperties.fullCalcOnLoad = true;
+
+                // Xuất file
+                const outBuffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `TongHop_ATCLMT_${year}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+            } catch (error) {
+                console.error(error);
+                alert("Lỗi xuất báo cáo: " + error.message);
+            } finally {
+                btn.innerHTML = originHtml;
+                btn.disabled = false;
+            }
+        };
+
+		// =====================================================================
+        // CHỨC NĂNG MỚI: XUẤT KẾ HOẠCH VÀO FILE MauKH.xlsx (14 CỘT & CHẠY SONG SONG 2 CHẾ ĐỘ)
+        // =====================================================================
+        window.exportKH = async function() {
+            const btn = document.getElementById('btnExportKH');
+            const originHtml = btn.innerHTML;
+            const yearSelect = document.getElementById('globalYearSelect');
+            const year = yearSelect ? yearSelect.value : new Date().getFullYear();
+
+            try {
+                btn.innerHTML = "⏳ Đang tải MauKH...";
+                btn.disabled = true;
+
+                // 1. Tải Template MauKH.xlsx
+                const res = await fetch('MauKH.xlsx');
+                if (!res.ok) throw new Error("Không tìm thấy file MauKH.xlsx trên server.");
+                const buffer = await res.arrayBuffer();
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(buffer);
+
+                // --- HÀM HELPER SẮP XẾP ---
+                const convertTT = (tt) => String(tt || '').replace(/,/g, '.');
+                const r2n = (r) => {
+                    if(!r) return 0;
+                    const m={'I':1,'V':5,'X':10,'L':50,'C':100,'D':500,'M':1000};
+                    let s=0; const str=String(r).toUpperCase();
+                    for(let i=0;i<str.length;i++){
+                        const c=m[str[i]], n=m[str[i+1]];
+                        if(n&&c<n) s-=c; else s+=c;
+                    }
+                    return s;
+                };
+                const sortC = (a,b) => r2n(a.id) - r2n(b.id);
+                const sortN = (a,b) => {
+                    const pa=String(a.id).split(',').map(Number), pb=String(b.id).split(',').map(Number);
+                    for(let i=0;i<Math.max(pa.length,pb.length);i++){
+                        const va=pa[i]||0, vb=pb[i]||0;
+                        if(va!==vb) return va-vb;
+                    }
+                    return 0;
+                };
+
+                // --- HÀM SETUP HEADERS & WIDTHS TẠI DÒNG 7 (14 CỘT) ---
+                const setupWorksheetHeadersKH = (ws) => {
+                    ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
+                    
+                    // Khai báo 14 tiêu đề theo đúng thứ tự yêu cầu
+                    const headers = [
+                        'TT', 'Nội dung công việc', 'Đ.vị tính', 'Số lượng', 'ĐV th.hiện', 
+                        'Chi phí thực hiện', 'Chi phí KH', 'TG bắt đầu', 'TG hoàn thành', 
+                        'Năm phân bổ', 'CP phân bổ', 'Cấp độ', 'CP Cấp 1', 'Ghi chú'
+                    ];
+                    
+                    // Khai báo độ rộng tương ứng cho 14 cột
+                    const widths = [10, 50, 10, 10, 15, 18, 18, 12, 12, 10, 15, 10, 15, 25];
+
+                    widths.forEach((w, idx) => {
+                        ws.getColumn(idx + 1).width = w;
+                    });
+                    
+                    const headerRow = ws.getRow(7);
+                    headerRow.values = headers;
+                    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+                    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
+                    headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                };
+
+                // --- THUẬT TOÁN ĐỆ QUY TẠO DÒNG KẾ HOẠCH (14 CỘT) ---
+                const processNodeForKH = (node, level, ws, ctx) => {
+                    const isContainer = (node.children && Object.keys(node.children).length > 0) ||
+                                        (node.grandchildren && Object.keys(node.grandchildren).length > 0) ||
+                                        (node.greatGrandchildren && Object.keys(node.greatGrandchildren).length > 0);
+
+                    // 1. Chuẩn bị dữ liệu cho 14 cột theo đúng thứ tự
+                    const rData = [
+                        convertTT(node.tt),                                                  // 1: TT
+                        node.noiDung || '',                                                  // 2: Nội dung
+                        node.donVi || '',                                                    // 3: Đ.vị tính
+                        (isContainer && level === 0) ? (node.soLuong || 0) : (node.soLuong || 0), // 4: Số lượng
+                        node.dvThucHien || '',                                               // 5: ĐV th.hiện
+                        node.chiPhiThucHien || 0,                                            // 6: Chi phí thực hiện
+                        node.chiPhi || 0,                                                    // 7: Chi phí KH
+                        (level === 0) ? (node.tgBatDau || 0) : (node.tgBatDau || ''),        // 8: TG bắt đầu
+                        node.tgHoanThanh || '',                                              // 9: TG hoàn thành
+                        node.namPhanBo || '',                                                // 10: Năm PB
+                        0,                                                                   // 11: CP Phân bổ (Formula)
+                        node.capDo || '',                                                    // 12: Cấp độ
+                        0,                                                                   // 13: CP Cấp 1 (Formula)
+                        node.ghiChu || ''                                                    // 14: Ghi chú
+                    ];
+
+                    const rIdx = ctx.rowIdx;
+                    const row = ws.getRow(rIdx);
+                    row.values = rData;
+                    ctx.rowIdx++;
+
+                    // 2. Đệ quy nhánh con
+                    const childRows = [];
+                    if (node.children) Object.keys(node.children).map(id=>({id,...node.children[id]})).sort(sortC).forEach(c=>childRows.push(...processNodeForKH(c, level+1, ws, ctx)));
+                    if (node.grandchildren) Object.keys(node.grandchildren).map(id=>({id,...node.grandchildren[id]})).sort((a,b)=>parseInt(a.id)-parseInt(b.id)).forEach(c=>childRows.push(...processNodeForKH(c, level+1, ws, ctx)));
+                    if (node.greatGrandchildren) Object.keys(node.greatGrandchildren).map(id=>({id,...node.greatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeForKH(c, level+1, ws, ctx)));
+                    if (node.greatGreatGrandchildren) Object.keys(node.greatGreatGrandchildren).map(id=>({id,...node.greatGreatGrandchildren[id]})).sort(sortN).forEach(c=>childRows.push(...processNodeForKH(c, level+1, ws, ctx)));
+
+                    // 3. Cấy Công thức mảng
+                    const addr = (col) => row.getCell(col).address;
+                    if (isContainer && childRows.length > 0) {
+                        const sumStr = (col) => `SUM(${childRows.map(r => ws.getRow(r).getCell(col).address).join(',')})`;
+                        row.getCell(4).value = { formula: sumStr(4) };   // Tổng Số lượng
+                        row.getCell(6).value = { formula: sumStr(6) };   // Tổng Chi phí TH
+                        row.getCell(7).value = { formula: sumStr(7) };   // Tổng Chi phí KH
+                        row.getCell(11).value = { formula: sumStr(11) }; // Tổng CP Phân bổ
+                        row.getCell(13).value = { formula: sumStr(13) }; // Tổng CP Cấp 1
+                    } else {
+                        // Lá: Tính Phân bổ và Cấp 1
+                        if (level >= 3) {
+                            row.getCell(11).value = { formula: `IF(ISNUMBER(${addr(10)}), IF(${addr(10)}>0, ${addr(7)}/${addr(10)}, 0), 0)` };
+                            row.getCell(13).value = { formula: `IF(${addr(12)}="1", ${addr(7)}, IF(${addr(12)}="6t", ${addr(7)}*0.5, 0))` };
+                        }
+                    }
+
+                    // 4. Style nền và Format số (#,##0)
+                    [4, 6, 7, 11, 13].forEach(c => row.getCell(c).numFmt = '#,##0');
+
+                    const colors = ['FFC5D9F1', 'FFE4DFEC', 'FFF2DCDB', 'FFEBF1DE', 'FFFFFFFF', 'FFFFE599'];
+                    const bgColor = colors[level] || 'FFFFFFFF'; 
+                    
+                    row.eachCell({ includeEmpty: true }, (cell) => {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                        if (level < 3) cell.font = { bold: true }; 
+                    });
+                    
+                    row.getCell(2).alignment = { wrapText: true, indent: level };
+                    row.outlineLevel = level; 
+
+                    return [rIdx];
+                };
+
+                btn.innerHTML = "⏳ Đang quét dữ liệu...";
+
+                // --- DUYỆT CÁC CSDL VÀ ÁP DỤNG SONG SONG 2 CHẾ ĐỘ ---
+                for (const item of window.activeDatabaseInstances) {
+                    const conf = item.config;
+                    
+                    const snap = await get(ref(item.dbObj, `congViecMe${year}`));
+                    if (!snap.exists()) continue;
+                    
+                    const sumSnap = await get(ref(item.dbObj, `summary_data/${year}`));
+                    const sumData = sumSnap.exists() ? sumSnap.val() : {};
+
+                    const parentsData = snap.val();
+                    const parents = Object.keys(parentsData).map(id=>({id,...parentsData[id]})).sort((a,b)=>a.id.localeCompare(b.id));
+                    
+                    parents.forEach(p => { 
+                        if(sumData[p.id]) {
+                            p.soLuong = sumData[p.id].totalLeafNodesCap1 || 0;
+                            p.tgBatDau = sumData[p.id].totalExecutedLeafNodesCap1 || 0; 
+                        }
+                    });
+
+                    // =========================================================
+                    // CHẾ ĐỘ 1: CHIA NHIỀU SHEET THEO DANH SÁCH splitSheetNames
+                    // =========================================================
+                    if (conf.splitSheetNames && Array.isArray(conf.splitSheetNames)) {
+                        for (let i = 0; i < parents.length; i++) {
+                            if (i >= conf.splitSheetNames.length) break; 
+                            
+                            const sheetName = conf.splitSheetNames[i];
+                            const ws = workbook.getWorksheet(sheetName);
+                            if (!ws) continue; 
+
+                            setupWorksheetHeadersKH(ws);
+                            const ctx = { rowIdx: 8 }; 
+                            processNodeForKH(parents[i], 0, ws, ctx);
+
+                            // Kẻ khung
+                            const rowCount = ws.rowCount;
+                            for (let r = 8; r <= rowCount; r++) {
+                                const row = ws.getRow(r);
+                                for (let c = 1; c <= 14; c++) {
+                                    const cell = row.getCell(c);
+                                    cell.border = {
+                                        top: { style: 'thin', color: { argb: 'FF000000' } },
+                                        left: { style: 'thin', color: { argb: 'FF000000' } },
+                                        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                                        right: { style: 'thin', color: { argb: 'FF000000' } }
+                                    };
+                                }
+                            }
+                        }
+                    } 
+                    
+                    // =========================================================
+                    // CHẾ ĐỘ 2: GỘP VÀO 1 SHEET CHUNG (ĐỘC LẬP VỚI CHẾ ĐỘ 1)
+                    // =========================================================
+                    if (conf.sheetName) {
+                        const ws = workbook.getWorksheet(conf.sheetName);
+                        if (ws) {
+                            setupWorksheetHeadersKH(ws);
+                            const ctx = { rowIdx: 8 };
+                            
+                            // Duyệt qua tất cả các Parent và nhét chung vào 1 sheet
+                            parents.forEach(p => {
+                                processNodeForKH(p, 0, ws, ctx);
+                            });
+
+                            // Kẻ khung
+                            const rowCount = ws.rowCount;
+                            for (let r = 8; r <= rowCount; r++) {
+                                const row = ws.getRow(r);
+                                for (let c = 1; c <= 14; c++) {
+                                    const cell = row.getCell(c);
+                                    cell.border = {
+                                        top: { style: 'thin', color: { argb: 'FF000000' } },
+                                        left: { style: 'thin', color: { argb: 'FF000000' } },
+                                        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                                        right: { style: 'thin', color: { argb: 'FF000000' } }
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+
+                btn.innerHTML = "⏳ Đang hoàn thiện File...";
+
+                // --- TÌM VÀ THAY THẾ CHUỖI "20xy" = NĂM ĐƯỢC CHỌN ---
+                workbook.eachSheet((sheet) => {
+                    sheet.eachRow((row) => {
+                        row.eachCell((cell) => {
+                            if (cell.type === ExcelJS.ValueType.String && cell.value && cell.value.includes('20xy')) {
+                                cell.value = cell.value.replace(/20xy/g, year);
+                            } else if (cell.type === ExcelJS.ValueType.RichText && cell.value && cell.value.richText) {
+                                let changed = false;
+                                cell.value.richText.forEach(rt => {
+                                    if (rt.text && rt.text.includes('20xy')) {
+                                        rt.text = rt.text.replace(/20xy/g, year);
+                                        changed = true;
+                                    }
+                                });
+                                if (changed) cell.value = { richText: cell.value.richText };
+                            }
+                        });
+                    });
+                });
+
+                // Ép Excel tự động tính toán lại
+                workbook.calcProperties = workbook.calcProperties || {};
+                workbook.calcProperties.fullCalcOnLoad = true;
+
+                // Xuất file
+                const outBuffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `KeHoach_ATCLMT_${year}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+            } catch (error) {
+                console.error(error);
+                alert("Lỗi xuất Kế hoạch: " + error.message);
+            } finally {
+                btn.innerHTML = originHtml;
+                btn.disabled = false;
+            }
+        };
+        
+	document.addEventListener('DOMContentLoaded', initializeSystem);
+    </script>
+    
+</body>
+</html>
+
+
